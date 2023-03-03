@@ -1,0 +1,132 @@
+---
+title: "Thermocouple Temp. Data"
+author: "Joe Celebrezze"
+date: "2023-03-03"
+output: html_document
+---
+
+Data cleaning prior to R: 
+- Delete first rows of thermocoupler data
+
+# Set-up
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# packages
+library(tidyverse)
+library(here)
+library(lubridate)
+
+# defining functions
+here = here::here
+
+# reading in data
+thermocoupler.df1 <- read.csv(here('data', 'thermocouplers', '20220720_FLAMM.csv'))
+thermocoupler.df2 <- read.csv(here('data', 'thermocouplers', '20220719_FLAMM.csv'))
+thermocoupler.df3 <- read.csv(here('data', 'thermocouplers', '20220713_FLAMM.csv')) # probably going to need to streamline this process a bit, but for now, leaving it be
+flam.df <- read.csv(here('data', 'thermocouplers', 'thermocoupler_visualization.csv'))
+```
+
+# Data Wrangling
+Thermocoupler data
+```{r}
+# Combining thermocoupler datasheets
+thermocoupler.df.list <- list(thermocoupler.df1, thermocoupler.df2, thermocoupler.df3)
+thermocoupler.df <- do.call('rbind', thermocoupler.df.list)
+
+# Getting temperature data in correct format
+for(i in 4:11){
+thermocoupler.df[,i] <- thermocoupler.df[,i] %>% 
+  str_replace(pattern = '\\+ ', replacement = ' ') %>% 
+  str_trim(side = c('left'))
+thermocoupler.df[,i] <- as.numeric(thermocoupler.df[,i])
+}
+thermocoupler.df <- na.omit(thermocoupler.df)
+
+# Splitting date and time into two columns
+thermocoupler.df <- thermocoupler.df %>% 
+  mutate(date = as.Date(Date.Time)) %>% 
+  mutate(time = format(as.POSIXct(Date.Time), format = "%H:%M:%S"))
+
+# Removing unncessary columns
+thermocoupler.df <- thermocoupler.df %>% 
+  select(date, time, ms, CH1, CH2, CH3, CH4, CH5, CH6)
+
+# Lengthening dataframe
+thermocoupler.df.long <- thermocoupler.df %>% 
+  pivot_longer(cols = starts_with("CH"),
+               names_to = 'thermo.id',
+               values_to = 'temp')
+```
+
+Flam data
+```{r}
+# All that needs to be done with the flam data is getting the date in the right format
+flam.df$date <- as.Date("7/20/22", "%m/%d/%y")
+flam.df <- flam.df %>% 
+  mutate(date = as_date(date))
+```
+
+# Calculating Max. Temp.
+```{r}
+flam.df <- flam.df %>% 
+  mutate(max_temp = NA) %>% 
+  mutate(time_at_max_temp = NA)
+thermocoupler.df.long <- thermocoupler.df.long %>% 
+  mutate(max_temp = NA)
+for(i in 1:nrow(flam.df)){
+  df <- thermocoupler.df.long %>% 
+    filter(date == flam.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flam.df$start_time[i] & time <= flam.df$time_of_glow_end[i]) #again, index row, select columns
+  flam.df$max_temp[i] <- max(df$temp)
+  df$max_temp <- case_when(df$temp == flam.df$max_temp[i] ~ 'yes')
+  df.mt <- df %>% 
+    filter(max_temp == 'yes')
+  flam.df$time_at_max_temp[i] <- df.mt$time[1]
+}
+```
+
+
+# Visualization
+```{r}
+plot.list <- list()
+for(i in 1:nrow(flam.df)){
+  plot.id <- paste0('thermocoupler_vis_', flam.df$species[i], '_', flam.df$plant[i], '_', flam.df$rep[i])
+  title.id <- paste0(flam.df$species[i], '_', flam.df$plant[i], '_', flam.df$rep[i])
+  df <- thermocoupler.df.long %>% 
+    filter(date == flam.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flam.df$start_time[i] & time <= flam.df$time_of_glow_end[i]) #again, index row, select columns for start time and end time
+  plot <- ggplot(data = df, aes(x = time, y = temp, color = thermo.id)) +
+    geom_point(size = 1) +
+    # max flame height
+    geom_vline(xintercept = flam.df$time_of_max_flame_height[i], linewidth = 1, alpha = 0.4) + #index row, select column for time for max flame height
+    annotate('text', label = 'Max. Flame Height', x = flam.df$time_of_max_flame_height[i], y = 255, fontface = 'bold') +
+    # max temp
+    geom_vline(xintercept = flam.df$time_at_max_temp[i], linewidth = 1, alpha = 0.4) + #index row, select column for time for max temp
+    annotate('text', label = 'Max. Temp.', x = flam.df$time_at_max_temp[i], y = 245, fontface = 'bold') +
+    theme_bw() +
+    labs(x = "Time", y = "Temperature (C)", color = "Thermocoupler ID", title = title.id) +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+  assign(x = plot.id, value = plot)
+  plot.list[[i]] <- plot
+}
+```
+
+Plots
+```{r}
+plot.list[[1]]
+plot.list[[2]]
+plot.list[[3]]
+plot.list[[4]]
+plot.list[[5]]
+plot.list[[6]]
+plot.list[[7]]
+plot.list[[8]]
+plot.list[[9]]
+plot.list[[10]]
+```
+
