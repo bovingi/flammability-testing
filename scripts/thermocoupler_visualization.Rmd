@@ -62,22 +62,22 @@ thermocoupler.df.long <- thermocoupler.df %>%
 Flam data
 ```{r}
 # All that needs to be done with the flam data is getting the date in the right format
-flam.df$date <- as.Date("7/20/22", "%m/%d/%y")
 flam.df <- flam.df %>% 
-  mutate(date = as_date(date))
+  mutate(date = as.Date(date, "%m/%d/%y"))
 ```
 
 # Calculating Max. Temp.
 ```{r}
 flam.df <- flam.df %>% 
   mutate(max_temp = NA) %>% 
-  mutate(time_at_max_temp = NA)
+  mutate(time_at_max_temp = NA) %>%  
+  mutate(primary_time_of_flame_end = secondary_time_of_flame_end) # NOTE: The dataset needs to be fixed, but for now, just including this line of code for a 'quick fix', delete later!
 thermocoupler.df.long <- thermocoupler.df.long %>% 
-  mutate(max_temp = NA)
+  mutate(max_temp = NA) 
 for(i in 1:nrow(flam.df)){
   df <- thermocoupler.df.long %>% 
     filter(date == flam.df$date[i]) %>%  #index row, select column for date
-    filter(time >= flam.df$start_time[i] & time <= flam.df$time_of_glow_end[i]) #again, index row, select columns
+    filter(time >= flam.df$primary_ignition[i] & time <= flam.df$primary_time_of_flame_end[i]) #again, index row, select columns
   flam.df$max_temp[i] <- max(df$temp)
   df$max_temp <- case_when(df$temp == flam.df$max_temp[i] ~ 'yes')
   df.mt <- df %>% 
@@ -85,7 +85,6 @@ for(i in 1:nrow(flam.df)){
   flam.df$time_at_max_temp[i] <- df.mt$time[1]
 }
 ```
-
 
 # Visualization
 ```{r}
@@ -128,5 +127,22 @@ plot.list[[7]]
 plot.list[[8]]
 plot.list[[9]]
 plot.list[[10]]
+```
+
+HETARB shows very low temperatures for 4/6 thermocouples. What is going on?
+```{r}
+thermocoupler.df.long %>% 
+    ggplot(aes(x = time, y = temp, color = thermo.id)) +
+      geom_point(size = 0.4) +
+      theme_bw() +
+      labs(x = "Time", y = "Temperature (C)", color = "Thermocoupler ID",
+           title = "Differences Between Dates") +
+      facet_wrap(~date, ncol = 1) +
+      theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
 ```
 
