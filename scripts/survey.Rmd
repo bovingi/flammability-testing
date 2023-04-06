@@ -1,0 +1,489 @@
+---
+title: "Wonderlabs"
+author: "Indra Boving"
+date: "11/24/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(janitor)
+library(here)
+library(tidyverse)
+library(kableExtra)
+library(HH)
+library(likert)
+library(cowplot)
+```
+
+```{r, warning = FALSE}
+data <- read_csv(here("data", "wonderlabs.csv"), show_col_types = FALSE) %>% 
+  clean_names() %>% 
+  filter(response_type != "Survey Preview") %>% 
+  dplyr::select(-progress, -finished, -distribution_channel) %>% 
+  separate(control, c("rent_own", "control"), sep = ",") %>% 
+  separate(maintenance, c("maint1", "maint2", "maint3", "maint4", "maint5"), sep = ",") %>% 
+  separate(time_30mins, c("time1", "time2"), sep = ",") %>% 
+  mutate(birthyear = case_when(
+    birthyear == "12/31/54" ~ 1954, 
+    TRUE ~ as.numeric(birthyear))) %>% 
+  mutate(income = as.numeric(income)) %>% 
+  mutate(age = 2021 - birthyear) 
+
+unique(data$age)
+unique(data$rent_own)
+```
+
+```{r, warning = FALSE}
+demographics <- data %>% 
+  dplyr::select(response_id, user_language, rent_own, control, birthyear, gender, race, language, income, age, time1)
+```
+
+
+```{r}
+income <- demographics %>% 
+  drop_na(income) %>% 
+  summarise(mean = mean(income), 
+            median = median(income), 
+            range = range(income))
+income
+
+race<- demographics %>% 
+  drop_na(race) %>% 
+  tabyl(race)
+race
+```
+
+### What percent of respondents own vs rent their home? 
+```{r}
+renters_counts <- demographics %>% 
+  drop_na(rent_own, control) %>% 
+  tabyl(rent_own, control)
+renters_counts
+
+renters_counts_props <- renters_counts %>% 
+  adorn_percentages() %>% 
+  adorn_pct_formatting(digits = 2) %>% 
+  adorn_ns()
+renters_counts_props
+
+kable(renters_counts_props) %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+```
+### What language do responndents speak?
+```{r, include = FALSE}
+language_counts <- demographics %>% 
+  drop_na(language) %>% 
+  tabyl(language)
+language_counts
+```
+
+### How old are they?
+```{r}
+age_table <- demographics %>% 
+  drop_na(age) %>% 
+  filter(age > 0) %>% 
+  summarise(mean = mean(age), 
+            range = range(age), 
+            median = median(age))
+age_table
+```
+```{r}
+gender_table <- demographics %>% 
+  drop_na(gender) %>% 
+  tabyl(gender)
+gender_table
+```
+
+
+--------------------------------------------------------------------
+
+# Ecosystem services: 
+
+```{r}
+es_data_id <- data %>% 
+  #dplyr::select(3, 5:28) %>%  #includes response ID
+  dplyr::select(3, 5:28) %>% 
+  drop_na %>% 
+  #as.data.frame() %>% 
+  mutate_all(funs(str_replace(., "No Importance", "1"))) %>% 
+  mutate_all(funs(str_replace(., "Low Importance", "2"))) %>% 
+  mutate_all(funs(str_replace(., "Medium Importance", "3"))) %>% 
+  mutate_all(funs(str_replace(., "Very High Importance", "5"))) %>%   mutate_all(funs(str_replace(., "High Importance", "4"))) %>%  
+  mutate_at((2:25), as.numeric) %>% 
+  pivot_longer(!response_id, names_to = "item", values_to = "count") %>% 
+  mutate(category = case_when(
+    item == "food_or_home_garden" ~ "provisioning",
+    item == "commercial_agriculture" ~ "provisioning",
+    item == "medicinal" ~ "provisioning",
+    item == "edible_wild_plants" ~ "provisioning",
+    item == "food_or_habitat_for_wild_animals" ~ "provisioning",
+    item == "food_or_space_for_pet_animals" ~ "provisioning",
+    item == "air_quality_control" ~ "regulating",
+    item == "air_quality_control" ~ "regulating",
+    item == "erosion_control" ~ "regulating",
+    item == "pollination" ~ "regulating",
+    item == "cooling_provides_shade" ~ "regulating",
+    item == "soil_fertility_control" ~ "regulating",
+    item == "waste_treatment" ~ "regulating",
+    item == "protect_or_shield_my_home_from_wildfire" ~ "regulating",
+    item == "place_for_private_recreation_physical_activity" ~ "cultural",
+    item == "place_for_socializationl" ~ "cultural",
+    item == "privacy" ~ "cultural",
+    item == "religious_or_spiritual" ~ "cultural",
+    item == "beauty" ~ "cultural",
+    item == "firewood" ~ "provisioning",
+    item == "sense_of_place" ~ "cultural",
+    item == "tranquility_mental_health" ~ "cultural",
+    item == "inspiration_for_art_design" ~ "cultural",
+    item == "observing_the_natural_world" ~ "cultural",
+    item == "block_or_deter_entry_from_my_home_or_property" ~ "cultural", 
+item == "place_for_socialization" ~ "cultural")) %>% 
+  mutate(category_n = case_when(
+    category == "provisioning" ~ 8, 
+    category == "cultural" ~ 11,
+    category == "regulating" ~ 8))
+
+
+#summary table: 
+totals_by_id <- es_data_id %>% 
+  group_by(response_id, category) %>% 
+  mutate(sum_category = sum(count)) %>% 
+  mutate(score = sum_category/category_n) %>%
+ungroup() %>%
+group_by(category) %>%
+mutate(mean_score = mean(score)) %>% 
+ungroup() %>% 
+group_by(item) %>% 
+mutate(sum_item = sum(count)) %>% 
+add_tally() %>% 
+mutate(score_item = sum_item/n) %>% 
+mutate(mean_score_item = mean(score_item))
+```
+
+# ES and maintainance: 
+
+```{r, warning = FALSE}
+maintainance_1 <- data %>% 
+  dplyr::select(response_id, maint1, maint2, maint3, trait, writein_trait, rent_own, control, time1) %>% 
+  drop_na(maint1)
+```
+
+```{r}
+maintainance <- merge(totals_by_id, maintainance_1, by = "response_id")  
+```
+
+```{r}
+maintainance %>% 
+  #filter(category == "cultural") %>% 
+  group_by(time1, item) %>% 
+  mutate(mean_score_item_time1 = mean(score_item)) %>% 
+  ggplot(aes(y = mean_score_item_time1, x = time1, fill = item)) +
+  geom_col(position = "dodge") +
+  facet_wrap(~category, nrow = 3) +
+  labs(y = "Score", x = "Importance") +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+maintainance %>%
+  group_by(time1, category) %>% 
+  mutate(mean_score_time = mean(score)) %>% 
+ggplot(aes(y = mean_score_time, x = time1, fill = category)) +
+  geom_col(position = "dodge") +
+  theme_bw() +
+  scale_fill_brewer(palette = "YlOrRd") +
+  labs(y = "Score", x = "Importance") +
+  theme(legend.position = "bottom", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+maintainance %>%
+  ungroup() %>% 
+  mutate(trait_names = case_when(
+    trait == "Produces food or edibles" ~ "Edible", 
+    trait == "Fragrant (smells good)" ~ "Fragrant", 
+    trait == "Requires little watering to stay healthy" ~ "Drought tolorant", 
+    trait  == "Flowers" ~ "Flowers", 
+    writein_trait %in% c("wildlife value and screening", "wildlife habitat", "all of the above, especially wildlife food", "good for honey bees & Humming birds", "Hosts birds, provides shade","Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.") ~ "Wildlife", 
+    writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Flowers", 
+    writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Drought tolorant"
+  )) %>% 
+  group_by(item, trait) %>% 
+  mutate(mean_score_trait = mean(score)) %>% 
+  filter(trait != "Other:") %>% 
+  drop_na(item) %>% 
+ggplot(aes(y = mean_score_trait, x = trait_names)) +
+  geom_col(position = "dodge") +
+  theme_bw() +
+  scale_fill_viridis_d() +
+  labs(y = "Score", x = "Trait") +
+  theme(legend.position = "bottom") +
+  facet_wrap(~category)
+```
+
+-----------------------------------------------------------------
+
+```{r}
+plants <- data %>% 
+  dplyr::select(response_id, trait, writein_trait, time1) %>% 
+ mutate(trait_names = case_when(
+    trait == "Produces food or edibles" ~ "Edible", 
+    trait == "Fragrant (smells good)" ~ "Fragrant", 
+    trait == "Requires little watering to stay healthy" ~ "Drought tolorant", 
+    trait  == "Flowers" ~ "Flowers", 
+    writein_trait %in% c("wildlife value and screening", "wildlife habitat", "all of the above, especially wildlife food", "good for honey bees & Humming birds", "Hosts birds, provides shade","Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.") ~ "Wildlife habitat", 
+    writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Flowers", 
+    writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Drought tolorant"
+  )) %>% 
+  drop_na(trait_names)
+```
+
+```{r}
+plants %>% 
+  ggplot(aes(x = trait_names, fill = trait_names)) +
+  geom_bar() +
+  labs(y = "Count", 
+       x = "Trait",
+       fill = "Trait") +
+  scale_fill_brewer(palette = "PuBuGn", 
+                    ) +
+  theme_bw()
+```
+
+-----------------------------------------------------------------
+```{r}
+es_data <- data %>% 
+  #select(3, 5:28) %>%  #includes response ID
+  dplyr::select(5:28) %>% 
+  drop_na()
+
+options(digits = 2)
+
+make_p_tab <- function(x) {
+  es_data %>% 
+    drop_na() %>% 
+  dplyr::select(x) %>% 
+  tabyl(x)
+}
+
+to_do <- colnames(es_data)
+
+dt_list <- map(to_do, make_p_tab)
+
+mergeDTs <- function(dt_list, by = NULL, sort = FALSE) {
+  Reduce(
+    function(...) {
+      merge(..., by = by, all = TRUE, sort = sort)
+    }, dt_list)
+}
+
+#mergeDTs(dt_list)
+```
+
+## Use likert() to transform dataframe
+
+```{r}
+es_data <- data %>% 
+  #dplyr::select(3, 5:28) %>%  #includes response ID
+  dplyr::select(5:28) %>% 
+  drop_na %>% 
+  as.data.frame() %>% 
+  mutate_if(is.character, as.factor)
+
+class(es_data$medicinal)
+
+str(es_data)
+
+#diagnose(es_data)
+
+mylevels <- c('No Importance', 'Low Importance', 'Medium Importance', 'High Importance', 'Very High Importance')
+
+for(i in seq_along(es_data)) {
+	es_data[,i] <- factor(es_data[,i], levels=mylevels)
+}
+
+sapply(es_data, class) #Verify that all the columns are indeed factors
+sapply(es_data, function(x) { length(levels(x)) } ) # The number of levels in each factor
+
+summary <- summary(es_data)
+
+es_likert <- likert::likert(es_data)
+
+es_likert_counts <- summary(es_likert)
+
+plot(es_likert)
+
+likert.heat.plot(es_likert)
+
+likert(es_likert)
+```
+
+
+```{r}
+#compare different service types: 
+es_likert_df <- as.data.frame(es_likert$results)
+
+es_likert_df <- es_likert_df %>% 
+  mutate(category = case_when(
+    Item == "food_or_home_garden" ~ "provisioning",
+    Item == "commercial_agriculture" ~ "provisioning",
+    Item == "medicinal" ~ "provisioning",
+    Item == "edible_wild_plants" ~ "provisioning",
+    Item == "food_or_habitat_for_wild_animals" ~ "provisioning",
+    Item == "food_or_space_for_pet_animals" ~ "provisioning",
+    Item == "air_quality_control" ~ "regulating",
+    Item == "air_quality_control" ~ "regulating",
+    Item == "erosion_control" ~ "regulating",
+    Item == "pollination" ~ "regulating",
+    Item == "cooling_provides_shade" ~ "regulating",
+    Item == "soil_fertility_control" ~ "regulating",
+    Item == "waste_treatment" ~ "regulating",
+    Item == "protect_or_shield_my_home_from_wildfire" ~ "regulating",
+    Item == "place_for_private_recreation_physical_activity" ~ "cultural",
+    Item == "place_for_socializationl" ~ "cultural",
+    Item == "privacy" ~ "cultural",
+    Item == "religious_or_spiritual" ~ "cultural",
+    Item == "beauty" ~ "cultural",
+    Item == "firewood" ~ "provisioning",
+    Item == "sense_of_place" ~ "cultural",
+    Item == "tranquility_mental_health" ~ "cultural",
+    Item == "inspiration_for_art_design" ~ "cultural",
+    Item == "observing_the_natural_world" ~ "cultural",
+    Item == "block_or_deter_entry_from_my_home_or_property" ~ "cultural", 
+Item == "place_for_socialization" ~ "cultural"))
+
+  
+es_likert_cat <- merge(es_likert_counts, es_likert_df) %>% 
+  rename(low_percent = low, 
+         neut_percent = neutral,
+         high_percent = high, 
+         mean_value = mean)
+
+```
+
+```{r}
+melted <- reshape::melt(es_likert_df) %>% 
+  mutate(item_title = str_replace_all(Item, "_", " ")) %>% 
+  mutate(item_title = str_to_title(item_title))
+```
+
+```{r}
+melted %>% 
+  filter(Item == "protect_or_shield_my_home_from_wildfire") %>% 
+  filter(variable == "Very High Importance" | 
+           variable == "High Importance") %>% 
+  mutate(importance_prop = sum(value))
+```
+
+```{r}
+melted %>% 
+ggplot(aes(x = variable, y = value, fill = category)) +
+         geom_col() +
+  theme_bw() +
+  scale_fill_brewer(palette = "PuBuGn") +
+  labs(y = "Cumulative Percentage", x = "Importance") +
+  theme(legend.position = "none", 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+```{r}
+melted_means <- es_likert_cat %>% 
+  dplyr::select(category, mean_value) %>% 
+  reshape::melt()
+
+melted_means %>% 
+  ggplot(aes(y = value, x = category)) +
+  #geom_point(aes(color = category))+
+  # geom_boxplot(fill = NA, width = 0.2, outlier.color = NA, aes(color = category)) +
+  geom_boxplot(aes(fill = category)) +
+  scale_fill_brewer(palette="PuBuGn") +
+  theme(legend.position ="none") +
+  theme_bw() +
+  labs(y = "Combined Score (1-5)", 
+       x = "Category", 
+       title = "Importance of ES Categories")
+```
+
+```{r}
+melted_provisioning <- melted %>% 
+  filter(category == "provisioning")
+# %>% 
+#   group_by(Item) %>% 
+#   filter(variable == "Very High Importance") %>% 
+#   mutate(max_value = max(value))
+# 
+# new <- merge(melted, melted_provisioning)
+
+provisioning <- ggplot()+
+  geom_bar(data = melted_provisioning, aes(x = item_title, y=value, fill=variable), position="stack", stat="identity", show.legend = FALSE)+
+  coord_flip() + 
+  ggtitle("Provisioning")+
+  ylab("Percentage")+
+  xlab("Type")+
+  scale_fill_brewer(palette="YlOrRd") +
+  theme(legend.title = element_blank()) +
+  theme_bw()
+```
+
+```{r}
+melted_cult <- melted %>% 
+  filter(category == "cultural")
+
+cultural <- ggplot()+
+  geom_bar(data = melted_cult, aes(x = item_title, y= value, fill= variable), position="stack", stat="identity", show.legend = FALSE)+
+  coord_flip() + 
+  ggtitle("Cultural")+
+  ylab("Percentage")+
+  xlab("Type")+
+  scale_fill_brewer(palette="YlOrRd") +
+  theme(legend.title = element_blank()) +
+  theme_bw()
+cultural
+```
+
+```{r}
+melted_reg <- melted %>% 
+  filter(category == "regulating")
+
+regulating <- ggplot() +
+  geom_bar(data = melted_reg, aes(x = item_title, y=value, fill= variable), position="stack", stat="identity")+
+  coord_flip() + 
+  ggtitle("Regulating")+
+  ylab("Percentage")+
+  xlab("Type")+
+  scale_fill_brewer(palette="YlOrRd") +
+  theme(legend.position="bottom") +
+  theme()
+regulating
+```
+
+```{r}
+melted <- melted %>% 
+  mutate(Item = reorder(Item, category)) %>% 
+  mutate(Item = reorder(Item, value))
+
+ggplot()+
+  geom_bar(data = melted, aes(x = item_title, y = value, fill= variable), position="stack", stat="identity")+
+  coord_flip() + 
+  #ggtitle("Cultural")+
+  ylab("Percent")+
+  xlab("Service")+
+  scale_fill_brewer(palette="YlOrRd") +
+  theme(legend.position = "bottom") +
+  theme_bw() +
+  facet_wrap(~category, nrow = 3, scales = "free")
+```
+
+```{r}
+all <- # Create Flow timeseries plot that spans the grid by making one plot_grid
+#   and then nest it inside of a second. Also, include a title at the top
+#   for the whole figure.
+  
+title <- ggdraw() + draw_label("ES Categories and Valuation", fontface='bold')
+
+plot_grid(provisioning, cultural, regulating, nrow = 4, c("", "", ""),  rel_heights = c(1, 1, 1))
+
+```
+
