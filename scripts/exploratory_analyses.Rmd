@@ -1,0 +1,147 @@
+---
+title: "Exploratory Analyses"
+author: "Joe Celebrezze"
+date: "2023-03-30"
+output: html_document
+---
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# packages
+library(tidyverse)
+library(here)
+library(lubridate)
+library(ggfortify)
+
+# defining functions
+here = here::here
+
+# reading in data
+flamm.df <- read.csv(here('data', 'processed-data', 'clean_flamm_data.csv'))
+```
+
+# Summary Boxplots
+## Plant Traits
+```{r}
+traits.df.long <- flamm.df %>% 
+  select(date, species, plant, rep, branch_length, branch_width,
+         branch_height, total_branch_mass, branching, mpa) %>% 
+  mutate(total_branch_mass = as.numeric(total_branch_mass)) %>% 
+  filter(branch_height < 100) %>% 
+  pivot_longer(!c(date, species, plant, rep), names_to = 'trait', values_to = 'value')
+
+ggplot(traits.df.long, aes(x = species, y = value, color = species)) +
+  geom_boxplot() +
+  labs(x = "Species", y = "Trait Value") +
+  facet_wrap(~trait, ncol = 2, scales = 'free_y') +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(face = 'bold', size = 16),
+        axis.text.x = element_text(angle = 15))
+
+ggsave(here('figures', 'plant.traits.exploratory.boxplot.jpg'), height = 10, width = 16)
+```
+
+## Flammability Metrics
+```{r}
+flamm.df.long <- flamm.df %>% 
+  select(date, species, plant, rep, mpa, total_branch_mass, fh, fd, tti, pfg, gd, gti, ttfg, max_temp, max_heat_flux, max_heat_flux_loessCH7, max_heat_flux_loessCH8) %>% 
+  pivot_longer(!c(date, species, plant, rep, mpa, total_branch_mass), names_to = 'trait', values_to = 'value') %>% 
+  mutate(species = factor(species, levels = c('QUEAGR', 'CEAGRI', 'SALAPI', 'MALLAU', 'EUCGLO', 'SALLEU', 'ERIKAR', 'HETARB')))
+
+flamm.df.long %>% 
+ggplot(aes(x = species, y = value, color = species)) +
+  geom_boxplot() +
+  labs(x = "Species", y = "Trait Value") +
+  facet_wrap(~trait, ncol = 4, scales = 'free_y') +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(face = 'bold', size = 16),
+        axis.text.x = element_text(angle = 15))
+
+ggsave(here('figures', 'flamm.metrics.exploratory.boxplot.jpg'), height = 12, width = 20)
+```
+
+# Scatterplots
+## Vs. Water Content
+```{r}
+flamm.df.long %>% 
+  filter(trait %in% c('fd', 'fh', 'max_heat_flux', 'max_heat_flux_loessCH7', 'max_heat_flux_loessCH8', 'max_temp', 'pfg', 'tti')) %>% 
+  filter(species %in% c('CEAGRI', 'MALLAU', 'SALLEU', 'QUEAGR')) %>% 
+  ggplot(aes(x = mpa, y = value, color = species)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  geom_smooth(method = 'lm', linewidth = 1, alpha = 0.8, se = F) +
+  labs(x = 'Water Potential (MPa)', y = 'Flamm. Metric Value', color = 'Species')  +
+  facet_wrap(~trait, ncol = 4, scales = 'free_y') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        strip.text = element_text(face = 'bold', size = 16))
+
+ggsave(here('figures', 'flamm.metrics.vs.mpa.exploratory.jpg'), height = 12, width = 20)
+```
+
+## Vs. Sample Weight
+```{r}
+flamm.df.long %>% 
+  filter(trait %in% c('fd', 'fh', 'max_heat_flux', 'max_heat_flux_loessCH7', 'max_heat_flux_loessCH8', 'max_temp', 'pfg', 'tti')) %>% 
+  filter(species %in% c('CEAGRI', 'MALLAU', 'SALLEU', 'QUEAGR')) %>% 
+ggplot(aes(x = total_branch_mass, y = value, color = species)) +
+  geom_point(alpha = 0.6, size = 1.5) +
+  geom_smooth(method = 'lm', linewidth = 1, alpha = 0.8, se = F) +
+  labs(x = 'Sample Weight (g)', y = 'Flamm. Metric Value', color = 'Species')  +
+  facet_wrap(~trait, ncol = 4, scales = 'free_y') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        strip.text = element_text(face = 'bold', size = 16))
+
+ggsave(here('figures', 'flamm.metrics.vs.sample.wt.exploratory.jpg'), height = 12, width = 20)
+```
+
+# Proportion Ignited
+Note: this pipeline should serve us well when we have all data in the correct format. Since not all data is in clocktime at the moment, we only have a subset of data to work with; however, prop. ig. is very easy to calculate, so in the chunk following this one, I inputted it manually so we can visualize it for the 4/11/23 meeting
+```{r}
+flamm.df.prop.ig1 <- flamm.df %>% 
+  group_by(species) %>%
+  summarise(n = n()) %>% 
+  ungroup() 
+  
+flamm.df.prop.ig2 <- flamm.df %>% 
+  filter(ignition %in% c('M', '0')) %>% 
+  group_by(species) %>% 
+  summarise(manual_or_nonignitions = n()) %>% 
+  select(manual_or_nonignitions)
+
+flamm.df.prop.ig <- cbind(flamm.df.prop.ig1, flamm.df.prop.ig2) %>% 
+  mutate(prop.ig = (n-manual_or_nonignitions)/n)
+
+rm(flamm.df.prop.ig1, flamm.df.prop.ig2)
+```
+
+```{r}
+spp <- factor(c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'), levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))
+prop.ig <- c(0.414, 0.348, 0.1935, 0.1428, 0.077, 0.045, 0.037, 0, 0, 0)
+n <- c(29, 68, 32, 57, 39, 23, 59, 12, 37, 9)
+
+temp.prop.ig <- data.frame(spp, prop.ig, n)
+
+ggplot(temp.prop.ig, aes(x = spp, y = prop.ig, color = spp)) +
+  scale_y_continuous(limits = c(0,1)) +
+  geom_point(size = 6) +
+  geom_text(aes(label = n, x = spp, y = prop.ig + 0.1)) +
+  labs(x = ' ', y = 'Proportion Ignited') +
+  theme_bw() + 
+  theme(legend.position = 'none')
+```
+
