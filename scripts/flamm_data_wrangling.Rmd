@@ -19,14 +19,14 @@ library(hms)
 here = here::here
 
 # reading in data
-thermocoupler.files <- list.files(here('data', 'thermocouplers', 'raw-data'))
+thermocoupler.files <- list.files(here('data', 'raw-data', 'thermocouplers'))
 thermocoupler.df.list <- list()
 for(i in 1:length(thermocoupler.files)){
-  df <- read.csv(here('data', 'thermocouplers', 'raw-data', thermocoupler.files[[i]]))
+  df <- read.csv(here('data', 'raw-data', 'thermocouplers', thermocoupler.files[[i]]))
   thermocoupler.df.list[[i]] <- df
 }
 
-flam.df <- read.csv(here('data', 'burn_samples_flamm.csv'))
+flam.df <- read.csv(here('data', 'raw-data', 'flamm', 'burn_samples_flamm.csv'))
 ```
 
 # Data Wrangling
@@ -338,3 +338,7 @@ flam.df <- flam.df %>%
   select(-X)
 ```
 
+# Saving .csv
+```{r}
+write_csv(flam.df, here('data', 'processed-data', 'clean_flamm_data.csv'))
+```
