@@ -19,7 +19,7 @@ library(here)
 ## Leaf Data
 ```{r}
 # load in data
-leaf_data <- read_csv(here('raw-data', 'plant-traits', 'leaf_data_flamm.csv')) %>%
+leaf_data <- read_csv(here('data', 'raw-data', 'plant-traits', 'leaf_data_flamm.csv')) %>%
   clean_names() %>%
   slice_head(n = 467) %>%
   select(-x12)
@@ -31,7 +31,7 @@ glimpse(leaf_data)
 ## Leaf Area
 ```{r}
 # load in data
-leaf_area <- read_csv(here('raw-data', 'plant-traits', 'leaf_area_flamm.csv')) %>%
+leaf_area <- read_csv(here('data', 'raw-data', 'plant-traits', 'leaf_area_flamm.csv')) %>%
   clean_names() %>%
   slice_head(n = 314) %>%
   select(-c(x_1, x30, x31))
@@ -43,7 +43,7 @@ glimpse(leaf_area)
 ## Stem-Leaf Ratio
 ```{r}
 # load in data
-stem_leaf_ratio <- read_csv(here('raw-data', 'plant-traits', 'stemleaf_massratio_flamm.csv')) %>%
+stem_leaf_ratio <- read_csv(here('data', 'raw-data', 'plant-traits', 'stemleaf_massratio_flamm.csv')) %>%
   clean_names() %>%
   slice_head(n = 92) %>%
   select(-c(x10, x11, x12))
@@ -55,7 +55,7 @@ glimpse(stem_leaf_ratio)
 ## Stem Data
 ```{r}
 # load in data
-stem_data <- read_csv(here('raw-data', 'plant-traits', 'stem_data_flamm.csv')) %>%
+stem_data <- read_csv(here('data', 'raw-data', 'plant-traits', 'stem_data_flamm.csv')) %>%
   clean_names() %>%
   slice_head(n = 371) 
 
@@ -66,7 +66,7 @@ glimpse(stem_data)
 # Calculating LFM
 First, getting cup weights data
 ```{r}
-cup_weights_data <- read_csv(here('raw-data', 'plant-traits', 'cup_weights.csv')) %>% 
+cup_weights_data <- read_csv(here('data', 'raw-data', 'plant-traits', 'cup_weights.csv')) %>% 
   slice_head(n = 82)  %>% 
   rename(cup_mass = mass)
 

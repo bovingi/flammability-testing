@@ -167,56 +167,10 @@ rm(df) # Decluttering environment by removing temporary dataframe from above for
 ```
 
 ### Calculating Heat Flux
-#### Optimization Routine
-Since maximum heat flux is going to be determined using Loess regressions, this optimization routine selects the optimal smoothing span to use when looking at heat flux over time
-```{r, warning = FALSE}
-flam.df.sample <- sample_n(flam.df.no.Inf, 50)
-
-CH7results <- data.frame(matrix(NA,    # Create empty data frame
-                          nrow = 50,
-                          ncol = 8))
-colnames(CH7results) <- colnames(best)
-
-CH8results <- data.frame(matrix(NA,    # Create empty data frame
-                          nrow = 50,
-                          ncol = 8))
-colnames(CH8results) <- colnames(best)
-
-ctrl <- trainControl(method = "cv", number = 5)
-grid <- expand.grid(span = seq(0.01, 0.5, len = 50), degree = 1)
-
-for(i in 1:length(flam.df.sample)){
-  df <- heatflux.df %>% 
-    filter(date == flam.df.sample$date[i]) %>%  #index row, select column for date
-    filter(time >= flam.df.sample$start_time[i] & time <= flam.df.sample$time_of_glow_end[i]) %>% 
-    mutate(time = as.numeric(time))
-  
-  CH7model <- train(CH7 ~ time, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
-  
-  CH8model <- train(CH8 ~ time, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
-
-  ch7.res <- as.data.frame(CH7model$results)
-  ch7.best <- ch7.res[which.min(ch7.res$RMSE),]
-  CH7results[i,] <- ch7.best
-  
-  ch8.res <- as.data.frame(CH8model$results)
-  ch8.best <- ch8.res[which.min(ch8.res$RMSE),]
-  CH8results[i,] <- ch8.best
-}
-
-CH7results <- na.omit(CH7results)
-mean(CH7results$span) # 0.0691
-
-CH8results <- na.omit(CH8results)
-mean(CH8results$span) # 0.0337
-
-rm(df, ch7.res, ch7.best, ch8.res, ch8.best) # Decluttering environment by removing temporary dataframes from above for loop
-```
-
 #### Max. Heat Flux
 Still deciding on what to use here... top sensor, side sensor, avg of both?
 
-Raw values
+Raw data
 ```{r, warning = F}
 flam.df <- flam.df %>% 
   mutate(max_heat_flux = NA) %>% 
@@ -239,7 +193,7 @@ flam.df <- flam.df %>%
 rm(df, df.mhf) # Decluttering environment by removing temporary dataframes from above for loop
 ```
 
-Using Loess Regressions
+Loess regressions
 ```{r}
 flam.df <- flam.df %>% 
   mutate(max_heat_flux_loessCH7 = NA) %>% 
@@ -303,6 +257,52 @@ for(i in 1:nrow(flam.df)){
   flam.df$avg_fd_heat_flux[i] <- df$avg_fd_heat_flux
 }
 rm(df) # Decluttering environment by removing temporary dataframe from above for loop
+```
+
+#### Optimization Routine
+Since maximum heat flux is going to be determined using Loess regressions, this optimization routine selects the optimal smoothing span to use when looking at heat flux over time
+```{r, warning = FALSE}
+flam.df.sample <- sample_n(flam.df.no.Inf, 50)
+
+CH7results <- data.frame(matrix(NA,    # Create empty data frame
+                          nrow = 50,
+                          ncol = 8))
+colnames(CH7results) <- colnames(best)
+
+CH8results <- data.frame(matrix(NA,    # Create empty data frame
+                          nrow = 50,
+                          ncol = 8))
+colnames(CH8results) <- colnames(best)
+
+ctrl <- trainControl(method = "cv", number = 5)
+grid <- expand.grid(span = seq(0.01, 0.5, len = 50), degree = 1)
+
+for(i in 1:length(flam.df.sample)){
+  df <- heatflux.df %>% 
+    filter(date == flam.df.sample$date[i]) %>%  #index row, select column for date
+    filter(time >= flam.df.sample$start_time[i] & time <= flam.df.sample$time_of_glow_end[i]) %>% 
+    mutate(time = as.numeric(time))
+  
+  CH7model <- train(CH7 ~ time, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
+  
+  CH8model <- train(CH8 ~ time, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
+
+  ch7.res <- as.data.frame(CH7model$results)
+  ch7.best <- ch7.res[which.min(ch7.res$RMSE),]
+  CH7results[i,] <- ch7.best
+  
+  ch8.res <- as.data.frame(CH8model$results)
+  ch8.best <- ch8.res[which.min(ch8.res$RMSE),]
+  CH8results[i,] <- ch8.best
+}
+
+CH7results <- na.omit(CH7results)
+mean(CH7results$span) # 0.0691
+
+CH8results <- na.omit(CH8results)
+mean(CH8results$span) # 0.0337
+
+rm(df, ch7.res, ch7.best, ch8.res, ch8.best) # Decluttering environment by removing temporary dataframes from above for loop
 ```
 
 ### Proportion Ignited
