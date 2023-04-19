@@ -185,7 +185,26 @@ leaf_stem_v2_df <- merge(stem_leaf_ratio_clean, leaf_stem_df, by = c('species', 
 
 - Adding leaf area
 ```{r}
+# Adding NA values for HETARB P10-12
+species <- c(rep('HETARB', 3))
+plant <- c('P10', 'P11', 'P12')
+na <- c(rep(999999, 3)) # so that IRIDOU data does not get lost in the merge
+leaf_area_avgs_hetarb <- data.frame(species, plant, na)
+colnames(leaf_area_avgs_hetarb) <- colnames(leaf_area_avgs)
+leaf_area_avgs <- rbind(leaf_area_avgs, leaf_area_avgs_hetarb)
+
 main_traits_df <- merge(leaf_stem_v2_df, leaf_area_avgs, by = c('species', 'plant'))
+```
+
+- Dealing with NAs from above (HETARB, IRIDOU)
+```{r}
+main_traits_df <- main_traits_df %>% 
+  mutate(stem_lfm = ifelse(stem_lfm > 99999, NA, stem_lfm)) %>% 
+  mutate(stem_width = ifelse(stem_width > 99999, NA, stem_width)) %>%
+  mutate(stem_wet_mass = ifelse(stem_wet_mass > 99999, NA, stem_wet_mass)) %>% 
+  mutate(stem_dry_mass = ifelse(stem_dry_mass > 99999, NA, stem_dry_mass)) %>% 
+  mutate(lfm = ifelse(stem_lfm > 99999, NA, lfm)) %>% 
+  mutate(leaf_area = ifelse(leaf_area > 99999, NA, leaf_area))
 ```
 
 `- Calculating LMA, SLA

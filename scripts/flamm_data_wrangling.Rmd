@@ -216,9 +216,9 @@ for(i in 1:nrow(flam.df.no.Inf)){
     mutate(time = as.numeric(time))
   
 # Loess regressions
-  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = 0.0691)
+  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = 0.09826087)
   df$loess.CH7 <- predict(loess.mod.CH7)
-  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = 0.0337)
+  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = 0.02608696)
   df$loess.CH8 <- predict(loess.mod.CH8)
 
   flam.df.no.Inf$max_heat_flux_loessCH7[i] <- max(df$loess.CH7)
@@ -250,7 +250,7 @@ flam.df <- flam.df %>%
 
 for(i in 1:nrow(flam.df)){
   df <- temp.heat.flux.df %>% 
-    filter(sensor.id == 'CH7') %>% 
+    filter(sensor.id == 'CH8') %>% # looking at side sensor only (less noise)
     filter(date == flam.df$date[i]) %>%  #index row, select column for date
     filter(time >= flam.df$primary_ignition[i] & time <= flam.df$primary_time_of_flame_end[i]) %>% 
     summarise(avg_fd_heat_flux = mean(heat.flux))
@@ -296,11 +296,11 @@ for(i in 1:length(flam.df.sample)){
 
 colnames(CH7results) <- colnames(ch7.best)
 CH7results <- na.omit(CH7results)
-mean(CH7results$span) # 0.0691
+mean(CH7results$span) # 0.0983
 
 colnames(CH8results) <- colnames(ch8.best)
 CH8results <- na.omit(CH8results)
-mean(CH8results$span) # 0.0337
+mean(CH8results$span) # 0.0261
 
 rm(df, ch7.res, ch7.best, ch8.res, ch8.best) # Decluttering environment by removing temporary dataframes from above for loop
 ```
@@ -337,6 +337,45 @@ flam.df <- flam.df %>%
   mutate(branch_width = as.numeric(branch_width)) %>% 
   select(-X)
 ```
+
+# Exploratory heat flux figures 
+(will remove later, but currently in process of figuring out heat flux)
+```{r}
+flam.df %>% 
+  mutate(max_heat_flux_loessAVG = (max_heat_flux_loessCH7 + max_heat_flux_loessCH8)/2) %>% 
+  ggplot(aes(x = max_heat_flux_loessCH8, y = max_heat_flux_loessAVG)) +
+    geom_point() +
+    geom_abline(linetype = 4) +
+    geom_smooth(method = 'lm', color = 'black') +
+    labs(x = 'Max. Heat Flux (Loess, Side Sensor)', y = 'Max. Heat Flux (Loess Avg.)') +
+    theme_bw()
+
+flam.df %>%
+  ggplot(aes(x = max_heat_flux_loessCH7, y = max_heat_flux_loessCH8)) +
+    geom_point() +
+    geom_abline(linetype = 4) +
+    geom_smooth(method = 'lm', color = 'black') +
+    labs(x = 'Max. Heat Flux (Loess, Top Sensor)', y = 'Max. Heat Flux (Loess, Side Sensor)') +
+    theme_bw()
+
+flam.df %>% 
+  mutate(max_heat_flux_loessAVG = (max_heat_flux_loessCH7 + max_heat_flux_loessCH8)/2) %>% 
+  ggplot(aes(x = max_heat_flux_loessAVG, y = avg_fd_heat_flux)) +
+    geom_point() +
+    geom_abline(linetype = 4) +
+    geom_smooth(method = 'lm', color = 'black') +
+    labs(x = 'Max. Heat Flux (Loess Avg.)', y = 'Avg. Heat Flux (during flame duration)') +
+    theme_bw()
+
+flam.df %>%
+  ggplot(aes(x = max_heat_flux_loessCH8, y = avg_fd_heat_flux)) +
+    geom_point() +
+    geom_abline(linetype = 4) +
+    geom_smooth(method = 'lm', color = 'black') +
+    labs(x = 'Max. Heat Flux (Loess, Side Sensor)', y = 'Avg. Heat Flux (during flame duration)') +
+    theme_bw()
+```
+
 
 # Saving .csv
 ```{r}
