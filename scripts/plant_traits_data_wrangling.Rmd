@@ -20,9 +20,7 @@ library(here)
 ```{r}
 # load in data
 leaf_data <- read_csv(here('data', 'raw-data', 'plant-traits', 'leaf_data_flamm.csv')) %>%
-  clean_names() %>%
-  slice_head(n = 467) %>%
-  select(-x12)
+  clean_names()
 
 # view column names and data types
 glimpse(leaf_data)
@@ -31,10 +29,9 @@ glimpse(leaf_data)
 ## Leaf Area
 ```{r}
 # load in data
-leaf_area <- read_csv(here('data', 'raw-data', 'plant-traits', 'leaf_area_flamm.csv')) %>%
-  clean_names() %>%
-  slice_head(n = 314) %>%
-  select(-c(x_1, x30, x31))
+leaf_area <- read_csv(here('data', 'raw-data', 'plant-traits', 'leaf_area_flamm.csv')) %>% 
+  clean_names() %>% 
+  select(-x_1)
 
 # view column names and data types
 glimpse(leaf_area)
@@ -44,9 +41,7 @@ glimpse(leaf_area)
 ```{r}
 # load in data
 stem_leaf_ratio <- read_csv(here('data', 'raw-data', 'plant-traits', 'stemleaf_massratio_flamm.csv')) %>%
-  clean_names() %>%
-  slice_head(n = 92) %>%
-  select(-c(x10, x11, x12))
+  clean_names()
 
 # view column names and data types
 glimpse(stem_leaf_ratio)
@@ -56,8 +51,7 @@ glimpse(stem_leaf_ratio)
 ```{r}
 # load in data
 stem_data <- read_csv(here('data', 'raw-data', 'plant-traits', 'stem_data_flamm.csv')) %>%
-  clean_names() %>%
-  slice_head(n = 371) 
+  clean_names()
 
 # view column names and data types
 glimpse(stem_data)
@@ -189,7 +183,7 @@ stem_leaf_ratio_clean <- stem_leaf_ratio %>%
 leaf_stem_v2_df <- merge(stem_leaf_ratio_clean, leaf_stem_df, by = c('species', 'plant'))
 ```
 
-- Missing a bunch of leaf_area data, so below merge will need to be updated
+- Adding leaf area
 ```{r}
 main_traits_df <- merge(leaf_stem_v2_df, leaf_area_avgs, by = c('species', 'plant'))
 ```
