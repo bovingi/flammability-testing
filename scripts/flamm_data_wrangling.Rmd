@@ -14,6 +14,7 @@ library(here)
 library(lubridate)
 library(ggfortify)
 library(hms)
+library(caret) # for optimization routine
 
 # defining functions
 here = here::here
@@ -26,7 +27,7 @@ for(i in 1:length(thermocoupler.files)){
   thermocoupler.df.list[[i]] <- df
 }
 
-flam.df <- read.csv(here('data', 'raw-data', 'flamm', 'burn_samples_flamm.csv'))
+flam.df <- read.csv(here('data', 'raw-data', 'flamm', 'burn_samples_flamm_clocktime.csv'))
 ```
 
 # Data Wrangling
@@ -91,8 +92,7 @@ flam.df <- flam.df %>%
   mutate(secondary_time_of_flame_end = secondigend_time_clock_time) %>% 
   mutate(time_of_glow_end = end_time_clock_time) %>% 
   mutate(time_fh = maxflameht_time_clock_time) %>% 
-  rename(fh = max_flame_height) %>% 
-  select(-c(start_time_clocktime, firstigstart_time_clock_time, firstigend_time_clock_time, secondigstart_time_clock_time, secondigend_time_clock_time, end_time_clock_time, maxflameht_time_clock_time, time_of_max_flame_height))
+  select(-c(start_time_clocktime, firstigstart_time_clock_time, firstigend_time_clock_time, secondigstart_time_clock_time, secondigend_time_clock_time, end_time_clock_time, maxflameht_time_clock_time))
 
 flam.df <- replace(flam.df, flam.df=='', NA)
 
@@ -267,12 +267,10 @@ flam.df.sample <- sample_n(flam.df.no.Inf, 50)
 CH7results <- data.frame(matrix(NA,    # Create empty data frame
                           nrow = 50,
                           ncol = 8))
-colnames(CH7results) <- colnames(best)
 
 CH8results <- data.frame(matrix(NA,    # Create empty data frame
                           nrow = 50,
                           ncol = 8))
-colnames(CH8results) <- colnames(best)
 
 ctrl <- trainControl(method = "cv", number = 5)
 grid <- expand.grid(span = seq(0.01, 0.5, len = 50), degree = 1)
@@ -296,9 +294,11 @@ for(i in 1:length(flam.df.sample)){
   CH8results[i,] <- ch8.best
 }
 
+colnames(CH7results) <- colnames(ch7.best)
 CH7results <- na.omit(CH7results)
 mean(CH7results$span) # 0.0691
 
+colnames(CH8results) <- colnames(ch8.best)
 CH8results <- na.omit(CH8results)
 mean(CH8results$span) # 0.0337
 

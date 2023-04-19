@@ -122,7 +122,7 @@ leaf_data_avgs <- leaf_data %>%
 
 leaf_area_avgs <- leaf_area %>% 
   group_by(species, plant) %>% 
-  summarise(area_cm2 = mean(area_cm2), round = mean(round), solidity = mean(solidity))
+  summarise(leaf_area = mean(area_cm2))
 ```
 
 Combining datasets so that they can be easily integrated into the flamm data
@@ -189,5 +189,17 @@ stem_leaf_ratio_clean <- stem_leaf_ratio %>%
 leaf_stem_v2_df <- merge(stem_leaf_ratio_clean, leaf_stem_df, by = c('species', 'plant'))
 ```
 
-- Missing a bunch of leaf_area data, so not going to merge that quite yet. I want to calculate LMA and SLA as I assume we'll want to look at those, but I don't know if I can. Is leaf_wet_mass only for five leaves we took area on?
-`
+- Missing a bunch of leaf_area data, so below merge will need to be updated
+```{r}
+main_traits_df <- merge(leaf_stem_v2_df, leaf_area_avgs, by = c('species', 'plant'))
+```
+
+`- Calculating LMA, SLA
+```{r}
+main_traits_df <- main_traits_df %>% 
+  mutate(LMA = leaf_wet_mass/leaf_area) %>% 
+  mutate(SLA = leaf_area/leaf_wet_mass)
+
+write.csv(main_traits_df, here('data', 'processed-data', 'plant_traits_data.csv'))
+```
+
