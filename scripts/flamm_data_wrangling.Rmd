@@ -126,11 +126,12 @@ flam.df <- flam.df %>%
 ```
 
 ### Calculating Temp. Metrics
-Maximum Temperature
+Maximum Temperature (needs to be changed back to how it was (none of this max_temp2 nonsense))
 ```{r, warning = F}
 flam.df <- flam.df %>% 
   mutate(max_temp = NA) %>% 
-  mutate(time_at_max_temp = NA)
+  mutate(time_at_max_temp = NA) %>% 
+  mutate(max_temp_sensor = NA)
 thermocoupler.df.long <- thermocoupler.df.long %>% 
   mutate(max_temp = NA) 
 for(i in 1:nrow(flam.df)){
@@ -142,11 +143,12 @@ for(i in 1:nrow(flam.df)){
   df.mt <- df %>% 
     filter(max_temp == 'yes')
   flam.df$time_at_max_temp[i] <- df.mt$time[1]
+  flam.df$max_temp_sensor[i] <- df.mt$thermo.id[1]
 }
 flam.df <- flam.df %>% 
   mutate(time_at_max_temp = as_hms(time_at_max_temp))
 
-rm(df, df.mt) # Decluttering environment by removing temporary dataframes from above for loop
+#rm(df, df.mt) # Decluttering environment by removing temporary dataframes from above for loop
 ```
 
 Starting Temp. and Temp. Change
@@ -309,13 +311,13 @@ rm(df, ch7.res, ch7.best, ch8.res, ch8.best) # Decluttering environment by remov
 ```{r}
 flam.df.prop.ig1 <- flam.df %>% 
   group_by(species) %>%
-  summarise(n = n()) %>% 
+  dplyr::summarise(n = n()) %>% 
   ungroup() 
   
 flam.df.prop.ig2 <- flam.df %>% 
   filter(ignition %in% c('M', '0')) %>% 
   group_by(species) %>% 
-  summarise(manual_or_nonignitions = n()) %>% 
+  dplyr::summarise(manual_or_nonignitions = n()) %>% 
   select(manual_or_nonignitions)
 
 flam.df.prop.ig <- cbind(flam.df.prop.ig1, flam.df.prop.ig2) %>% 
@@ -333,7 +335,6 @@ flam.df <- merge(flam.df, flam.df.prop.ig, by = 'species')
 ```{r}
 flam.df <- flam.df %>% 
   mutate(total_branch_mass = as.numeric(total_branch_mass) - 16.9336) %>% 
-  rename(sample_wt = total_branch_mass) %>% 
   mutate(branch_width = as.numeric(branch_width)) %>% 
   select(-X)
 ```
@@ -374,6 +375,125 @@ flam.df %>%
     geom_smooth(method = 'lm', color = 'black') +
     labs(x = 'Max. Heat Flux (Loess, Side Sensor)', y = 'Avg. Heat Flux (during flame duration)') +
     theme_bw()
+```
+
+```{r}
+heatflux.vis <- function(index){
+heatflux.df.woop <- heatflux.df %>% 
+  filter(date == flam.df.no.Inf$date[index]) %>%  #index row, select column for date
+  filter(time >= flam.df.no.Inf$start_time[index] & time <= flam.df.no.Inf$time_of_glow_end[index]) %>% 
+  mutate(time = as.numeric(time))
+
+loess.mod.CH7 <- loess(CH7 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0983)
+heatflux.df.woop$loess.CH7 <- predict(loess.mod.CH7)
+
+ch7.title <- paste('Top Sensor (span = 0.0983)', flam.df.no.Inf$species[index], flam.df.no.Inf$plant[index], flam.df.no.Inf$rep[index], 'ignition =', flam.df.no.Inf$ignition[index])
+
+plot.top <- ggplot(heatflux.df.woop, aes(x = time)) +
+  geom_point(aes(y = loess.CH7), color = 'black') +
+  geom_point(aes(y = CH7), color = 'blue', alpha = 0.2) +
+  geom_vline(xintercept = flam.df.no.Inf$primary_ignition[index], linetype = 4) +
+  annotate('text', label = 'Primary Ignition', x = flam.df.no.Inf$primary_ignition[index], y = 0.95, fontface = 'bold') +
+  geom_vline(xintercept = flam.df.no.Inf$time_at_max_heat_flux_loessCH7[index], linetype = 5) +
+  annotate('text', label = 'Max Heat Flux', x = flam.df.no.Inf$time_at_max_heat_flux_loessCH7[index], y = 1, fontface = 'bold') +
+  labs(x = 'Time', y = 'Heat Flux (Top Sensor)', title = ch7.title) +
+  theme_bw() + 
+  theme(axis.title = element_text(face = 'bold', size = 14),
+        axis.text = element_text(size = 12))
+
+loess.mod.CH8 <- loess(CH8 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0261)
+heatflux.df.woop$loess.CH8 <- predict(loess.mod.CH8)
+
+ch8.title <- paste('Side Sensor (span = 0.0261)', flam.df.no.Inf$species[index], flam.df.no.Inf$plant[index], flam.df.no.Inf$rep[index], 'ignition =', flam.df.no.Inf$ignition[index])
+
+plot.side <- ggplot(heatflux.df.woop, aes(x = time)) +
+  geom_point(aes(y = loess.CH8), color = 'black') +
+  geom_point(aes(y = CH8), color = 'blue', alpha = 0.2) +
+  geom_vline(xintercept = flam.df.no.Inf$primary_ignition[index], linetype = 4) +
+  annotate('text', label = 'Primary Ignition', x = flam.df.no.Inf$primary_ignition[index], y = 0.5, fontface = 'bold') +
+  geom_vline(xintercept = flam.df.no.Inf$time_at_max_heat_flux_loessCH8[index], linetype = 5) +
+  annotate('text', label = 'Max Heat Flux', x = flam.df.no.Inf$time_at_max_heat_flux_loessCH8[index], y = 0.55, fontface = 'bold') +
+  labs(x = 'Time', y = 'Heat Flux (Side Sensor)', title = ch8.title) +
+  theme_bw() +  
+  theme(axis.title = element_text(face = 'bold', size = 14),
+        axis.text = element_text(size = 12))
+print(plot.side)
+print(plot.top)
+}
+```
+
+```{r}
+heatflux.vis(294)
+```
+
+Boxplots
+```{r}
+ggplot(flam.df.no.Inf, aes(x = ignition, y = max_heat_flux_loessCH8)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
+  labs(x = 'Ignition', y = 'Max. Heat Flux (Side Sensor, Loess)', color = "Species") +
+  theme_bw()
+
+ggplot(flam.df.no.Inf, aes(x = ignition, y = max_heat_flux_loessCH7)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
+  labs(x = 'Ignition', y = 'Max. Heat Flux (Top Sensor, Loess)', color = "Species") +
+  theme_bw()
+
+ggplot(flam.df.no.Inf, aes(x = ignition, y = max_heat_flux)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
+  labs(x = 'Ignition', y = 'Max. Heat Flux (Raw Values)', color = "Species") +
+  theme_bw()
+
+ggplot(flam.df.no.Inf, aes(x = ignition, y = max_temp2)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
+  labs(x = 'Ignition', y = 'Max. Temp. (Duration of Test)', color = "Species") +
+  theme_bw()
+
+ggplot(flam_sierra_df, aes(x = as.factor(ignition), y = lower_temp_max)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = spp)) +
+  labs(title = 'Sierra Flam. Testing', x = 'Ignition', y = 'Max. Temp. (Duration of Test)', color = "Species") +
+  theme_bw()
+```
+
+
+# Max Temp Exploratory Figures
+```{r}
+flam.df %>% 
+  select(species, ignition, max_temp, max_temp2, time_at_max_temp, time_at_max_temp2) %>% 
+  na.omit() %>% 
+  filter(ignition != '0') %>%
+  filter(max_temp < 275) %>% 
+  ggplot(aes(x = max_temp, y = max_temp2, color = species)) +
+  geom_point(size = 3) +
+  geom_abline(linetype = 4) +
+  geom_smooth(method = 'lm', color = 'black') +
+  labs(x = 'Max. Temp. (Flame Duration)', y = 'Max Temp. (Full Test)', color = 'Species', title = 'Max. Temp. Exploration: Calculated for duration of flame vs. full test,\n exluding non-ignitions') + 
+  theme_bw()
+
+flam.df %>% 
+  select(species, ignition, max_temp2, time_at_max_temp2, time_of_glow_end) %>% 
+  na.omit() %>% 
+  filter(ignition == '0') %>%
+  mutate(delta_max_temp_time = time_of_glow_end - time_at_max_temp2) %>% 
+  ggplot(aes(x = delta_max_temp_time)) +
+  geom_histogram() +
+  labs(x = 'Time of Glow End minus Time of Max. Temp.', title = 'Max. Temp. Exploration: Timing of Max. temp. for non-ignitions #1') + 
+  theme_bw()
+
+flam.df %>% 
+  select(species, ignition, max_temp2, time_at_max_temp2, time_of_glow_end) %>% 
+  na.omit() %>% 
+  filter(ignition == '0') %>%
+  mutate(delta_max_temp_time = time_of_glow_end - time_at_max_temp2) %>% 
+  ggplot(aes(x = max_temp2, y = delta_max_temp_time, color = species)) +
+  geom_point(size = 3) +
+  geom_smooth(method = 'lm', color = 'black') +
+  labs(x = 'Max. Temp. (full test)', y = 'Time of Glow End minus Time of Max. Temp.', color = 'Species', title = 'Max. Temp. Exploration: Timing of Max. temp. for non-ignitions #2') + 
+  theme_bw()
 ```
 
 

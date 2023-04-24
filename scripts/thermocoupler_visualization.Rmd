@@ -259,33 +259,54 @@ flam.df <- rbind(flam.df.no.Inf, flam.df.Inf)
 ```
 
 ```{r}
+heatflux.vis <- function(index){
 heatflux.df.woop <- heatflux.df %>% 
-  filter(date == flam.df.no.Inf$date[40]) %>%  #index row, select column for date
-  filter(time >= flam.df.no.Inf$start_time[40] & time <= flam.df.no.Inf$time_of_glow_end[40]) %>% 
+  filter(date == flam.df.no.Inf$date[index]) %>%  #index row, select column for date
+  filter(time >= flam.df.no.Inf$start_time[index] & time <= flam.df.no.Inf$time_of_glow_end[index]) %>% 
   mutate(time = as.numeric(time))
 
-loess.mod.CH7 <- loess(CH7 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0691)
+loess.mod.CH7 <- loess(CH7 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0983)
 heatflux.df.woop$loess.CH7 <- predict(loess.mod.CH7)
 
-ggplot(heatflux.df.woop, aes(x = time)) +
+ch7.title <- paste('Top Sensor (span = 0.0983)', flam.df.no.Inf$species[index], flam.df.no.Inf$plant[index], flam.df.no.Inf$rep[index], 'ignition =', flam.df.no.Inf$ignition[index])
+
+plot.top <- ggplot(heatflux.df.woop, aes(x = time)) +
   geom_point(aes(y = loess.CH7), color = 'black') +
   geom_point(aes(y = CH7), color = 'blue', alpha = 0.2) +
-  labs(x = 'Time', y = 'Heat Flux (Side Sensor)') +
+  geom_vline(xintercept = flam.df.no.Inf$primary_ignition[index], linetype = 4) +
+  annotate('text', label = 'Primary Ignition', x = flam.df.no.Inf$primary_ignition[index], y = 0.95, fontface = 'bold') +
+  geom_vline(xintercept = flam.df.no.Inf$time_at_max_heat_flux_loessCH7[index], linetype = 5) +
+  annotate('text', label = 'Max Heat Flux', x = flam.df.no.Inf$time_at_max_heat_flux_loessCH7[index], y = 1, fontface = 'bold') +
+  labs(x = 'Time', y = 'Heat Flux (Top Sensor)', title = ch7.title) +
   theme_bw() + 
   theme(axis.title = element_text(face = 'bold', size = 14),
         axis.text = element_text(size = 12))
 
-loess.mod.CH8 <- loess(CH8 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0337)
+loess.mod.CH8 <- loess(CH8 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0261)
 heatflux.df.woop$loess.CH8 <- predict(loess.mod.CH8)
 
-ggplot(heatflux.df.woop, aes(x = time)) +
+ch8.title <- paste('Side Sensor (span = 0.0261)', flam.df.no.Inf$species[index], flam.df.no.Inf$plant[index], flam.df.no.Inf$rep[index], 'ignition =', flam.df.no.Inf$ignition[index])
+
+plot.side <- ggplot(heatflux.df.woop, aes(x = time)) +
   geom_point(aes(y = loess.CH8), color = 'black') +
   geom_point(aes(y = CH8), color = 'blue', alpha = 0.2) +
-  labs(x = 'Time', y = 'Heat Flux (Top Sensor)') +
+  geom_vline(xintercept = flam.df.no.Inf$primary_ignition[index], linetype = 4) +
+  annotate('text', label = 'Primary Ignition', x = flam.df.no.Inf$primary_ignition[index], y = 0.5, fontface = 'bold') +
+  geom_vline(xintercept = flam.df.no.Inf$time_at_max_heat_flux_loessCH8[index], linetype = 5) +
+  annotate('text', label = 'Max Heat Flux', x = flam.df.no.Inf$time_at_max_heat_flux_loessCH8[index], y = 0.55, fontface = 'bold') +
+  labs(x = 'Time', y = 'Heat Flux (Side Sensor)', title = ch8.title) +
   theme_bw() +  
   theme(axis.title = element_text(face = 'bold', size = 14),
         axis.text = element_text(size = 12))
+print(plot.side)
+print(plot.top)
+}
 ```
+
+```{r}
+heatflux.vis(2)
+```
+
 
 ## Optimizing Smoothing Span
 ```{r, warning = F}

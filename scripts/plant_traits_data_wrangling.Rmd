@@ -84,7 +84,7 @@ stem_data <- stem_data %>%
 ```
 
 # Data Wrangling
-Adding some variables
+
 ```{r}
 stem_data <- stem_data %>% 
   mutate(stem_width = (stem_width1 + stem_width2)/2) #average of two stem width measurements taken
@@ -100,10 +100,13 @@ leaf_area <- leaf_area %>%
     plant_number == 7 ~ 'P7',
     plant_number == 8 ~ 'P8',
     plant_number == 9 ~ 'P9',
-    plant_number == 10 ~ 'P10'
+    plant_number == 10 ~ 'P10',
+    plant_number == 11 ~ 'P11',
+    plant_number == 12 ~ 'P12'
   ))
 ```
 
+## Averaging Traits
 Averaging traits of interest so that there is one value per plant
 ```{r}
 stem_data_avgs <- stem_data %>% 
@@ -119,6 +122,7 @@ leaf_area_avgs <- leaf_area %>%
   summarise(leaf_area = mean(area_cm2))
 ```
 
+## Combining Traits Data
 Combining datasets so that they can be easily integrated into the flamm data
 
 - First leaf_data and stem_data
@@ -134,7 +138,7 @@ stem_data_avgs <- rbind(stem_data_avgs, stem_data_avgs_iridou)
 leaf_stem_df <- merge(leaf_data_avgs, stem_data_avgs, by = c('species', 'plant'))
 ```
 
-- Calculating total LFM
+### Calculating total LFM
 ```{r}
 leaf_stem_df <- leaf_stem_df %>% 
   mutate(lfm = 100*((stem_wet_mass + leaf_wet_mass) - (stem_dry_mass + leaf_dry_mass))/(stem_dry_mass + leaf_dry_mass))
@@ -207,12 +211,45 @@ main_traits_df <- main_traits_df %>%
   mutate(leaf_area = ifelse(leaf_area > 99999, NA, leaf_area))
 ```
 
-`- Calculating LMA, SLA
+## Calculating LMA, SLA
 ```{r}
 main_traits_df <- main_traits_df %>% 
   mutate(LMA = leaf_wet_mass/leaf_area) %>% 
   mutate(SLA = leaf_area/leaf_wet_mass)
+```
 
+## Small Adjustments
+```{r}
+main_traits_df <- main_traits_df %>% 
+  mutate(plant = case_when(
+    plant == 'P1' ~ 1,
+    plant == 'P2' ~ 2,
+    plant == 'P3' ~ 3,
+    plant == 'P4' ~ 4,
+    plant == 'P5' ~ 5,
+    plant == 'P6' ~ 6,
+    plant == 'P7' ~ 7,
+    plant == 'P8' ~ 8,
+    plant == 'P9' ~ 9,
+    plant == 'P10' ~ 10,
+    plant == 'P11' ~ 11,
+    plant == 'P12' ~ 12
+  )) %>% 
+  mutate(species = ifelse(species == 'EUGL', 'EUCGLO', species))
+```
+
+# Writing csv
+```{r}
 write.csv(main_traits_df, here('data', 'processed-data', 'plant_traits_data.csv'))
+```
+
+# Combining with Flam. Dataset
+```{r}
+flam.df <- read.csv(here('data', 'processed-data', 'clean_flamm_data.csv')) %>% 
+  select(-date)
+
+main_df <- merge(main_traits_df, flam.df, by = c('species', 'plant'))
+
+write.csv(main_df, here('data', 'processed-data', 'main_plant_flammability.csv'))
 ```
 
