@@ -4,7 +4,7 @@ author: "Indra Boving"
 date: "11/24/2021"
 output: html_document
 ---
-
+#Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(janitor)
@@ -14,8 +14,15 @@ library(kableExtra)
 library(HH)
 library(likert)
 library(cowplot)
+
+ggplot <- function(...) { ggplot2::ggplot(...) + 
+    theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+          panel.grid.major = element_blank(),  # Hide major gridlines
+          panel.grid.minor = element_blank()) # Hide minor gridlines
+}
 ```
 
+#Data
 ```{r, warning = FALSE}
 data <- read_csv(here("data", "raw-data", "survey", "wonderlabs.csv"), show_col_types = FALSE) %>% 
   clean_names() %>% 
@@ -29,11 +36,10 @@ data <- read_csv(here("data", "raw-data", "survey", "wonderlabs.csv"), show_col_
     TRUE ~ as.numeric(birthyear))) %>% 
   mutate(income = as.numeric(income)) %>% 
   mutate(age = 2021 - birthyear) 
-
-unique(data$age)
-unique(data$rent_own)
 ```
+#--------------------------------------------------------------------
 
+#Demographics
 ```{r, warning = FALSE}
 demographics <- data %>% 
   dplyr::select(response_id, user_language, rent_own, control, birthyear, gender, race, language, income, age, time1)
@@ -96,7 +102,7 @@ gender_table
 ```
 
 
---------------------------------------------------------------------
+#--------------------------------------------------------------------
 
 # Ecosystem services: 
 
@@ -161,7 +167,7 @@ mutate(score_item = sum_item/n) %>%
 mutate(mean_score_item = mean(score_item))
 ```
 
-# ES and maintainance: 
+### ES and maintainance: 
 
 ```{r, warning = FALSE}
 maintainance_1 <- data %>% 
@@ -224,8 +230,7 @@ ggplot(aes(y = mean_score_trait, x = trait_names)) +
   facet_wrap(~category)
 ```
 
------------------------------------------------------------------
-
+#Plant Traits:
 ```{r}
 plants <- data %>% 
   dplyr::select(response_id, trait, writein_trait, time1) %>% 
@@ -282,8 +287,7 @@ mergeDTs <- function(dt_list, by = NULL, sort = FALSE) {
 
 #mergeDTs(dt_list)
 ```
-
-## Use likert() to transform dataframe
+#Likert scale
 
 ```{r}
 es_data <- data %>% 
@@ -311,6 +315,7 @@ sapply(es_data, function(x) { length(levels(x)) } ) # The number of levels in ea
 summary <- summary(es_data)
 
 es_likert <- likert::likert(es_data)
+es_likert
 
 es_likert_counts <- summary(es_likert)
 
@@ -318,9 +323,7 @@ plot(es_likert)
 
 likert.heat.plot(es_likert)
 
-likert(es_likert)
 ```
-
 
 ```{r}
 #compare different service types: 
@@ -361,14 +364,112 @@ es_likert_cat <- merge(es_likert_counts, es_likert_df) %>%
          neut_percent = neutral,
          high_percent = high, 
          mean_value = mean)
-
+melted
 ```
+
+#MAIN FIGURE: 
 
 ```{r}
 melted <- reshape::melt(es_likert_df) %>% 
   mutate(item_title = str_replace_all(Item, "_", " ")) %>% 
-  mutate(item_title = str_to_title(item_title))
+  mutate(item_title = str_to_title(item_title)) %>% 
+  mutate(cat_num = case_when(
+    category %in% "provisioning" ~ 1, 
+    category %in% "regulating" ~ 2, 
+    category %in% "cultural" ~ 3, 
+  ), 
+  cat_num = as.numeric(cat_num)) 
+melted
+
+max_value_very_high <- melted %>% 
+  filter(variable %in% c("Very High Importance")) %>% 
+  group_by(item_title) %>% 
+  mutate(very_high_value = max(value)) %>% 
+  dplyr::select("item_title", "very_high_value")
+
+melted <- merge(melted, max_value_very_high, by = c("item_title"))
+
+leg <-  melted %>% 
+  #filter(cat_num == 1) %>% 
+  ggplot()+
+  geom_bar(aes(x = reorder(item_title,cat_num), y=value, fill=variable), position="stack", stat="identity")+
+  coord_flip() + 
+  #ggtitle("At my child's school my child is safe")+
+  ylab("Percentage")+
+  xlab("")+
+  scale_fill_brewer(palette="BrBG", guide = guide_legend(reverse = TRUE))+
+  theme(legend.position="bottom", 
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        plot.margin = unit(c(0, 0, 0, 0), "cm"),
+        legend.title = element_blank())
+        
+leg
+
+cultural <-  melted %>% 
+  filter(cat_num == 3) %>% 
+ # mutate(item_title = reorder(item_title, very))
+  ggplot()+
+  geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
+  coord_flip() + 
+  #ggtitle("At my child's school my child is safe")+
+  ylab("Percentage")+
+  xlab("")+
+  scale_fill_brewer(palette="BrBG")+
+  theme(legend.position="none", 
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        plot.margin = unit(c(.25, 0, .25, 0), "cm")
+        ) +
+  ggtitle("Cultural")
+cultural
+
+reg <-  melted %>% 
+  filter(cat_num == 2) %>% 
+  ggplot()+
+  geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
+  coord_flip() + 
+  #ggtitle("At my child's school my child is safe")+
+  ylab("Percentage")+
+  xlab("")+
+  scale_fill_brewer(palette="BrBG")+
+  theme(legend.position="none", 
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        plot.margin = unit(c(0, 0, .25, 0), "cm")
+        )+
+  ggtitle("Regulating")
+reg
+
+prov <-  melted %>% 
+  filter(cat_num == 2) %>% 
+  ggplot()+
+  geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
+  coord_flip() + 
+  #ggtitle("At my child's school my child is safe")+
+  ylab("Percentage")+
+  xlab("")+
+  scale_fill_brewer(palette="BrBG")+
+  theme(legend.position="none", 
+        #axis.title.x = element_blank(),
+       # axis.text.x = element_blank(),
+        plot.margin = unit(c(0, 0, .25, 0), "cm")
+        )+
+  ggtitle("Provisioning") 
+prov
+  
+
+legend <- cowplot::get_legend(leg)
+#scale_x_discrete(limits=c("StronglyAgree", "Agree", "DontKnow","Disagree","StronglyDisagree"))
+
+survey_likert <- cowplot::plot_grid(cultural, reg, prov, legend, nrow = 4, align = "hv", axis = "lr", rel_heights = c(1, .7, .9, .2))
+survey_likert
+
+ggsave(here("figures", 'main_figures', 'survey_likert.jpg'), height = 8, width = 12) 
 ```
+
+
+
 
 ```{r}
 melted %>% 
