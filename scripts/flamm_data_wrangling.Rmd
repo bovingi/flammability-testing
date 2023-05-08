@@ -110,7 +110,6 @@ flam.df <- flam.df %>%
 ### Calculating Flam. Metrics (1)
 Flame duration, time to ignition, post-flame glow
 ```{r}
-# Getting the time and date in the right format
 flam.df <- flam.df %>% 
   mutate(pre_ignition_glow = as.numeric(pre_ignition_glow)) %>% 
   mutate(fh = as.numeric(fh)) %>% 
@@ -136,6 +135,7 @@ thermocoupler.df.long <- thermocoupler.df.long %>%
   mutate(max_temp = NA) 
 for(i in 1:nrow(flam.df)){
   df <- thermocoupler.df.long %>% 
+    filter(thermo.id %in% c('CH1', 'CH2', 'CH5', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
     filter(date == flam.df$date[i]) %>%  #index row, select column for date
     filter(time >= flam.df$primary_ignition[i] & time <= flam.df$primary_time_of_flame_end[i]) #again, index row, select columns
   flam.df$max_temp[i] <- max(df$temp)
@@ -154,13 +154,21 @@ flam.df <- flam.df %>%
 Starting Temp. and Temp. Change
 ```{r, warning = F}
 flam.df <- flam.df %>% 
-  mutate(start_temp = NA)
+  mutate(start_temp = NA) %>% 
+  mutate(start_temp_sensor = NA)
+thermocoupler.df.long <- thermocoupler.df.long %>% 
+  mutate(start_temp = 'yes')
 for(i in 1:nrow(flam.df)){
   df <- thermocoupler.df.long %>% 
+    filter(thermo.id %in% c('CH1', 'CH2', 'CH5', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
     filter(date == flam.df$date[i]) %>% 
     filter(time == flam.df$start_time[i]) %>% 
     filter(ms == 0)
   flam.df$start_temp[i] <- max(df$temp)
+  df$start_temp <- case_when(df$temp == flam.df$start_temp[i] ~ 'yes')
+  df.st <- df %>% 
+    filter(start_temp == 'yes')
+  flam.df$start_temp_sensor[i] <- df.st$thermo.id[1]
 }
 flam.df <- flam.df %>% 
   mutate(temp_change = max_temp - start_temp)
@@ -423,7 +431,7 @@ print(plot.top)
 ```
 
 ```{r}
-heatflux.vis(294)
+heatflux.vis(234)
 ```
 
 Boxplots
@@ -444,55 +452,6 @@ ggplot(flam.df.no.Inf, aes(x = ignition, y = max_heat_flux)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
   labs(x = 'Ignition', y = 'Max. Heat Flux (Raw Values)', color = "Species") +
-  theme_bw()
-
-ggplot(flam.df.no.Inf, aes(x = ignition, y = max_temp2)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
-  labs(x = 'Ignition', y = 'Max. Temp. (Duration of Test)', color = "Species") +
-  theme_bw()
-
-ggplot(flam_sierra_df, aes(x = as.factor(ignition), y = lower_temp_max)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = spp)) +
-  labs(title = 'Sierra Flam. Testing', x = 'Ignition', y = 'Max. Temp. (Duration of Test)', color = "Species") +
-  theme_bw()
-```
-
-
-# Max Temp Exploratory Figures
-```{r}
-flam.df %>% 
-  select(species, ignition, max_temp, max_temp2, time_at_max_temp, time_at_max_temp2) %>% 
-  na.omit() %>% 
-  filter(ignition != '0') %>%
-  filter(max_temp < 275) %>% 
-  ggplot(aes(x = max_temp, y = max_temp2, color = species)) +
-  geom_point(size = 3) +
-  geom_abline(linetype = 4) +
-  geom_smooth(method = 'lm', color = 'black') +
-  labs(x = 'Max. Temp. (Flame Duration)', y = 'Max Temp. (Full Test)', color = 'Species', title = 'Max. Temp. Exploration: Calculated for duration of flame vs. full test,\n exluding non-ignitions') + 
-  theme_bw()
-
-flam.df %>% 
-  select(species, ignition, max_temp2, time_at_max_temp2, time_of_glow_end) %>% 
-  na.omit() %>% 
-  filter(ignition == '0') %>%
-  mutate(delta_max_temp_time = time_of_glow_end - time_at_max_temp2) %>% 
-  ggplot(aes(x = delta_max_temp_time)) +
-  geom_histogram() +
-  labs(x = 'Time of Glow End minus Time of Max. Temp.', title = 'Max. Temp. Exploration: Timing of Max. temp. for non-ignitions #1') + 
-  theme_bw()
-
-flam.df %>% 
-  select(species, ignition, max_temp2, time_at_max_temp2, time_of_glow_end) %>% 
-  na.omit() %>% 
-  filter(ignition == '0') %>%
-  mutate(delta_max_temp_time = time_of_glow_end - time_at_max_temp2) %>% 
-  ggplot(aes(x = max_temp2, y = delta_max_temp_time, color = species)) +
-  geom_point(size = 3) +
-  geom_smooth(method = 'lm', color = 'black') +
-  labs(x = 'Max. Temp. (full test)', y = 'Time of Glow End minus Time of Max. Temp.', color = 'Species', title = 'Max. Temp. Exploration: Timing of Max. temp. for non-ignitions #2') + 
   theme_bw()
 ```
 
