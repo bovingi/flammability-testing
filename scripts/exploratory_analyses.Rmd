@@ -155,7 +155,7 @@ LFM
 flamm.df.long.no.erikar <- flamm.df.long %>% 
   filter(species != 'ERIKAR') %>% 
   filter(species != 'SALLEU')
-exploratory_scatterplot(flamm.df.long$lfm, 'Live Fuel Moisture (%)')
+exploratory_scatterplot(flamm.df.long.no.erikar$lfm, 'Live Fuel Moisture (%)')
 ggsave(here('figures', 'flamm.metrics.vs.lfm.exploratory.jpg'), height = 12, width = 20)
 
 exploratory_scatterplot(flamm.df.long$leaf_lfm, 'Leaf Live Fuel Moisture (%)')
