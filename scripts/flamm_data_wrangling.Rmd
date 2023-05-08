@@ -27,7 +27,7 @@ for(i in 1:length(thermocoupler.files)){
   thermocoupler.df.list[[i]] <- df
 }
 
-flam.df <- read.csv(here('data', 'raw-data', 'flamm', 'burn_samples_flamm_clocktime.csv'))
+flam.df <- read.csv(here('data', 'raw-data', 'flamm', 'burn_samples_flamm.csv'))
 ```
 
 # Data Wrangling
@@ -86,24 +86,28 @@ temp.heat.flux.df <- temp.heat.flux.df %>%
 ```{r}
 flam.df <- flam.df %>% 
   mutate(start_time = start_time_clocktime) %>% 
-  mutate(primary_ignition = firstigstart_time_clock_time) %>% 
-  mutate(primary_time_of_flame_end = firstigend_time_clock_time) %>% 
-  mutate(secondary_ignition = secondigstart_time_clock_time) %>% 
-  mutate(secondary_time_of_flame_end = secondigend_time_clock_time) %>% 
-  mutate(time_of_glow_end = end_time_clock_time) %>% 
-  mutate(time_fh = maxflameht_time_clock_time) %>% 
-  select(-c(start_time_clocktime, firstigstart_time_clock_time, firstigend_time_clock_time, secondigstart_time_clock_time, secondigend_time_clock_time, end_time_clock_time, maxflameht_time_clock_time))
+  mutate(first_glow_time = glow_start_ct) %>% 
+  mutate(primary_ignition = firstigstart_ct) %>% 
+  mutate(primary_time_of_flame_end = firstigend_ct) %>% 
+  mutate(secondary_ignition = secondigstart_ct) %>% 
+  mutate(secondary_time_of_flame_end = secondigend_ct) %>% 
+  mutate(time_fh = maxflameht_ct) %>% 
+  mutate(time_of_glow_end = glow_end_ct) %>% 
+  mutate(end_time = end_ct) %>% 
+  select(-c(start_time_clocktime, glow_start_ct, firstigstart_ct, firstigend_ct, secondigstart_ct, secondigend_ct, maxflameht_ct, glow_end_ct, end_ct))
 
 flam.df <- replace(flam.df, flam.df=='', NA)
 
 flam.df <- flam.df %>% 
   mutate(start_time = as_hms(format(as.POSIXct(start_time), format = "%H:%M:%S"))) %>% 
+  mutate(first_glow_time = as_hms(format(as.POSIXct(first_glow_time), format = "%H:%M:%S"))) %>% 
   mutate(primary_ignition = as_hms(format(as.POSIXct(primary_ignition), format = "%H:%M:%S"))) %>% 
   mutate(primary_time_of_flame_end = as_hms(format(as.POSIXct(primary_time_of_flame_end), format = "%H:%M:%S"))) %>% 
   mutate(secondary_ignition = as_hms(format(as.POSIXct(secondary_ignition), format = "%H:%M:%S"))) %>% 
   mutate(secondary_time_of_flame_end = as_hms(format(as.POSIXct(secondary_time_of_flame_end), format = "%H:%M:%S"))) %>% 
   mutate(time_of_glow_end = as_hms(format(as.POSIXct(time_of_glow_end), format = "%H:%M:%S"))) %>% 
   mutate(time_fh = as_hms(format(as.POSIXct(time_fh), format = "%H:%M:%S"))) %>% 
+  mutate(end_time = as_hms(format(as.POSIXct(end_time), format = "%H:%M:%S"))) %>% 
   mutate(date = as.Date(date))
 ```
 
@@ -125,7 +129,7 @@ flam.df <- flam.df %>%
 ```
 
 ### Calculating Temp. Metrics
-Maximum Temperature (needs to be changed back to how it was (none of this max_temp2 nonsense))
+Maximum Temperature
 ```{r, warning = F}
 flam.df <- flam.df %>% 
   mutate(max_temp = NA) %>% 
