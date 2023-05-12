@@ -1054,6 +1054,87 @@ flamm.df %>%
         axis.text.x = element_text(size = 12))
 ```
 
+Polynomial Regression - FH vs. DW
+```{r}
+flamm.df.temp.fh <- flamm.df %>% 
+  drop_na(fh, dw_flam_sample)
+# First, testing for which degree gives us best results
+fh.poly.aic <- (rep(NA, 5))
+for(i in 1:5){
+fh.sw.poly <- lm(data = flamm.df.temp.fh, fh ~ poly(dw_flam_sample, i))
+fh.poly.aic[i] <- AIC(fh.sw.poly)
+}
+fh.poly.aic # degrees = 5
+
+fh.dw.poly <- lm(data = flamm.df.temp.fh, fh ~ poly(dw_flam_sample, 5))
+summary(fh.dw.poly)
+
+flamm.df.temp.fh$predict.poly.fh <- predict(fh.dw.poly)
+ggplot(data = flamm.df.temp.fh) +
+  geom_point(aes(x = dw_flam_sample, y = predict.poly.fh), color = 'black') +
+  geom_point(aes(x = dw_flam_sample, y = fh), alpha = 0.5, color = 'gray50') +
+  theme_bw() +
+  labs(y = 'Flame Height (cm)', x = 'Dry Weight (g)') +
+  annotate('text', x = 4, y = 80, label = 'Note: black points = polynomial regression') +
+  annotate('text', x = 4, y = 75, label = 'Adjusted R^2 = 0.537, p < 2.2e-16') +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+# Residuals
+flamm.df.temp.fh <- flamm.df.temp.fh %>% 
+  mutate(fh.dev.poly = fh - predict.poly.fh)
+
+flamm.df.temp.fh %>% 
+  ggplot(aes(x = dw_flam_sample, y = fh.dev.poly)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 27)+ 
+  stat_regline_equation(label.y = 30) +
+  labs(x = "Dry Weight (g)", y = "FH~DW Polynomial Residuals") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+flamm.df.temp.fh %>% 
+  ggplot(aes(x = mpa, y = fh.dev.poly)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 27)+ 
+  stat_regline_equation(label.y = 30) +
+  labs(x = "Water Potential (MPa)", y = "FH~DW Polynomial Residuals") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+flamm.df.temp.fh %>% 
+  ggplot(aes(x = mpa, y = fh)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 75)+ 
+  stat_regline_equation(label.y = 80) +
+  labs(x = "Water Potential (MPa)", y = "Flame Height (cm)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+flamm.df.temp.fh %>% 
+  mutate(species = factor(species, levels = c('IRIDOU', 'CEAGRI', 'ARTCAL', 'MANDEN', 'SALAPI', 'MALLAU', 'SALLEU', 'ERIKAR', 'HETARB', 'QUEAGR'))) %>% 
+  ggplot(aes(x = species, y = fh.dev.poly)) + 
+    geom_jitter(width = 0.2, aes(color = species)) +
+    geom_boxplot(alpha = 0.2, outlier.shape = NA) +
+    labs(x = ' ', y = 'FH~DW Polynomial Residuals') +
+    theme_bw() +
+    theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 15))
+```
+
+
 # Plant Traits Exploratory Analyses
 Zoe is working on leaf area, LMA, SLA, etc. and I'm focusing on branching, branch width, length, VOCs
 ## Branching
@@ -1063,6 +1144,7 @@ exploratory_scatterplot(flamm.df.long.scatter$branching, 'Branching') # right aw
 ggplot(flamm.df, aes(x = branching, y = fh)) +
   geom_point() +
   geom_smooth(method = 'lm', color = 'gray40') +
+  scale_x_continuous(limits = c(0, 16)) +
   stat_cor(label.y = 72)+ 
   stat_regline_equation(label.y = 80) +
   labs(x = "Branching", y = "Flame Height (cm)") +
@@ -1074,6 +1156,7 @@ ggplot(flamm.df, aes(x = branching, y = fh)) +
 ggplot(flamm.df, aes(x = branching, y = fd)) +
   geom_point() +
   geom_smooth(method = 'lm', color = 'gray40') +
+  scale_x_continuous(limits = c(0, 16)) +
   stat_cor(label.y = 90)+ 
   stat_regline_equation(label.y = 95) +
   labs(x = "Branching", y = "Flame Duration (s)") +
