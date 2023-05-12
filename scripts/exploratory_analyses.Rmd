@@ -14,6 +14,7 @@ library(tidyverse)
 library(here)
 library(lubridate)
 library(ggfortify)
+library(ggpubr)
 library(ggbiplot) #for nicer PCA plots
 library(psych) #for pairs.panels()
 library(sjPlot) #for nice tables of eigenvalues
@@ -31,7 +32,6 @@ flamm.df <- read.csv(here('data', 'processed-data', 'main_plant_flammability.csv
 ## Plant Traits
 ```{r}
 traits.df.long <- flamm.df %>% 
-  dplyr::rename(sample_wt = total_branch_mass.y) %>% 
   select(date, species, plant, rep, leaf_lfm, stem_lfm, lfm, leaf_area, SLA,
          thickness, branch_length, branch_width, branch_height, sample_wt,
          branching, mpa, stem_mass_ratio, leaf_mass_ratio) %>% 
@@ -55,9 +55,8 @@ ggsave(here('figures', 'plant.traits.exploratory.boxplot.jpg'), height = 20, wid
 ## Flammability Metrics
 ```{r}
 flamm.df.long <- flamm.df %>% 
-  dplyr::rename(sample_wt = total_branch_mass.y) %>% 
-  select(date, species, plant, rep, mpa, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, max_heat_flux, max_heat_flux_loessCH7, max_heat_flux_loessCH8) %>%  # took out  gd, gti, ttfg for now
-  pivot_longer(!c(date, species, plant, rep, mpa, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt), names_to = 'trait', values_to = 'value') %>% 
+  select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, max_heat_flux, max_heat_flux_loessCH7, max_heat_flux_loessCH8) %>%  # took out  gd, gti, ttfg for now
+  pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt), names_to = 'trait', values_to = 'value') %>% 
   mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
 
 flamm.df.long %>% 
@@ -124,14 +123,16 @@ ggsave(here('figures', 'normalized.flamm.metrics.exploratory.boxplot.jpg'), heig
 # Scatterplots
 ## Function
 ```{r}
+flamm.df.long.scatter <- flamm.df.long %>% 
+  dplyr::filter(trait %in% c('fd', 'fh', 'max_temp', 'pfg'))
+
 exploratory_scatterplot <- function(expl.var, x.lab){
-  flamm.df.long %>% 
-  filter(trait %in% c('fd', 'fh', 'max_heat_flux', 'max_heat_flux_loessCH7', 'max_heat_flux_loessCH8', 'max_temp', 'pfg', 'tti')) %>% 
+flamm.df.long.scatter %>% 
   ggplot(aes(x = expl.var, y = value, color = species)) +
-  geom_point(alpha = 0.6, size = 1.5) +
+    geom_point(alpha = 0.6, size = 1.5) +
   geom_smooth(method = 'lm', linewidth = 1, alpha = 0.8, se = F) +
   labs(x = x.lab, y = 'Flamm. Metric Value', color = 'Species')  +
-  facet_wrap(~trait, ncol = 4, scales = 'free_y') +
+  facet_wrap(~trait, ncol = 2, scales = 'free_y') +
   theme_bw() +
   theme(axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 14),
@@ -141,10 +142,11 @@ exploratory_scatterplot <- function(expl.var, x.lab){
 }
 ```
 
+
 ## Vs. Hydration
 Water Potential
 ```{r}
-exploratory_scatterplot(flamm.df.long$mpa, 'Water Potential (MPa)')
+exploratory_scatterplot(flamm.df.long.scatter$mpa, 'Water Potential (MPa)')
 
 ggsave(here('figures', 'flamm.metrics.vs.mpa.exploratory.jpg'), height = 12, width = 20)
 ```
@@ -152,28 +154,28 @@ ggsave(here('figures', 'flamm.metrics.vs.mpa.exploratory.jpg'), height = 12, wid
 LFM
 ```{r}
 #  erikar causing issues due to very high LFM values
-flamm.df.long.no.erikar <- flamm.df.long %>% 
-  filter(species != 'ERIKAR') %>% 
-  filter(species != 'SALLEU')
-exploratory_scatterplot(flamm.df.long.no.erikar$lfm, 'Live Fuel Moisture (%)')
-ggsave(here('figures', 'flamm.metrics.vs.lfm.exploratory.jpg'), height = 12, width = 20)
+#flamm.df.long.no.erikar <- flamm.df.long %>% 
+#  filter(species != 'ERIKAR') %>% 
+#  filter(species != 'SALLEU')
+#exploratory_scatterplot(flamm.df.long.no.erikar$lfm, 'Live Fuel Moisture (%)')
+#ggsave(here('figures', 'flamm.metrics.vs.lfm.exploratory.jpg'), height = 12, width = 20)
 
-exploratory_scatterplot(flamm.df.long$leaf_lfm, 'Leaf Live Fuel Moisture (%)')
-exploratory_scatterplot(flamm.df.long$stem_lfm, 'Stem Live Fuel Moisture (%)')
+exploratory_scatterplot(flamm.df.long.scatter$leaf_lfm, 'Leaf Live Fuel Moisture (%)')
+exploratory_scatterplot(flamm.df.long.scatter$stem_lfm, 'Stem Live Fuel Moisture (%)')
 ```
 
 ## Vs. Sample Weight
 ```{r}
-exploratory_scatterplot(flamm.df.long$sample_wt, 'Sample Weight (g)')
+exploratory_scatterplot(flamm.df.long.scatter$sample_wt, 'Sample Weight (g)')
 
 ggsave(here('figures', 'flamm.metrics.vs.sample.wt.exploratory.jpg'), height = 12, width = 20)
 ```
 
 ## Vs. Leaf Metrics
 ```{r}
-exploratory_scatterplot(flamm.df.long$LMA, 'Leaf Mass per Area')
-exploratory_scatterplot(flamm.df.long$SLA, 'Specific Leaf Area')
-exploratory_scatterplot(flamm.df.long$thickness, 'Leaf Thickness')
+exploratory_scatterplot(flamm.df.long.scatter$LMA, 'Leaf Mass per Area')
+exploratory_scatterplot(flamm.df.long.scatter$SLA, 'Specific Leaf Area')
+exploratory_scatterplot(flamm.df.long.scatter$thickness, 'Leaf Thickness')
 ```
 
 # Proportion Ignited
@@ -231,7 +233,6 @@ tab_pca(flamm_pca, rotation = 'varimax')
 ```{r}
 # selecting metrics of interest
 traits_pca_df <- flamm.df %>% 
-  dplyr::rename(sample_wt = total_branch_mass.y) %>% 
   select(leaf_mass_ratio, leaf_lfm, stem_lfm, lfm, thickness, mpa, SLA, sample_wt, species)
 
 # looking at correlation and distribution
@@ -357,7 +358,6 @@ Looking at ignition vs. non-ignition/manual ignition
 ```{r}
 # prepping dataset
 flamm_binomial_df <- flamm.df %>% 
-  dplyr::rename(sample_wt = total_branch_mass.y) %>% 
   mutate(ignition = case_when(ignition == 'M' ~ 0,
                              ignition == '1' ~ 1,
                              ignition == '0' ~ 0)) %>% 
@@ -410,7 +410,7 @@ m5 <- glm(ignition ~ start_temp + sample_wt, data = df2, family = "binomial")
 print(paste0(spp, ': Starting Temp. P-value = ', summary(m5)$coefficients[2,4]))
 }
 
-flam.df %>% 
+flamm.df %>% 
   filter(start_temp > 0) %>% 
   summarise(avg = mean(start_temp))
 
@@ -615,46 +615,46 @@ First, independent of species, look into linear and nonlinear relationships with
 ## Linear Relationships
 ```{r}
 ## FD ## - sig.
-fd.sw.lm <- lm(scale(fd) ~ scale(total_branch_mass.y), data = flamm.df)
+fd.sw.lm <- lm(scale(fd) ~ scale(sample_wt), data = flamm.df)
 summary(fd.sw.lm)
 plot(fd.sw.lm)
-ggplot(flamm.df, aes(x = total_branch_mass.y, y = fd)) +
+ggplot(flamm.df, aes(x = sample_wt, y = fd)) +
   geom_point() +
   geom_smooth(method = 'lm') +
   labs(x = 'Sample Wt. (g)', y = 'Flame Duration (s)') +
   theme_bw()
 ## FH ## - sig.
-fh.sw.lm <- lm(scale(fh) ~ scale(total_branch_mass.y), data = flamm.df)
+fh.sw.lm <- lm(scale(fh) ~ scale(sample_wt), data = flamm.df)
 summary(fh.sw.lm)
 plot(fh.sw.lm)
-ggplot(flamm.df, aes(x = total_branch_mass.y, y = fh)) +
+ggplot(flamm.df, aes(x = sample_wt, y = fh)) +
   geom_point() +
   geom_smooth(method = 'lm') +
   labs(x = 'Sample Wt. (g)', y = 'Flame Height (cm)') +
   theme_bw()
 ## PFG ## - sig.
-pfg.sw.lm <- lm(scale(pfg) ~ scale(total_branch_mass.y), data = flamm.df)
+pfg.sw.lm <- lm(scale(pfg) ~ scale(sample_wt), data = flamm.df)
 summary(pfg.sw.lm)
 plot(pfg.sw.lm)
-ggplot(flamm.df, aes(x = total_branch_mass.y, y = pfg)) +
+ggplot(flamm.df, aes(x = sample_wt, y = pfg)) +
   geom_point() +
   geom_smooth(method = 'lm') +
   labs(x = 'Sample Wt. (g)', y = 'Post-Flame Glow (s)') +
   theme_bw()
 ## LFM ## - sig.
-lfm.sw.lm <- lm(lfm ~ total_branch_mass.y, data = flamm.df)
+lfm.sw.lm <- lm(lfm ~ sample_wt, data = flamm.df)
 summary(lfm.sw.lm)
 plot(lfm.sw.lm)
-ggplot(flamm.df, aes(x = total_branch_mass.y, y = lfm)) +
+ggplot(flamm.df, aes(x = sample_wt, y = lfm)) +
   geom_point() +
   geom_smooth(method = 'lm') +
   labs(x = 'Sample Wt. (g)', y = 'Live Fuel Moisture (%)') +
   theme_bw()
 ## MPa ## - n.s.
-mpa.sw.lm <- lm(mpa ~ total_branch_mass.y, data = flamm.df)
+mpa.sw.lm <- lm(mpa ~ sample_wt, data = flamm.df)
 summary(mpa.sw.lm)
 plot(mpa.sw.lm)
-ggplot(flamm.df, aes(x = total_branch_mass.y, y = mpa)) +
+ggplot(flamm.df, aes(x = sample_wt, y = mpa)) +
   geom_point() +
   geom_smooth(method = 'lm') +
   labs(x = 'Sample Wt. (g)', y = 'Water Potential (MPa)') +
@@ -668,66 +668,66 @@ library(gam) # for generalized additive models
 
 # FH
 flamm.df.temp.fh <- flamm.df %>% 
-  drop_na(fh, total_branch_mass.y) %>% 
-  select(fh, total_branch_mass.y) %>% 
-  mutate(fh = scale(fh), total_branch_mass.y = scale(total_branch_mass.y))
-fh.sw.gam <- gam(fh ~ s(total_branch_mass.y), data = flamm.df.temp.fh)
+  drop_na(fh, sample_wt) %>% 
+  select(fh, sample_wt) %>% 
+  mutate(fh = scale(fh), sample_wt = scale(sample_wt))
+fh.sw.gam <- gam(fh ~ s(sample_wt), data = flamm.df.temp.fh)
 summary(fh.sw.gam) 
 flamm.df.temp.fh$predict.gam.fh <- predict.Gam(fh.sw.gam)
 ggplot(data = flamm.df.temp.fh) +
-  geom_point(aes(x = total_branch_mass.y, y = predict.gam.fh), color = 'black') +
-  geom_point(aes(x = total_branch_mass.y, y = fh), alpha = 0.5, color = 'gray50')
+  geom_point(aes(x = sample_wt, y = predict.gam.fh), color = 'black') +
+  geom_point(aes(x = sample_wt, y = fh), alpha = 0.5, color = 'gray50')
 
 # FD
 flamm.df.temp.fd <- flamm.df %>% 
-  drop_na(fd, total_branch_mass.y) %>% 
-  select(fd, total_branch_mass.y) %>% 
-  mutate(fd = scale(fd), total_branch_mass.y = scale(total_branch_mass.y))
-fd.sw.gam <- gam(fd ~ s(total_branch_mass.y), data = flamm.df.temp.fd)
+  drop_na(fd, sample_wt) %>% 
+  select(fd, sample_wt) %>% 
+  mutate(fd = scale(fd), sample_wt = scale(sample_wt))
+fd.sw.gam <- gam(fd ~ s(sample_wt), data = flamm.df.temp.fd)
 summary(fd.sw.gam)
 flamm.df.temp.fd$predict.gam.fd <- predict.Gam(fd.sw.gam)
 ggplot(data = flamm.df.temp.fd) +
-  geom_point(aes(x = total_branch_mass.y, y = predict.gam.fd), color = 'black') +
-  geom_point(aes(x = total_branch_mass.y, y = fd), alpha = 0.5, color = 'gray50')
+  geom_point(aes(x = sample_wt, y = predict.gam.fd), color = 'black') +
+  geom_point(aes(x = sample_wt, y = fd), alpha = 0.5, color = 'gray50')
 
 # PFG
 flamm.df.temp.pfg <- flamm.df %>% 
-  drop_na(pfg, total_branch_mass.y) %>% 
-  select(pfg, total_branch_mass.y) %>% 
-  mutate(pfg = scale(pfg), total_branch_mass.y = scale(total_branch_mass.y))
-pfg.sw.gam <- gam(pfg ~ s(total_branch_mass.y), data = flamm.df.temp.pfg)
+  drop_na(pfg, sample_wt) %>% 
+  select(pfg, sample_wt) %>% 
+  mutate(pfg = scale(pfg), sample_wt = scale(sample_wt))
+pfg.sw.gam <- gam(pfg ~ s(sample_wt), data = flamm.df.temp.pfg)
 summary(pfg.sw.gam)
 flamm.df.temp.pfg$predict.gam.pfg <- predict.Gam(pfg.sw.gam)
 ggplot(data = flamm.df.temp.pfg) +
-  geom_point(aes(x = total_branch_mass.y, y = predict.gam.pfg), color = 'black') +
-  geom_point(aes(x = total_branch_mass.y, y = pfg), alpha = 0.5, color = 'gray50')
+  geom_point(aes(x = sample_wt, y = predict.gam.pfg), color = 'black') +
+  geom_point(aes(x = sample_wt, y = pfg), alpha = 0.5, color = 'gray50')
 ```
 
 Generalized Additive Models 2
 ```{r}
 # FH
-fh.sw.gam <- gam(fh ~ lo(total_branch_mass.y), data = flamm.df.temp.fh)
+fh.sw.gam <- gam(fh ~ lo(sample_wt), data = flamm.df.temp.fh)
 summary(fh.sw.gam)
 flamm.df.temp.fh$predict.gam.fh <- predict.Gam(fh.sw.gam)
 ggplot(data = flamm.df.temp.fh) +
-  geom_point(aes(x = total_branch_mass.y, y = predict.gam.fh), color = 'black') +
-  geom_point(aes(x = total_branch_mass.y, y = fh), alpha = 0.5, color = 'gray50')
+  geom_point(aes(x = sample_wt, y = predict.gam.fh), color = 'black') +
+  geom_point(aes(x = sample_wt, y = fh), alpha = 0.5, color = 'gray50')
 
 # FD
-fd.sw.gam <- gam(fd ~ lo(total_branch_mass.y), data = flamm.df.temp.fd)
+fd.sw.gam <- gam(fd ~ lo(sample_wt), data = flamm.df.temp.fd)
 summary(fd.sw.gam)
 flamm.df.temp.fd$predict.gam.fd <- predict.Gam(fd.sw.gam)
 ggplot(data = flamm.df.temp.fd) +
-  geom_point(aes(x = total_branch_mass.y, y = predict.gam.fd), color = 'black') +
-  geom_point(aes(x = total_branch_mass.y, y = fd), alpha = 0.5, color = 'gray50')
+  geom_point(aes(x = sample_wt, y = predict.gam.fd), color = 'black') +
+  geom_point(aes(x = sample_wt, y = fd), alpha = 0.5, color = 'gray50')
 
 # PFG
-pfg.sw.gam <- gam(pfg ~ lo(total_branch_mass.y), data = flamm.df.temp.pfg)
+pfg.sw.gam <- gam(pfg ~ lo(sample_wt), data = flamm.df.temp.pfg)
 summary(pfg.sw.gam)
 flamm.df.temp.pfg$predict.gam.pfg <- predict.Gam(pfg.sw.gam)
 ggplot(data = flamm.df.temp.pfg) +
-  geom_point(aes(x = total_branch_mass.y, y = predict.gam.pfg), color = 'black') +
-  geom_point(aes(x = total_branch_mass.y, y = pfg), alpha = 0.5, color = 'gray50')
+  geom_point(aes(x = sample_wt, y = predict.gam.pfg), color = 'black') +
+  geom_point(aes(x = sample_wt, y = pfg), alpha = 0.5, color = 'gray50')
 ```
 
 Polynomial Regressions
@@ -735,31 +735,31 @@ Polynomial Regressions
 # First, testing for which degree gives us best results
 fh.poly.aic <- (rep(NA, 5))
 for(i in 1:5){
-fh.sw.poly <- lm(data = flamm.df.temp.fh, fh ~ poly(total_branch_mass.y, i))
+fh.sw.poly <- lm(data = flamm.df.temp.fh, fh ~ poly(sample_wt, i))
 fh.poly.aic[i] <- AIC(fh.sw.poly)
 }
 fh.poly.aic # degrees = 3
 
 fd.poly.aic <- (rep(NA, 5))
 for(i in 1:5){
-fd.sw.poly <- lm(data = flamm.df.temp.fd, fd ~ poly(total_branch_mass.y, i))
+fd.sw.poly <- lm(data = flamm.df.temp.fd, fd ~ poly(sample_wt, i))
 fd.poly.aic[i] <- AIC(fd.sw.poly)
 }
 fd.poly.aic # degrees = 3
 
 pfg.poly.aic <- (rep(NA, 5))
 for(i in 1:5){
-pfg.sw.poly <- lm(data = flamm.df.temp.pfg, pfg ~ poly(total_branch_mass.y, i))
+pfg.sw.poly <- lm(data = flamm.df.temp.pfg, pfg ~ poly(sample_wt, i))
 pfg.poly.aic[i] <- AIC(pfg.sw.poly)
 }
 pfg.poly.aic # linear is best, but since others are degrees = 3, we'll look into that one for all three metrics
 
 # Running models
-fh.sw.poly <- lm(data = flamm.df.temp.fh, fh ~ poly(total_branch_mass.y, 3))
+fh.sw.poly <- lm(data = flamm.df.temp.fh, fh ~ poly(sample_wt, 3))
 summary(fh.sw.poly)
-fd.sw.poly <- lm(data = flamm.df.temp.fd, fd ~ poly(total_branch_mass.y, 3))
+fd.sw.poly <- lm(data = flamm.df.temp.fd, fd ~ poly(sample_wt, 3))
 summary(fd.sw.poly)
-pfg.sw.poly <- lm(data = flamm.df.temp.pfg, pfg ~ poly(total_branch_mass.y, 3))
+pfg.sw.poly <- lm(data = flamm.df.temp.pfg, pfg ~ poly(sample_wt, 3))
 summary(pfg.sw.poly)
 ```
 
@@ -767,14 +767,14 @@ summary(pfg.sw.poly)
 ## Binned Sample Weights
 ```{r}
 # Data wrangling
-quantile(flamm.df$total_branch_mass.y, probs = c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE)
+quantile(flamm.df$sample_wt, probs = c(0, 0.25, 0.5, 0.75, 1), na.rm = TRUE)
 
 flamm.df <- flamm.df %>% 
   mutate(sample_wt_bins = case_when(
-    total_branch_mass.y <= 1.1064 ~ '0.2264-1.1064',
-    total_branch_mass.y > 1.1064 & total_branch_mass.y <= 2.8064  ~ '1.1064-2.8064',
-    total_branch_mass.y > 2.8064 & total_branch_mass.y <= 8.4864 ~ '2.8064-8.4864',
-    total_branch_mass.y > 8.4864 & total_branch_mass.y <= 30.5664 ~ '8.4864-30.5664',
+    sample_wt <= 1.1064 ~ '0.2264-1.1064',
+    sample_wt > 1.1064 & sample_wt <= 2.8064  ~ '1.1064-2.8064',
+    sample_wt > 2.8064 & sample_wt <= 8.4864 ~ '2.8064-8.4864',
+    sample_wt > 8.4864 & sample_wt <= 30.5664 ~ '8.4864-30.5664',
   ))
 
 # LMA
@@ -825,67 +825,66 @@ flamm.df.sw <- flamm.df %>%
   mutate(fh = scales::rescale(fh),
          fd = scales::rescale(fd),
          pfg = scales::rescale(pfg),
-         total_branch_mass.y = scales::rescale(total_branch_mass.y)) %>% 
-  mutate(fh.norm = fh/total_branch_mass.y,
-         fd.norm = fd/total_branch_mass.y,
-         pfg.norm = pfg/total_branch_mass.y) %>% 
-  mutate(fh.norm.sqrt = fh/(1+total_branch_mass.y^1/2),
-         fd.norm.sqrt = fd/(1+total_branch_mass.y^1/2),
-         pfg.norm.sqrt = pfg/(1+total_branch_mass.y^1/2)) %>% 
-  mutate(fh.norm.cube.root = fh/(1+total_branch_mass.y^1/3),
-         fd.norm.cube.root = fd/(1+total_branch_mass.y^1/3),
-         pfg.norm.cube.root = pfg/(1+total_branch_mass.y^1/3))
+         sample_wt = scales::rescale(sample_wt)) %>% 
+  mutate(fh.norm = fh/sample_wt,
+         fd.norm = fd/sample_wt,
+         pfg.norm = pfg/sample_wt) %>% 
+  mutate(fh.norm.sqrt = fh/(1+sample_wt^1/2),
+         fd.norm.sqrt = fd/(1+sample_wt^1/2),
+         pfg.norm.sqrt = pfg/(1+sample_wt^1/2)) %>% 
+  mutate(fh.norm.cube.root = fh/(1+sample_wt^1/3),
+         fd.norm.cube.root = fd/(1+sample_wt^1/3),
+         pfg.norm.cube.root = pfg/(1+sample_wt^1/3))
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = fh)) +
+  ggplot(aes(x = sample_wt, y = fh)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = fh.norm)) +
+  ggplot(aes(x = sample_wt, y = fh.norm)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = fh.norm.sqrt)) +
+  ggplot(aes(x = sample_wt, y = fh.norm.sqrt)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = fh.norm.cube.root)) +
+  ggplot(aes(x = sample_wt, y = fh.norm.cube.root)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = fd)) +
+  ggplot(aes(x = sample_wt, y = fd)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = fd.norm)) +
+  ggplot(aes(x = sample_wt, y = fd.norm)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = fd.norm.sqrt)) +
+  ggplot(aes(x = sample_wt, y = fd.norm.sqrt)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = fd.norm.cube.root)) +
+  ggplot(aes(x = sample_wt, y = fd.norm.cube.root)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = pfg)) +
+  ggplot(aes(x = sample_wt, y = pfg)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = pfg.norm)) +
+  ggplot(aes(x = sample_wt, y = pfg.norm)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = pfg.norm.sqrt)) +
+  ggplot(aes(x = sample_wt, y = pfg.norm.sqrt)) +
     geom_point()
 
 flamm.df.sw %>% 
-  ggplot(aes(x = total_branch_mass.y, y = pfg.norm.cube.root)) +
+  ggplot(aes(x = sample_wt, y = pfg.norm.cube.root)) +
     geom_point()
 
 flamm.df.sw.long <- flamm.df.sw %>% 
-  dplyr::rename(sample_wt = total_branch_mass.y) %>% 
   select(date, species, plant, rep, mpa, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, pfg, fh.norm, fd.norm, pfg.norm, fh.norm.sqrt, fd.norm.sqrt, pfg.norm.sqrt, fh.norm.cube.root, fd.norm.cube.root, pfg.norm.cube.root) %>% 
   pivot_longer(!c(date, species, plant, rep, mpa, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt), names_to = 'trait', values_to = 'value') %>% 
   mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
@@ -912,5 +911,223 @@ ggplot(aes(x = species, y = sample_wt, color = species)) +
         axis.text = element_text(size = 14),
         strip.text = element_text(face = 'bold', size = 16),
         axis.text.x = element_text(angle = 20, size = 12))
+```
+
+# Sample Dry Weight/Wet Weight
+```{r}
+# Calculating the metrics
+flamm.df <- flamm.df %>% 
+  mutate(wet_mass = stem_wet_mass + leaf_wet_mass,
+         dry_mass = stem_dry_mass + leaf_dry_mass,
+         gdw_gfw = dry_mass/(wet_mass+dry_mass),
+         dw_flam_sample = gdw_gfw * sample_wt, # need to change to sample weight
+         ww_flam_sample = sample_wt - dw_flam_sample)
+
+# Boxplots
+ggplot(flamm.df, aes(x = species, color = species, y = dw_flam_sample)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) +
+  labs(x = "Species", y = "Dry Weight (g)") +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(angle = 20, size = 12))
+
+ggplot(flamm.df, aes(x = species, color = species, y = ww_flam_sample)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) +
+  labs(x = "Species", y = "Wet Weight (g)") +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(angle = 20, size = 12))
+
+# Scatterplots
+flamm.df.long.scatter <- flamm.df %>% 
+  select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, max_heat_flux, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample) %>%  # took out  gd, gti, ttfg for now
+  pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample), names_to = 'trait', values_to = 'value') %>% 
+  filter(trait %in% c('fd', 'fh', 'max_temp', 'pfg')) %>% 
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
+
+exploratory_scatterplot(flamm.df.long.scatter$dw_flam_sample, 'Dry Weight (g)')
+exploratory_scatterplot(flamm.df.long.scatter$ww_flam_sample, 'Wet Weight (g)')
+```
+
+It seems like sample weight is driving these relationships far more than hydration/dryness. Let's try some corrections:
+```{r}
+ggplot(flamm.df, aes(y = fh/dw_flam_sample, x = dw_flam_sample)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 350)+ 
+  stat_regline_equation(label.y = 400) +
+  labs(y = "Flame Height/Dry Weight", x = "Dry Weight (g)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(y = log(fh/dw_flam_sample), x = dw_flam_sample)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 7)+ 
+  stat_regline_equation(label.y = 8) +
+  labs(y = "Flame Height/Dry Weight (log-transformed)", x = "Dry Weight (g)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(y = fh/1 + dw_flam_sample, x = dw_flam_sample)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 65)+ 
+  stat_regline_equation(label.y = 75) +
+  labs(y = "Flame Height/1 + Dry Weight", x = "Dry Weight (g)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+flamm.df %>% 
+  filter(lfm < 500) %>% 
+  ggplot(aes(x = lfm, y = fh/dw_flam_sample)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 175)+ 
+  stat_regline_equation(label.y = 200) +
+  labs(x = "Live Fuel Moisture (%)", y = "Flame Height/Dry Weight (cm/g)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+```
+
+By species
+```{r}
+ggplot(flamm.df, aes(y = fh/dw_flam_sample, x = dw_flam_sample, color = species)) +
+  geom_point() +
+  geom_smooth(method = 'lm', se = F) +
+  stat_cor(label.y = c(450, 428, 406, 384, 363, 362, 340, 318, 296, 274),label.x = 5) + 
+  stat_regline_equation(label.y = c(450, 428, 406, 384, 363, 362, 340, 318, 296, 274), 
+                        label.x = 1.5) +
+  labs(y = "Flame Height/Dry Weight", x = "Dry Weight (g)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(y = log(fh/dw_flam_sample), x = dw_flam_sample, color = species)) +
+  geom_point() +
+  geom_smooth(method = 'lm', se = F) +
+  stat_cor(label.y = c(8.5, 8, 7.5, 7, 6.6, 6.5, 6, 5.5, 5, 4.5),label.x = 4.5) + 
+  stat_regline_equation(label.y = c(8.5, 8, 7.5, 7, 6.6, 6.5, 6, 5.5, 5, 4.5), label.x = 1.5) +
+  labs(y = "Flame Height/Dry Weight (log-transformed)", x = "Dry Weight (g)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(y = fh/1 + dw_flam_sample, x = dw_flam_sample, color = species)) +
+  geom_point() +
+  geom_smooth(method = 'lm', se = F) +
+  stat_cor(label.y = c(120, 115, 110, 105, 101, 100, 95, 90, 85, 80),label.x = 3) + 
+  stat_regline_equation(label.y = c(120, 115, 110, 105, 101, 100, 95, 90, 85, 80)) +
+  labs(y = "Flame Height/1 + Dry Weight", x = "Dry Weight (g)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+flamm.df %>% 
+  filter(lfm < 500) %>% 
+  ggplot(aes(x = lfm, y = fh/dw_flam_sample, color = species)) +
+  geom_point() +
+  geom_smooth(method = 'lm', se = F) +
+  stat_cor(label.y = c(250, 240, 230, 220, 210, 200, 190, 180, 170, 160),label.x = 200) + 
+  stat_regline_equation(label.y = c(250, 240, 230, 220, 210, 200, 190, 180, 170, 160)) +
+  labs(x = "Live Fuel Moisture (%)", y = "Flame Height/Dry Weight (cm/g)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+```
+
+# Plant Traits Exploratory Analyses
+Zoe is working on leaf area, LMA, SLA, etc. and I'm focusing on branching, branch width, length, VOCs
+## Branching
+```{r}
+exploratory_scatterplot(flamm.df.long.scatter$branching, 'Branching') # right away, it looks like maybe flame height could relate to branching
+
+ggplot(flamm.df, aes(x = branching, y = fh)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 72)+ 
+  stat_regline_equation(label.y = 80) +
+  labs(x = "Branching", y = "Flame Height (cm)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(x = branching, y = fd)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 90)+ 
+  stat_regline_equation(label.y = 95) +
+  labs(x = "Branching", y = "Flame Duration (s)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+```
+
+## Sample Volume
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(branch_volume = branch_length*branch_width*branch_height)
+
+ggplot(flamm.df, aes(x = species, y = branch_volume, color = species)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) +
+  labs(x = " ", y = "Sample Volume") +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+
+ggplot(flamm.df, aes(x = species, y = log(branch_volume), color = species)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) +
+  labs(x = " ", y = "Sample Volume (log-transformed)") +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+
+ggplot(flamm.df, aes(x = branch_volume, y = fh)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 72)+ 
+  stat_regline_equation(label.y = 80) +
+  labs(x = "Sample Volume", y = "Flame Height (cm)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(x = branch_volume, y = fd)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 90)+ 
+  stat_regline_equation(label.y = 95) +
+  labs(x = "Sample Volume", y = "Flame Duration (s)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
 ```
 

@@ -348,6 +348,7 @@ flam.df <- merge(flam.df, flam.df.prop.ig, by = 'species')
 flam.df <- flam.df %>% 
   mutate(total_branch_mass = as.numeric(total_branch_mass) - 16.9336) %>% 
   mutate(branch_width = as.numeric(branch_width)) %>% 
+  dplyr::rename(sample_wt = total_branch_mass) %>% 
   select(-X)
 ```
 
