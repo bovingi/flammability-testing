@@ -1164,6 +1164,30 @@ ggplot(flamm.df, aes(x = branching, y = fd)) +
   theme(axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 14),
         axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(x = species, y = branching, color = species)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) +
+  labs(x = " ", y = "Sample Volume") +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+
+flamm.df %>% 
+  filter(species != 'IRIDOU') %>% 
+  ggplot(aes(x = branching, y = fh)) +
+    geom_point() +
+    geom_smooth(method = 'lm', color = 'gray40') +
+    facet_wrap(~species, scales = 'free_x') +
+    stat_cor(label.y = 72)+ 
+    stat_regline_equation(label.y = 80) +
+    labs(x = "Branching", y = "Flame Height (cm)") +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
 ```
 
 ## Sample Volume
@@ -1212,5 +1236,39 @@ ggplot(flamm.df, aes(x = branch_volume, y = fd)) +
   theme(axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 14),
         axis.text.x = element_text(size = 12))
+```
+
+## Correlations
+```{r}
+library(GGally) # For ggcorr()
+flamm.df %>% 
+  filter(lfm < 500) %>% 
+  select(fh, fd, pfg, prop_ig, lfm, leaf_lfm, stem_lfm, LMA, thickness, branch_height, branch_width, branch_length, branch_volume, branching, mpa, sample_wt, stem_mass_ratio, thickness) %>% 
+  ggcorr(label = T)
+```
+
+Looking into strange correlations/lack of correlations
+```{r}
+flamm.df %>% 
+  filter(lfm < 500) %>% 
+    ggplot(aes(x = thickness, y = prop_ig)) +
+      geom_point(alpha = 0.4) +
+      geom_smooth()
+
+flamm.df %>% 
+  filter(start_temp > 10) %>% 
+ggplot(aes(x = date, y = start_temp)) +
+  geom_jitter(width = 0.1, height = 0.1, aes(color = species)) +
+  geom_violin(alpha = 0.4) +
+  theme_bw() +
+  labs(x = 'Date', y = 'Starting Temp. (C)', color = 'Species')
+
+flamm.df %>% 
+ggplot(aes(x = as.factor(pre_ignition_glow), y = fd)) +
+  facet_wrap(~species, scales = 'free_y') +
+  geom_jitter(width = 0.1, height = 0.1, aes(color = species)) +
+  geom_boxplot(alpha = 0.4) +
+  theme_bw() +
+  labs(x = 'Pre-ignition Glow?', y = 'Flame Duration (s)', color = 'Species')
 ```
 
