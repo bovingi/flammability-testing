@@ -60,6 +60,17 @@ stem_data <- read_csv(here('data', 'raw-data', 'plant-traits', 'stem_data_flamm.
 glimpse(stem_data)
 ```
 
+## VOC Data
+```{r}
+voc_data <- read_csv(here('data', 'raw-data', 'plant-traits', 'VOCs_JL.csv')) %>%
+  clean_names() %>% 
+  filter(species != 'Arctostaphylos densifolia', # Not interested in species we didn't burn
+         method %in% c('Control', 'Heated'), # Only interested in these two methods
+         treatment == 'WET')  %>%  # Only interested in wet treatment (since we didn't do droughted for the flammability testing)
+  select(-treatment) # Since we discarded droughted treatment, we don't really need that column anymore
+```
+
+
 # Calculating LFM
 First, getting cup weights data
 ```{r}
@@ -87,7 +98,6 @@ stem_data <- stem_data %>%
 ```
 
 # Data Wrangling
-
 ```{r}
 stem_data <- stem_data %>% 
   mutate(stem_width = (stem_width1 + stem_width2)/2) #average of two stem width measurements taken
@@ -109,6 +119,16 @@ leaf_area <- leaf_area %>%
   ))
 ```
 
+## VOC Data
+We're interested in the area under the curve of the VOCs over time plot. To calculate this, I used the function below to approximate the area under the curve using the trapezoidal rule:
+```{r}
+library(bayestestR) # For area_under_curvee
+voc_data <- voc_data %>% 
+  group_by(species, method, leaf_mass) %>% 
+  mutate(auc_voc = area_under_curve(time, voc), # Area under curve
+         avg_voc = sum(voc)/10) # to get voc per minute average
+```
+
 ## Averaging Traits
 Averaging traits of interest so that there is one value per plant
 ```{r}
@@ -123,6 +143,22 @@ leaf_data_avgs <- leaf_data %>%
 leaf_area_avgs <- leaf_area %>% 
   group_by(species, plant) %>% 
   summarise(leaf_area = mean(area_cm2))
+
+voc_data_avgs <- voc_data %>% 
+  group_by(species) %>% 
+  summarise(auc_voc = mean(auc_voc), avg_voc = mean(avg_voc))
+
+voc_data %>% 
+  filter(species != 'MALLAU') %>% 
+ggplot(aes(x = species, y = avg_voc)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) + # To add points behind boxplots
+  labs(x = " ", y = "VOCs (Area Under Curve)") +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
 ```
 
 ## Combining Traits Data
@@ -203,6 +239,18 @@ leaf_area_avgs <- rbind(leaf_area_avgs, leaf_area_avgs_hetarb)
 main_traits_df <- merge(leaf_stem_v2_df, leaf_area_avgs, by = c('species', 'plant'))
 ```
 
+- Adding VOCs
+```{r}
+# Adding NA values for species we don't have VOC data for (MANDEN, QUEAGR, EUCGLO)
+species <- c('MANDEN', 'QUEAGR', 'EUGL')
+na <- c(rep(999999, 3)) # so that IRIDOU data does not get lost in the merge
+voc_data_avgs_nas <- data.frame(species, na, na)
+colnames(voc_data_avgs_nas) <- colnames(voc_data_avgs)
+voc_data_avgs <- rbind(voc_data_avgs, voc_data_avgs_nas)
+
+main_traits_df <- merge(main_traits_df, voc_data_avgs, by = 'species')
+```
+
 - Dealing with NAs from above (HETARB, IRIDOU)
 ```{r}
 main_traits_df <- main_traits_df %>% 
@@ -211,7 +259,9 @@ main_traits_df <- main_traits_df %>%
   mutate(stem_wet_mass = ifelse(stem_wet_mass > 99999, NA, stem_wet_mass)) %>% 
   mutate(stem_dry_mass = ifelse(stem_dry_mass > 99999, NA, stem_dry_mass)) %>% 
   mutate(lfm = ifelse(stem_lfm > 99999, NA, lfm)) %>% 
-  mutate(leaf_area = ifelse(leaf_area > 99999, NA, leaf_area))
+  mutate(leaf_area = ifelse(leaf_area > 99999, NA, leaf_area)) %>% 
+  mutate(auc_voc = ifelse(auc_voc > 99999, NA, auc_voc)) %>% 
+  mutate(avg_voc = ifelse(avg_voc > 99999, NA, avg_voc))
 ```
 
 ## Calculating LMA, SLA
@@ -243,7 +293,7 @@ main_traits_df <- main_traits_df %>%
 
 # Writing csv
 ```{r}
-write.csv(main_traits_df, here('data', 'processed-data', 'plant_traits_data.csv'))
+#write.csv(main_traits_df, here('data', 'processed-data', 'plant_traits_data.csv'))
 ```
 
 # Combining with Flam. Dataset
@@ -253,6 +303,6 @@ flam.df <- read.csv(here('data', 'processed-data', 'clean_flamm_data.csv')) %>%
 
 main_df <- merge(main_traits_df, flam.df, by = c('species', 'plant'))
 
-write.csv(main_df, here('data', 'processed-data', 'main_plant_flammability.csv'))
+#write.csv(main_df, here('data', 'processed-data', 'main_plant_flammability.csv'))
 ```
 

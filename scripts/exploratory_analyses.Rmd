@@ -1144,12 +1144,12 @@ exploratory_scatterplot(flamm.df.long.scatter$branching, 'Branching') # right aw
 ggplot(flamm.df, aes(x = branching, y = fh)) +
   geom_point() +
   geom_smooth(method = 'lm', color = 'gray40') +
-  scale_x_continuous(limits = c(0, 16)) +
-  stat_cor(label.y = 72)+ 
-  stat_regline_equation(label.y = 80) +
+  scale_x_continuous(limits = c(0, 16)) + # Changing limits of x axis
+  stat_cor(label.y = 72)+  # To display r value and p value
+  stat_regline_equation(label.y = 80) + # To display equation
   labs(x = "Branching", y = "Flame Height (cm)") +
   theme_bw() +
-  theme(axis.title = element_text(face = 'bold', size = 16),
+  theme(axis.title = element_text(face = 'bold', size = 16), # Bolding axis titles
         axis.text = element_text(size = 14),
         axis.text.x = element_text(size = 12))
 
@@ -1166,8 +1166,8 @@ ggplot(flamm.df, aes(x = branching, y = fd)) +
         axis.text.x = element_text(size = 12))
 
 ggplot(flamm.df, aes(x = species, y = branching, color = species)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) +
+  geom_boxplot(outlier.shape = NA) + #
+  geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) + # To add points behind boxplots
   labs(x = " ", y = "Sample Volume") +
   theme_bw() +
   theme(legend.position = 'none',
