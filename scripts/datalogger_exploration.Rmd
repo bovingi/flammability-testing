@@ -92,9 +92,8 @@ temp.heat.flux.df <- temp.heat.flux.df %>%
 ### Maximum Temperature
 ```{r, warning = F}
 flamm.df <- flamm.df %>% 
-  mutate(max_temp = NA) %>% 
-  mutate(time_at_max_temp = NA) %>% 
-  mutate(max_temp_sensor = NA)
+  mutate(max_temp = NA, time_at_max_temp = NA, max_temp_sensor = NA) %>% 
+  mutate(primary_time_of_flame_end = as_hms(primary_time_of_flame_end))
 thermocoupler.df.long <- thermocoupler.df.long %>% 
   mutate(max_temp = NA) 
 for(i in 1:nrow(flamm.df)){
@@ -118,8 +117,8 @@ flamm.df <- flamm.df %>%
 ### Starting Temp. and Temp. Change
 ```{r, warning = F}
 flamm.df <- flamm.df %>% 
-  mutate(start_temp = NA) %>% 
-  mutate(start_temp_sensor = NA)
+  mutate(start_temp = NA, start_temp_sensor = NA) %>% 
+  mutate(start_temp = as_hms(start_temp))
 thermocoupler.df.long <- thermocoupler.df.long %>% 
   mutate(start_temp = 'yes')
 for(i in 1:nrow(flamm.df)){
@@ -916,6 +915,103 @@ Other things to note:
 - Six different thermocouplers; which one or ones make the most sense for us to use?
 - Missing data for following dates: 
 
+### Visualization
+```{r}
+# Data Wrangling
+long.temp.df <- flamm.df %>% 
+  mutate(max_temp = as.numeric(max_temp), start_temp = as.numeric(start_temp), temp_change = as.numeric(temp_change)) %>% 
+  select(species, fh, fd, max_temp, temp_change, start_temp, avg_temp_ch2, avg_temp_ch6, avg_stable_temp_ch2, avg_stable_temp_ch6, max_temp_flameht, max_temp_full_time) %>% 
+  pivot_longer(cols = !c(species, fh, fd), names_to = 'temp_var', values_to = 'temp_vals') %>% 
+  filter(temp_vals > 0)
+
+# Facet Labels
+temp_labels <- c('Maximum Temperature (FD)', 'Temperature Change', 'Starting Temperature', 'Average Temperature (CH2)', 'Average Temperature (CH6)', 'Avg. Temp. (Stable, CH2)', 'Avg. Temp. (Stable, CH6)', 'Maximum Temperature (FH +/- 2s)', 'Maximum Temperature (Full Test)')
+names(temp_labels) <- c('max_temp', 'temp_change', 'start_temp', 'avg_temp_ch2', 'avg_temp_ch6', 'avg_stable_temp_ch2', 'avg_stable_temp_ch6', 'max_temp_flameht', 'max_temp_full_time')
+
+# Scatterplots
+## FH, split by species 
+long.temp.df %>% 
+  ggplot(aes(x = fh, y = temp_vals, color = species)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(se = F, method = 'lm') +
+    facet_wrap(~temp_var, labeller = labeller(temp_var = temp_labels), scales = 'free_y') +
+    labs(x = 'Flame Height', y = 'Temperature Variable', color = 'Species') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+## FH, all species
+long.temp.df %>% 
+  ggplot(aes(x = fh, y = temp_vals)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(color = 'gray35') +
+    facet_wrap(~temp_var, labeller = labeller(temp_var = temp_labels), scales = 'free_y') +
+    labs(x = 'Flame Height', y = 'Temperature Variable') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+## FD, split by species 
+long.temp.df %>% 
+  ggplot(aes(x = fd, y = temp_vals, color = species)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(se = F, method = 'lm') +
+    facet_wrap(~temp_var, labeller = labeller(temp_var = temp_labels), scales = 'free_y') +
+    labs(x = 'Flame Duration', y = 'Temperature Variable', color = 'Species') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+## FD, all species
+long.temp.df %>% 
+  ggplot(aes(x = fd, y = temp_vals)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(color = 'gray35') +
+    facet_wrap(~temp_var, labeller = labeller(temp_var = temp_labels), scales = 'free_y') +
+    labs(x = 'Flame Duration', y = 'Temperature Variable') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+# Density Plots
+long.temp.df %>% 
+  filter(temp_var %in% c('max_temp', 'temp_change', 'max_temp_flameht', 'max_temp_full_time')) %>% 
+  ggplot(aes(x = temp_vals)) +
+    geom_density(fill = 'gray35') +
+    facet_wrap(~temp_var, labeller = labeller(temp_var = temp_labels), ncol = 1) +
+    labs(y = 'Density', x = ' ') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+# Boxplots
+long.temp.df %>% 
+  filter(temp_var %in% c('max_temp', 'temp_change', 'max_temp_flameht', 'max_temp_full_time')) %>% 
+  ggplot(aes(y = temp_vals, x = species, color = species)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.1, height = 0.001, alpha = 0.5) +
+    facet_wrap(~temp_var, labeller = labeller(temp_var = temp_labels), ncol = 1, scales = 'free_y') +
+    labs(y = 'Temperature Variable', x = ' ') +
+    theme_bw() +
+    theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+```
+
 ## Heat Flux
 Here are the ways we've quantified heat flux above:
 - Maximum Heat Flux (raw data)
@@ -925,3 +1021,99 @@ Here are the ways we've quantified heat flux above:
 - Average Heat Flux ('stable'; from 15 seconds after start to 10 seconds before ignition; for both CH7 and CH8)
 - Heat Flux Deviation from 'stable' average (for both CH7 and CH8; using max. heat flux calculated w/ Loess regressions)
 - 95% percentile (as suggested by Max)
+
+### Visualization
+```{r}
+# Data Wrangling
+long.heatflux.df <- flamm.df %>% 
+  select(species, fh, fd, max_heat_flux, max_heat_flux_loessCH7, max_heat_flux_loessCH8, avg_heat_flux_fd, avg_heat_flux_full_test, avg_heat_flux_stableCH7, avg_heat_flux_stableCH8, heat_flux_deviationCH7, heat_flux_deviationCH8, heat_flux_95perc) %>% 
+  pivot_longer(cols = !c(species, fh, fd), names_to = 'hf_var', values_to = 'hf_vals') %>% 
+  filter(hf_vals > 0)
+
+# Facet Labels
+hf_labels <- c('Maximum Heat Flux', 'Maximum Heat Flux (Loess, CH7)', 'Maximum Heat Flux (Loess, CH8)', 'Average Heat Flux (FD)', 'Average Heat Flux (Full Test)', 'Average Heat Flux (Stable, CH7)', 'Average Heat Flux (Stable, CH8)', 'Heat Flux Deviation (From Stable Average, CH7)', 'Heat Flux Deviation (From Stable Average, CH8)', '95th Percentile Heat Flux')
+names(hf_labels) <- c('max_heat_flux', 'max_heat_flux_loessCH7', 'max_heat_flux_loessCH8', 'avg_heat_flux_fd', 'avg_heat_flux_full_test', 'avg_heat_flux_stableCH7', 'avg_heat_flux_stableCH8', 'heat_flux_deviationCH7', 'heat_flux_deviationCH8', 'heat_flux_95perc')
+
+# Scatterplots
+## FH, split by species 
+long.heatflux.df %>% 
+  ggplot(aes(x = fh, y = hf_vals, color = species)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(se = F, method = 'lm') +
+    facet_wrap(~hf_var, labeller = labeller(hf_var = hf_labels), scales = 'free_y') +
+    labs(x = 'Flame Height', y = 'Heat Flux Variable', color = 'Species') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+## FH, all species
+long.heatflux.df %>% 
+  ggplot(aes(x = fh, y = hf_vals)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(color = 'gray35') +
+    facet_wrap(~hf_var, labeller = labeller(hf_var = hf_labels), scales = 'free_y') +
+    labs(x = 'Flame Height', y = 'Heat Flux Variable') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+## FD, split by species 
+long.heatflux.df %>% 
+  ggplot(aes(x = fd, y = hf_vals, color = species)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(se = F, method = 'lm') +
+    facet_wrap(~hf_var, labeller = labeller(hf_var = hf_labels), scales = 'free_y') +
+    labs(x = 'Flame Duration', y = 'Heat Flux Variable', color = 'Species') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+## FD, all species
+long.heatflux.df %>% 
+  ggplot(aes(x = fd, y = hf_vals)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(color = 'gray35') +
+    facet_wrap(~hf_var, labeller = labeller(hf_var = hf_labels), scales = 'free_y') +
+    labs(x = 'Flame Duration', y = 'Heat Flux Variable') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+# Density Plots
+long.heatflux.df %>% 
+  filter(hf_var %in% c('max_heat_flux', 'max_heat_flux_loessCH7', 'max_heat_flux_loessCH8', 'heat_flux_deviationCH7', 'heat_flux_deviationCH8', 'heat_flux_95perc')) %>% 
+  ggplot(aes(x = hf_vals)) +
+    geom_density(fill = 'gray35') +
+    facet_wrap(~hf_var, labeller = labeller(hf_var = hf_labels), ncol = 2) +
+    labs(y = 'Density', x = ' ') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+# Boxplots
+long.heatflux.df %>% 
+  filter(hf_var %in% c('max_heat_flux', 'max_heat_flux_loessCH7', 'max_heat_flux_loessCH8', 'heat_flux_deviationCH7', 'heat_flux_deviationCH8', 'heat_flux_95perc')) %>% 
+  ggplot(aes(y = hf_vals, x = species, color = species)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.1, height = 0.001, alpha = 0.5) +
+    facet_wrap(~hf_var, labeller = labeller(hf_var = hf_labels), ncol = 2, scales = 'free_y') +
+    labs(y = 'Heat Flux Variable', x = ' ') +
+    theme_bw() +
+    theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+```
