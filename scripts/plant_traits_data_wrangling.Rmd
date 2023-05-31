@@ -16,6 +16,7 @@ library(here)
 rename = dplyr::rename
 here = here::here
 summarise = dplyr::summarise
+group_by = dplyr::group_by
 ```
 
 # Initial Data Cleaning
@@ -122,10 +123,11 @@ leaf_area <- leaf_area %>%
 ## VOC Data
 We're interested in the area under the curve of the VOCs over time plot. To calculate this, I used the function below to approximate the area under the curve using the trapezoidal rule:
 ```{r}
-library(bayestestR) # For area_under_curvee
+library(bayestestR) # For area_under_curve
 voc_data <- voc_data %>% 
-  group_by(species, method, leaf_mass) %>% 
-  mutate(auc_voc = area_under_curve(time, voc), # Area under curve
+  group_by(leaf_mass) %>% 
+  summarise(species = species, method = method,
+         auc_voc = area_under_curve(time, voc), # Area under curve
          avg_voc = sum(voc)/10) # to get voc per minute average
 ```
 
@@ -149,11 +151,12 @@ voc_data_avgs <- voc_data %>%
   summarise(auc_voc = mean(auc_voc), avg_voc = mean(avg_voc))
 
 voc_data %>% 
-  filter(species != 'MALLAU') %>% 
+  #filter(species != 'Malosma laurina') %>% 
+  filter(method == 'Heated') %>% 
 ggplot(aes(x = species, y = avg_voc)) +
   geom_boxplot(outlier.shape = NA) +
   geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) + # To add points behind boxplots
-  labs(x = " ", y = "VOCs (Area Under Curve)") +
+  labs(x = " ", y = "VOCs/minute (Heated Treatment)") +
   theme_bw() +
   theme(legend.position = 'none',
         axis.title = element_text(face = 'bold', size = 16),

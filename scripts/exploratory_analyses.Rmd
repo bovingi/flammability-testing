@@ -1272,3 +1272,58 @@ ggplot(aes(x = as.factor(pre_ignition_glow), y = fd)) +
   labs(x = 'Pre-ignition Glow?', y = 'Flame Duration (s)', color = 'Species')
 ```
 
+# Summary Plots: Sample Size vs. FD/FH
+Per request by KF
+```{r}
+size_labels <- c('Sample Weight (g)', 'Dry Weight (g)', 'Wet Weight (g)', 'Sample Volume (cm3)')
+names(size_labels) <- c('sample_wt', 'dw_flam_sample', 'ww_flam_sample', 'branch_volume')
+
+flam_labels <- c('Flame Height', 'Flame Duration')
+names(flam_labels) <- c('fh', 'fd')
+
+# All species
+flamm.df %>% 
+  select(species, fh, fd, sample_wt, dw_flam_sample, ww_flam_sample, branch_volume) %>% 
+  pivot_longer(cols = !c(fh, fd, species), names_to = 'size_var', values_to = 'size_value') %>%
+  pivot_longer(cols = c(fh, fd), names_to = 'flam_var', values_to = 'flam_value') %>% 
+  na.omit() %>% 
+  ggplot(aes(x = size_value, y = flam_value, color = species)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth(alpha = 0.6, linewidth = 0.5, se = F, method = 'lm') +
+    facet_grid(flam_var ~ size_var, scales = 'free', labeller = labeller(flam_var = flam_labels, size_var = size_labels)) +
+    labs(x = 'Sample Size Metric', y = ' ', color = 'Species') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+# By species
+spp_vector <- c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'MALLAU')
+plot_list <- list()
+for(i in 1:length(spp_vector)) {
+plot <- flamm.df %>% 
+  filter(species == spp_vector[i]) %>% 
+  select(fh, fd, sample_wt, dw_flam_sample, ww_flam_sample, branch_volume) %>% 
+    pivot_longer(cols = !c(fh, fd), names_to = 'size_var', values_to = 'size_value') %>%
+  pivot_longer(cols = c(fh, fd), names_to = 'flam_var', values_to = 'flam_value') %>% 
+  na.omit() %>% 
+  ggplot(aes(x = size_value, y = flam_value)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth(alpha = 0.6, linewidth = 0.5, method = 'lm', color = 'gray30') +
+    facet_grid(flam_var ~ size_var, scales = 'free', labeller = labeller(flam_var = flam_labels, size_var = size_labels)) +
+    labs(x = 'Sample Size Metric', y = ' ', title = paste0(spp_vector[i], ': Sample Size vs. Flammability Metrics')) +
+    theme_bw() +
+    theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+plot_list[[i]] <- plot
+}
+plot_list[[1]]
+plot_list[[2]]
+plot_list[[3]]
+plot_list[[4]]
+plot_list[[5]]
+```

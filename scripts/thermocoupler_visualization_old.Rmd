@@ -184,6 +184,78 @@ flam.df <- flam.df %>%
 rm(df) # Decluttering environment by removing temporary dataframe from above for loop
 ```
 
+Average Temp
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(start_time = as_hms(start_time),
+           end_time = as_hms(end_time)) %>% 
+  mutate(avg_temp_ch2 = NA) %>% 
+  mutate(avg_temp_ch6 = NA)
+for(i in 1:nrow(flamm.df)){
+  df <- thermocoupler.df.long %>% 
+    filter(thermo.id %in% c('CH2', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
+    pivot_wider(names_from = 'thermo.id', values_from = 'temp') %>% 
+    filter(date == flamm.df$date[i]) %>% 
+    filter(time > flamm.df$start_time[i] & time < flamm.df$end_time[i]) %>% 
+    filter(ms == 0)
+  flamm.df$avg_temp_ch2[i] <- mean(df$CH2)
+  flamm.df$avg_temp_ch6[i] <- mean(df$CH6)
+}
+
+flamm.df %>% 
+  ggplot(aes(x = date, y = avg_temp_ch6)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) +
+    labs(x = "Date", y = "Avg Temp. (CH6)", color = 'Species') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch6, y = fh)) +
+    geom_point() +
+    geom_smooth() +
+    labs(x = "Avg Temp. (CH6)", y = "Flame Height") +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+
+# Proportion Ignited (per day)
+flam.df.prop.ig1 <- flam.df %>% 
+  group_by(date) %>%
+  dplyr::summarise(n = n()) %>% 
+  ungroup() 
+  
+flam.df.prop.ig2 <- flam.df %>% 
+  filter(ignition %in% c('M', '0')) %>% 
+  group_by(date) %>% 
+  dplyr::summarise(manual_or_nonignitions = n()) %>% 
+  select(manual_or_nonignitions)
+
+flam.df.prop.ig <- cbind(flam.df.prop.ig1, flam.df.prop.ig2) %>% 
+  mutate(prop_ig_date = (n-manual_or_nonignitions)/n)
+
+rm(flam.df.prop.ig1, flam.df.prop.ig2) # Decluttering environment by removing temporary dataframes
+
+flam.df.prop.ig <- flam.df.prop.ig %>% 
+  select(date, prop_ig_date)
+flamm.df.prop.ig <- merge(flamm.df, flam.df.prop.ig, by = 'date')
+
+flamm.df.prop.ig %>% 
+  group_by(date) %>% 
+  dplyr::summarise(prop_ig_date = prop_ig_date, avg_temp_ch2 = mean(avg_temp_ch2), avg_temp_ch6 = mean(avg_temp_ch6)) %>% 
+  ggplot(aes(x = avg_temp_ch2, y = prop_ig_date)) +
+    geom_point() +
+    labs(x = "Avg Temp. (CH2)", y = "Proportion Ignited (per day)") +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+```
+
+
 ### Calculating Heat Flux
 #### Max. Heat Flux
 Still deciding on what to use here... top sensor, side sensor, avg of both?
@@ -627,3 +699,7 @@ queagr.flam.df <- flam.df %>%
   filter(species == 'QUEAGR')
 ```
 
+# Summaries
+## Temperature
+Here are the various ways we've quantified temperature above:
+- 

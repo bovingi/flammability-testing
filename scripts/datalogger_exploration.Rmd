@@ -1,0 +1,927 @@
+---
+title: "Temperature and Heat Flux Exploration"
+author: "Joe Celebrezze"
+date: "2023-05-30"
+output: html_document
+---
+
+Note: a sizable portion of this is copied over from thermocoupler_visualization, but that script was getting messy and convoluted, so I reorganized it and deleted some stuff, added some stuff to make this script
+
+Data cleaning prior to R: 
+- Delete first rows of thermocoupler data
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# packages
+library(tidyverse)
+library(here)
+library(lubridate)
+library(ggfortify)
+library(hms)
+library(caret) # for optimization routine
+
+# defining functions
+here = here::here
+
+# reading in data
+thermocoupler.files <- list.files(here('data', 'raw-data', 'thermocouplers'))
+thermocoupler.df.list <- list()
+for(i in 1:length(thermocoupler.files)){
+  df <- read.csv(here('data', 'raw-data', 'thermocouplers', thermocoupler.files[[i]]))
+  thermocoupler.df.list[[i]] <- df
+}
+
+flamm.df <- read.csv(here('data', 'processed-data', 'main_plant_flammability.csv'))
+```
+
+# Datalogger Data Wrangling
+This includes data from the thermocouplers (CH1-6) as well as the heat flux sensors (CH7-8); the datalogger took data every 500 ms
+```{r}
+# Combining thermocoupler datasheets
+thermocoupler.df <- do.call('rbind', thermocoupler.df.list)
+
+# Getting temperature data in correct format
+for(i in 4:11){
+thermocoupler.df[,i] <- thermocoupler.df[,i] %>% 
+  str_replace(pattern = '\\+ ', replacement = ' ') %>% 
+  str_trim(side = c('left'))
+thermocoupler.df[,i] <- as.numeric(thermocoupler.df[,i])
+}
+thermocoupler.df <- na.omit(thermocoupler.df)
+
+# Splitting date and time into two columns
+thermocoupler.df <- thermocoupler.df %>% 
+  mutate(Date.Time = as.POSIXct(Date.Time) + 80) %>%  # Adjusting time so it matches time on clock
+  mutate(date = as.Date(Date.Time)) %>% 
+  mutate(time = format(as.POSIXct(Date.Time), format = "%H:%M:%S")) %>% 
+  mutate(time = as_hms(time))
+
+# For heat flux
+heatflux.df <- thermocoupler.df %>% 
+  select(date, time, ms, CH1, CH2, CH3, CH4, CH5, CH6, CH7, CH8)
+heatflux.df.long <- heatflux.df %>% 
+  select(date, time, ms, CH7, CH8) %>% 
+  pivot_longer(cols = starts_with("CH"),
+               names_to = 'sensor.id',
+               values_to = 'heat.flux')
+
+# Removing unncessary columns
+thermocoupler.df <- thermocoupler.df %>% 
+  select(date, time, ms, CH1, CH2, CH3, CH4, CH5, CH6)
+
+# Lengthening dataframe
+thermocoupler.df.long <- thermocoupler.df %>% 
+  pivot_longer(cols = starts_with("CH"),
+               names_to = 'thermo.id',
+               values_to = 'temp')
+
+# Combining dataframes
+temp.heat.flux.df <- merge(thermocoupler.df.long, heatflux.df.long, by = c('date', 'time', 'ms'))
+temp.heat.flux.df <- temp.heat.flux.df %>% 
+  mutate(sensor.location = case_when(
+    sensor.id == 'CH7' ~ 'Top',
+    sensor.id == 'CH8' ~ 'Left Side'
+  ))
+```
+
+
+# Metric Calculations
+## Calculating Temp. Metrics
+### Maximum Temperature
+```{r, warning = F}
+flamm.df <- flamm.df %>% 
+  mutate(max_temp = NA) %>% 
+  mutate(time_at_max_temp = NA) %>% 
+  mutate(max_temp_sensor = NA)
+thermocoupler.df.long <- thermocoupler.df.long %>% 
+  mutate(max_temp = NA) 
+for(i in 1:nrow(flamm.df)){
+  df <- thermocoupler.df.long %>% 
+    filter(thermo.id %in% c('CH1', 'CH2', 'CH5', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
+    filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df$primary_ignition[i] & time <= flamm.df$primary_time_of_flame_end[i]) #again, index row, select columns
+  flamm.df$max_temp[i] <- max(df$temp)
+  df$max_temp <- case_when(df$temp == flamm.df$max_temp[i] ~ 'yes')
+  df.mt <- df %>% 
+    filter(max_temp == 'yes')
+  flamm.df$time_at_max_temp[i] <- df.mt$time[1]
+  flamm.df$max_temp_sensor[i] <- df.mt$thermo.id[1]
+}
+flamm.df <- flamm.df %>% 
+  mutate(time_at_max_temp = as_hms(time_at_max_temp))
+
+#rm(df, df.mt) # Decluttering environment by removing temporary dataframes from above for loop
+```
+
+### Starting Temp. and Temp. Change
+```{r, warning = F}
+flamm.df <- flamm.df %>% 
+  mutate(start_temp = NA) %>% 
+  mutate(start_temp_sensor = NA)
+thermocoupler.df.long <- thermocoupler.df.long %>% 
+  mutate(start_temp = 'yes')
+for(i in 1:nrow(flamm.df)){
+  df <- thermocoupler.df.long %>% 
+    filter(thermo.id %in% c('CH1', 'CH2', 'CH5', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
+    filter(date == flamm.df$date[i]) %>% 
+    filter(time == flamm.df$start_time[i]) %>% 
+    filter(ms == 0)
+  flamm.df$start_temp[i] <- max(df$temp)
+  df$start_temp <- case_when(df$temp == flamm.df$start_temp[i] ~ 'yes')
+  df.st <- df %>% 
+    filter(start_temp == 'yes')
+  flamm.df$start_temp_sensor[i] <- df.st$thermo.id[1]
+}
+flamm.df <- flamm.df %>% 
+  mutate(temp_change = max_temp - start_temp)
+
+rm(df) # Decluttering environment by removing temporary dataframe from above for loop
+```
+
+### Full Test Average Temp (CH2 and CH6)
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(start_time = as_hms(start_time),
+         end_time = as_hms(end_time)) %>% 
+  mutate(avg_temp_ch2 = NA) %>% 
+  mutate(avg_temp_ch6 = NA)
+for(i in 1:nrow(flamm.df)){
+  df <- thermocoupler.df.long %>% 
+    filter(thermo.id %in% c('CH2', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
+    pivot_wider(names_from = 'thermo.id', values_from = 'temp') %>% 
+    filter(date == flamm.df$date[i]) %>% 
+    filter(time > flamm.df$start_time[i] & time < flamm.df$end_time[i]) %>% 
+    filter(ms == 0)
+  flamm.df$avg_temp_ch2[i] <- mean(df$CH2)
+  flamm.df$avg_temp_ch6[i] <- mean(df$CH6)
+}
+
+flamm.df %>% 
+  ggplot(aes(x = date, y = avg_temp_ch6)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.1, height = 0.01, alpha = 0.4, aes(color = species)) +
+    labs(x = "Date", y = "Avg Temp. (CH6)", color = 'Species') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch6, y = fh)) +
+    geom_point() +
+    geom_smooth() +
+    labs(x = "Avg Temp. (CH6)", y = "Flame Height") +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+
+# Proportion Ignited (per day)
+flamm.df.prop.ig1 <- flamm.df %>% 
+  group_by(date) %>%
+  dplyr::summarise(n = n()) %>% 
+  ungroup() 
+  
+flamm.df.prop.ig2 <- flamm.df %>% 
+  filter(ignition %in% c('M', '0')) %>% 
+  group_by(date) %>% 
+  dplyr::summarise(manual_or_nonignitions = n()) %>% 
+  select(manual_or_nonignitions)
+
+flamm.df.prop.ig <- cbind(flamm.df.prop.ig1, flamm.df.prop.ig2) %>% 
+  mutate(prop_ig_date = (n-manual_or_nonignitions)/n)
+
+rm(flamm.df.prop.ig1, flamm.df.prop.ig2) # Decluttering environment by removing temporary dataframes
+
+flamm.df.prop.ig <- flamm.df.prop.ig %>% 
+  select(date, prop_ig_date)
+flamm.df.prop.ig <- merge(flamm.df, flamm.df.prop.ig, by = 'date')
+
+flamm.df.prop.ig %>% 
+  group_by(date) %>% 
+  dplyr::summarise(prop_ig_date = prop_ig_date, avg_temp_ch2 = mean(avg_temp_ch2), avg_temp_ch6 = mean(avg_temp_ch6)) %>% 
+  ggplot(aes(x = avg_temp_ch2, y = prop_ig_date)) +
+    geom_point() +
+    labs(x = "Avg Temp. (CH2)", y = "Proportion Ignited (per day)") +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12, angle = 20))
+```
+
+### 'Stable' Average Temp. (CH2 and CH6; from 15 seconds after start time to 10 seconds before ignition)
+Trying to get an average temp. of the 'stable' period of the test where we see the temperature time series mostly flatten out
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(avg_stable_temp_ch2 = NA) %>% 
+  mutate(avg_stable_temp_ch6 = NA)
+
+flamm.df.ignite <- flamm.df %>% 
+  drop_na(primary_ignition) %>% 
+  mutate(primary_ignition = as_hms(primary_ignition))
+
+flamm.df.nonignite <- flamm.df %>% 
+  filter(is.na(primary_ignition))
+
+for(i in 1:nrow(flamm.df.ignite)){
+  df <- thermocoupler.df.long %>% 
+    filter(thermo.id %in% c('CH2', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
+    pivot_wider(names_from = 'thermo.id', values_from = 'temp') %>% 
+    filter(date == flamm.df.ignite$date[i]) %>% 
+    filter(time > as_hms(as.POSIXct(flamm.df.ignite$start_time[i])+15) &
+           time < as_hms(as.POSIXct(flamm.df.ignite$primary_ignition[i])-10)) %>% 
+    filter(ms == 0)
+  flamm.df.ignite$avg_stable_temp_ch2[i] <- mean(df$CH2)
+  flamm.df.ignite$avg_stable_temp_ch6[i] <- mean(df$CH6)
+}
+
+flamm.df <- rbind(flamm.df.ignite, flamm.df.nonignite)
+rm(flamm.df.ignite, flamm.df.nonignite)
+```
+
+### Other iterations of Max. Temp.
+#### Time of fh +/- 2sec
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(max_temp_flameht = NA) %>% 
+  mutate(time_at_max_temp_flameht = NA)
+
+flamm.df.ignite <- flamm.df %>% 
+  drop_na(time_fh) %>% 
+  mutate(time_fh = as_hms(time_fh))
+
+flamm.df.nonignite <- flamm.df %>% 
+  filter(is.na(time_fh))
+
+thermocoupler.df.long <- thermocoupler.df.long %>% 
+  mutate(max_temp = NA) 
+for(i in 1:nrow(flamm.df.ignite)){
+  df <- thermocoupler.df.long %>%
+    filter(date == flamm.df.ignite$date[i]) %>%  #index row, select column for date
+    filter(time >= as_hms(as.POSIXct(flamm.df.ignite$time_fh[i])-2) &
+           time <= as_hms(as.POSIXct(flamm.df.ignite$time_fh[i])+2))
+  flamm.df.ignite$max_temp_flameht[i] <- max(df$temp)
+  df$max_temp <- case_when(df$temp == flamm.df.ignite$max_temp_flameht[i] ~ 'yes')
+  df.mt <- df %>% 
+    filter(max_temp == 'yes')
+  flamm.df.ignite$time_at_max_temp_flameht[i] <- df.mt$time[1]
+}
+flamm.df.ignite <- flamm.df.ignite %>% 
+  mutate(time_at_max_temp_flameht = as_hms(time_at_max_temp_flameht))
+
+flamm.df <- rbind(flamm.df.ignite, flamm.df.nonignite)
+rm(flamm.df.ignite, flamm.df.nonignite)
+```
+
+#### Full time series
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(max_temp_full_time = NA) %>% 
+  mutate(time_at_max_temp_full_time = NA)
+thermocoupler.df.long <- thermocoupler.df.long %>% 
+  mutate(max_temp = NA) 
+for(i in 1:nrow(flamm.df)){
+  df <- thermocoupler.df.long %>%
+    filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df$start_time & time <= flamm.df$end_time[i])
+  flamm.df$max_temp_full_time[i] <- max(df$temp)
+  df$max_temp <- case_when(df$temp == flamm.df$max_temp_full_time[i] ~ 'yes')
+  df.mt <- df %>% 
+    filter(max_temp == 'yes')
+  flamm.df$time_at_max_temp_full_time[i] <- df.mt$time[1]
+}
+flamm.df <- flamm.df %>% 
+  mutate(time_at_max_temp_full_time = as_hms(time_at_max_temp_full_time))
+```
+
+### Temperature Deviations
+Max temp. - Avg. temp.
+```{r}
+
+```
+
+
+## Heat Flux
+### Max. Heat Flux
+Still deciding on what to use here... top sensor, side sensor, avg of both?
+#### Raw data
+```{r, warning = F}
+flamm.df <- flamm.df %>% 
+  mutate(max_heat_flux = NA) %>% 
+  mutate(time_at_max_heat_flux = NA)
+temp.heat.flux.df <- temp.heat.flux.df %>% 
+  mutate(max_heat_flux = NA) 
+for(i in 1:nrow(flamm.df)){
+  df <- temp.heat.flux.df %>% 
+    filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df$start_time[i] & time <= flamm.df$end_time[i]) #again, index row, select columns
+  flamm.df$max_heat_flux[i] <- max(df$heat.flux)
+  df$max_heat_flux <- case_when(df$heat.flux == flamm.df$max_heat_flux[i] ~ 'yes')
+  df.mhf <- df %>% 
+    filter(max_heat_flux == 'yes')
+  flamm.df$time_at_max_heat_flux[i] <- df.mhf$time[1]
+}
+flamm.df <- flamm.df %>% 
+  mutate(time_at_max_heat_flux = as_hms(time_at_max_heat_flux))
+
+rm(df, df.mhf) # Decluttering environment by removing temporary dataframes from above for loop
+```
+
+#### Loess regressions
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(max_heat_flux_loessCH7 = NA) %>% 
+  mutate(time_at_max_heat_flux_loessCH7 = NA) %>% 
+  mutate(max_heat_flux_loessCH8 = NA) %>% 
+  mutate(time_at_max_heat_flux_loessCH8 = NA)
+heatflux.df <- heatflux.df %>% 
+  mutate(max_heat_flux_loessCH7 = NA)  %>% 
+  mutate(max_heat_flux_loessCH8 = NA)
+# NOTE: THIS PART WILL NOT BE NECESSARY WHEN ALL DATALOGGER DATA IS INPUTTED
+flamm.df.no.Inf <- flamm.df %>% 
+  filter(max_heat_flux > 0)
+flamm.df.Inf <- flamm.df %>% 
+  filter(max_heat_flux < 0) 
+
+for(i in 1:nrow(flamm.df.no.Inf)){
+  df <- heatflux.df %>% 
+    filter(date == flamm.df.no.Inf$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df.no.Inf$start_time[i] & time <= flamm.df.no.Inf$end_time[i]) %>% #again, index row, select columns
+    mutate(time = as.numeric(time))
+  
+# Loess regressions
+  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = 0.09826087)
+  df$loess.CH7 <- predict(loess.mod.CH7)
+  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = 0.02608696)
+  df$loess.CH8 <- predict(loess.mod.CH8)
+
+  flamm.df.no.Inf$max_heat_flux_loessCH7[i] <- max(df$loess.CH7)
+  flamm.df.no.Inf$max_heat_flux_loessCH8[i] <- max(df$loess.CH8)
+  
+  df$max_heat_flux_loessCH7 <- case_when(df$loess.CH7 == flamm.df.no.Inf$max_heat_flux_loessCH7[i] ~ 'yes')
+  df$max_heat_flux_loessCH8 <- case_when(df$loess.CH8 == flamm.df.no.Inf$max_heat_flux_loessCH8[i] ~ 'yes')
+  
+  df.mhf_CH7 <- df %>% 
+    filter(max_heat_flux_loessCH7 == 'yes')
+  flamm.df.no.Inf$time_at_max_heat_flux_loessCH7[i] <- df.mhf_CH7$time[1]
+  df.mhf_CH8 <- df %>% 
+    filter(max_heat_flux_loessCH8 == 'yes')
+  flamm.df.no.Inf$time_at_max_heat_flux_loessCH8[i] <- df.mhf_CH8$time[1]
+}
+flamm.df.no.Inf <- flamm.df.no.Inf %>% 
+  mutate(time_at_max_heat_flux_loessCH7 = as_hms(time_at_max_heat_flux_loessCH7)) %>% 
+  mutate(time_at_max_heat_flux_loessCH8 = as_hms(time_at_max_heat_flux_loessCH8))
+
+flamm.df <- rbind(flamm.df.no.Inf, flamm.df.Inf)
+
+rm(df, df.mhf_CH7, df.mhf_CH8) # Decluttering environment by removing temporary dataframes from above for loop
+```
+
+### Average Heat Flux 
+#### During Flaming Combustion
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(avg_heat_flux_fd = NA)
+
+for(i in 1:nrow(flamm.df)){
+  df <- temp.heat.flux.df %>% 
+    filter(sensor.id == 'CH8') %>% # looking at side sensor only (less noise)
+    filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df$primary_ignition[i] & time <= flamm.df$primary_time_of_flame_end[i]) %>% 
+    summarise(avg_heat_flux_fd = mean(heat.flux))
+  flamm.df$avg_heat_flux_fd[i] <- df$avg_heat_flux_fd
+}
+rm(df) # Decluttering environment by removing temporary dataframe from above for loop
+```
+
+#### Full Test
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(avg_heat_flux_full_test = NA)
+
+for(i in 1:nrow(flamm.df)){
+  df <- temp.heat.flux.df %>% 
+    filter(sensor.id == 'CH8') %>% # looking at side sensor only (less noise)
+    filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df$start_time[i] & time <= flamm.df$end_time[i]) %>% 
+    summarise(avg_heat_flux_full_test = mean(heat.flux))
+  flamm.df$avg_heat_flux_full_test[i] <- df$avg_heat_flux_full_test
+}
+rm(df) # Decluttering environment by removing temporary dataframe from above for loop
+```
+
+#### 'Stable' period
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(avg_heat_flux_stableCH7 = NA) %>% 
+  mutate(avg_heat_flux_stableCH8 = NA)
+
+flamm.df.ignite <- flamm.df %>% 
+  drop_na(primary_ignition) %>% 
+  mutate(primary_ignition = as_hms(primary_ignition))
+
+flamm.df.nonignite <- flamm.df %>% 
+  filter(is.na(primary_ignition))
+
+for(i in 1:nrow(flamm.df.ignite)){
+  dfCH7 <- temp.heat.flux.df %>% 
+    filter(sensor.id == 'CH7') %>% # looking at side sensor only (less noise)
+    filter(date == flamm.df.ignite$date[i]) %>%  #index row, select column for date
+    filter(time > as_hms(as.POSIXct(flamm.df.ignite$start_time[i])+15) &
+           time < as_hms(as.POSIXct(flamm.df.ignite$primary_ignition[i])-10)) %>% 
+    summarise(avg_heat_flux_stableCH7 = mean(heat.flux))
+    flamm.df.ignite$avg_heat_flux_stableCH7[i] <- dfCH7$avg_heat_flux_stableCH7
+  
+  dfCH8 <- temp.heat.flux.df %>% 
+    filter(sensor.id == 'CH8') %>% # looking at side sensor only (less noise)
+    filter(date == flamm.df.ignite$date[i]) %>%  #index row, select column for date
+    filter(time > as_hms(as.POSIXct(flamm.df.ignite$start_time[i])+15) &
+           time < as_hms(as.POSIXct(flamm.df.ignite$primary_ignition[i])-10)) %>% 
+    summarise(avg_heat_flux_stableCH8 = mean(heat.flux))
+    flamm.df.ignite$avg_heat_flux_stableCH8[i] <- dfCH8$avg_heat_flux_stableCH8
+}
+
+flamm.df <- rbind(flamm.df.ignite, flamm.df.nonignite)
+
+rm(flamm.df.ignite, flamm.df.nonignite, dfCH7, dfCH8) # Decluttering environment by removing temporary dataframe from above for loop
+```
+
+### Deviation From 'Stable' Average
+Using Loess-regression-calculated maximum heat flux
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(heat_flux_deviationCH7 = max_heat_flux_loessCH7 - avg_heat_flux_stableCH7,
+         heat_flux_deviationCH8 = max_heat_flux_loessCH8 - avg_heat_flux_stableCH8)
+```
+
+### 95% percentile of Heat Flux
+```{r}
+flamm.df <- flamm.df %>% 
+  mutate(heat_flux_95perc = NA) %>% 
+  mutate(time_at_heat_flux_95perc = NA)
+temp.heat.flux.df <- temp.heat.flux.df %>% 
+  mutate(heat_flux_95perc = NA) 
+for(i in 1:nrow(flamm.df)){
+  df <- temp.heat.flux.df %>% 
+    filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df$start_time[i] & time <= flamm.df$end_time[i]) #again, index row, select columns
+  flamm.df$heat_flux_95perc[i] <- quantile(df$heat.flux, 0.95)
+  df$heat_flux_95perc <- case_when(df$heat.flux == flamm.df$heat_flux_95perc[i] ~ 'yes')
+  df.mhf <- df %>% 
+    filter(heat_flux_95perc == 'yes')
+  flamm.df$time_at_heat_flux_95perc[i] <- df.mhf$time[1]
+}
+flamm.df <- flamm.df %>% 
+  mutate(time_at_heat_flux_95perc = as_hms(time_at_heat_flux_95perc))
+
+rm(df, df.mhf) # Decluttering environment by removing temporary dataframes from above for loop
+```
+
+# Visualizations
+## Heat Flux Visualization Function
+```{r}
+heatflux.vis <- function(index){
+heatflux.df.woop <- heatflux.df %>% 
+  filter(date == flamm.df.no.Inf$date[index]) %>%  #index row, select column for date
+  filter(time >= flamm.df.no.Inf$start_time[index] & time <= flamm.df.no.Inf$time_of_glow_end[index]) %>% 
+  mutate(time = as.numeric(time))
+
+loess.mod.CH7 <- loess(CH7 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0983)
+heatflux.df.woop$loess.CH7 <- predict(loess.mod.CH7)
+
+ch7.title <- paste('Top Sensor (span = 0.0983)', flamm.df.no.Inf$species[index], flamm.df.no.Inf$plant[index], flamm.df.no.Inf$rep[index], 'ignition =', flamm.df.no.Inf$ignition[index])
+
+plot.top <- ggplot(heatflux.df.woop, aes(x = time)) +
+  geom_point(aes(y = loess.CH7), color = 'black') +
+  geom_point(aes(y = CH7), color = 'blue', alpha = 0.2) +
+  geom_vline(xintercept = flamm.df.no.Inf$primary_ignition[index], linetype = 4) +
+  annotate('text', label = 'Primary Ignition', x = flamm.df.no.Inf$primary_ignition[index], y = 0.95, fontface = 'bold') +
+  geom_vline(xintercept = flamm.df.no.Inf$time_at_max_heat_flux_loessCH7[index], linetype = 5) +
+  annotate('text', label = 'Max Heat Flux', x = flamm.df.no.Inf$time_at_max_heat_flux_loessCH7[index], y = 1, fontface = 'bold') +
+  labs(x = 'Time', y = 'Heat Flux (Top Sensor)', title = ch7.title) +
+  theme_bw() + 
+  theme(axis.title = element_text(face = 'bold', size = 14),
+        axis.text = element_text(size = 12))
+
+loess.mod.CH8 <- loess(CH8 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0261)
+heatflux.df.woop$loess.CH8 <- predict(loess.mod.CH8)
+
+ch8.title <- paste('Side Sensor (span = 0.0261)', flamm.df.no.Inf$species[index], flamm.df.no.Inf$plant[index], flamm.df.no.Inf$rep[index], 'ignition =', flamm.df.no.Inf$ignition[index])
+
+plot.side <- ggplot(heatflux.df.woop, aes(x = time)) +
+  geom_point(aes(y = loess.CH8), color = 'black') +
+  geom_point(aes(y = CH8), color = 'blue', alpha = 0.2) +
+  geom_vline(xintercept = flamm.df.no.Inf$primary_ignition[index], linetype = 4) +
+  annotate('text', label = 'Primary Ignition', x = flamm.df.no.Inf$primary_ignition[index], y = 0.5, fontface = 'bold') +
+  geom_vline(xintercept = flamm.df.no.Inf$time_at_max_heat_flux_loessCH8[index], linetype = 5) +
+  annotate('text', label = 'Max Heat Flux', x = flamm.df.no.Inf$time_at_max_heat_flux_loessCH8[index], y = 0.55, fontface = 'bold') +
+  labs(x = 'Time', y = 'Heat Flux (Side Sensor)', title = ch8.title) +
+  theme_bw() +  
+  theme(axis.title = element_text(face = 'bold', size = 14),
+        axis.text = element_text(size = 12))
+print(plot.side)
+print(plot.top)
+}
+
+heatflux.vis(2)
+```
+
+## Temperature Time Series
+```{r}
+plot.list <- list()
+for(i in 1:nrow(flamm.df)){
+  plot.id <- paste0('thermocoupler_vis_', flamm.df$species[i], '_', flamm.df$plant[i], '_', flamm.df$rep[i])
+  title.id <- paste0(flamm.df$species[i], '_', flamm.df$plant[i], '_', flamm.df$rep[i],  '_ignition=', flamm.df$ignition[i])
+  df <- thermocoupler.df.long %>% 
+    filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df$start_time[i] & time <= flamm.df$time_of_glow_end[i]) #again, index row, select columns for start time and end time
+  plot <- ggplot(data = df, aes(x = time, y = temp, color = thermo.id)) +
+    geom_point(size = 1) +
+    # max flame height
+    geom_vline(xintercept = flamm.df$time_fh[i], linewidth = 1, alpha = 0.4) + #index row, select column for time for max flame height
+    annotate('text', label = 'Max. Flame Height', x = flamm.df$time_fh[i], y = 255, fontface = 'bold') +
+    # max temp
+    geom_vline(xintercept = flamm.df$time_at_max_temp[i], linewidth = 1, alpha = 0.4) + #index row, select column for time for max temp
+    annotate('text', label = 'Max. Temp.', x = flamm.df$time_at_max_temp[i], y = 245, fontface = 'bold') +
+    theme_bw() +
+    labs(x = "Time", y = "Temperature (C)", color = "Thermocoupler ID", title = title.id) +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+  #assign(x = plot.id, value = plot)
+  plot.list[[i]] <- plot
+}
+```
+
+Plots
+```{r}
+plot.list[[7]]
+plot.list[[17]]
+plot.list[[19]]
+plot.list[[23]]
+plot.list[[28]]
+plot.list[[31]]
+plot.list[[51]]
+plot.list[[54]]
+plot.list[[65]]
+plot.list[[78]]
+plot.list[[80]]
+plot.list[[82]]
+plot.list[[88]]
+plot.list[[90]]
+plot.list[[149]]
+plot.list[[237]]
+plot.list[[227]]
+plot.list[[231]]
+plot.list[[267]]
+plot.list[[273]]
+plot.list[[274]]
+plot.list[[276]]
+plot.list[[277]]
+plot.list[[279]]
+plot.list[[283]]
+plot.list[[288]]
+plot.list[[295]]
+plot.list[[297]]
+plot.list[[301]]
+plot.list[[302]]
+plot.list[[307]]
+plot.list[[314]]
+plot.list[[321]]
+plot.list[[322]]
+plot.list[[325]]
+plot.list[[348]]
+```
+
+HETARB shows very low temperatures for 4/6 thermocouples. What is going on?
+```{r}
+thermocoupler.df.long %>% 
+    ggplot(aes(x = time, y = temp, color = thermo.id)) +
+      geom_point(size = 0.4) +
+      theme_bw() +
+      labs(x = "Time", y = "Temperature (C)", color = "Thermocoupler ID",
+           title = "Differences Between Dates") +
+      facet_wrap(~date, ncol = 1) +
+      theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+```
+
+## Heat Flux Time Series
+```{r}
+plot.list <- list()
+for(i in 1:nrow(flamm.df)){
+  plot.id <- paste0('heatflux_vis_', flamm.df$species[i], '_', flamm.df$plant[i], '_', flamm.df$rep[i])
+  title.id <- paste0(flamm.df$species[i], '_', flamm.df$plant[i], '_', flamm.df$rep[i], '_ignition.type:', flamm.df$ignition[i])
+  
+  df <- temp.heat.flux.df %>% 
+    filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flamm.df$start_time[i] & time <= flamm.df$time_of_glow_end[i]) #again, index row, select columns for start time and end time
+  plot <- ggplot(data = df, aes(x = time, y = heat.flux, color = sensor.location)) +
+    geom_point(size = 1) +
+    # max flame height
+    geom_vline(xintercept = flamm.df$time_fh[i], linewidth = 1, alpha = 0.4) + #index row, select column for time for max flame height
+    annotate('text', label = 'Max. Flame Height', x = flamm.df$time_fh[i], y = 1.4, fontface = 'bold') +
+    # max temp
+    geom_vline(xintercept = flamm.df$time_at_max_temp[i], linewidth = 1, alpha = 0.4) + #index row, select column for time for max temp
+    annotate('text', label = 'Max. Temp.', x = flamm.df$time_at_max_temp[i], y = 1.3, fontface = 'bold') +
+    geom_vline(xintercept = flamm.df$time_at_max_heat_flux[i], linewidth = 1, alpha = 0.4) +    
+    annotate('text', label = 'Max. Heat Flux', x = flamm.df$time_at_max_heat_flux[i], y = 1.5, fontface = 'bold') +
+    theme_bw() +
+    labs(x = "Time", y = "Heat Flux", color = "Sensor Location", title = title.id) +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+  #assign(x = plot.id, value = plot)
+  plot.list[[i]] <- plot
+}
+```
+
+Plots
+```{r}
+plot.list[[1]]
+plot.list[[4]]
+plot.list[[7]]
+plot.list[[16]]
+plot.list[[20]]
+plot.list[[47]]
+plot.list[[69]]
+plot.list[[71]]
+plot.list[[73]]
+plot.list[[99]]
+```
+
+## Temp and Heat Flux
+Investigating differences between manual ignitions and natural ignitions
+```{r}
+plot.list <- list()
+sample.subset <- c(4, 5, 11, 32, 59, 1, 8, 16, 7, 24)
+sample.subset.ig <- c(rep(1, 5), rep('M', 5))
+for(i in sample.subset){
+df <- temp.heat.flux.df %>% 
+  filter(date == flamm.df$date[i]) %>%  #index row, select column for date
+  filter(time >= flamm.df$start_time[i] & time <= flamm.df$time_of_glow_end[i])
+
+title.id <- paste0(flamm.df$species[i], '_', flamm.df$plant[i], '_', flamm.df$rep[i], '_ignition.type:', flamm.df$ignition[i])
+
+plot <- ggplot(data = df, aes(x = time, y = temp)) +    
+    geom_point(size = 0.6, aes(y = temp, color = thermo.id)) +
+    geom_point(size = 1, alpha = 0.3, aes(y = heat.flux*100, color = sensor.id)) +
+    scale_y_continuous(sec.axis = sec_axis(~.*.01, name="Heat Flux")) +
+    # max flame height
+    scale_color_manual(values = c('#02C3BD', '#00B9AE', '#009F93', '#037171',  '#03312E', 'black', '#D6A184', '#A63D40')) +
+    geom_vline(xintercept = flamm.df$time_fh[i], linewidth = 1, alpha = 0.4) + 
+    annotate('text', label = 'M.FH', x = flamm.df$time_fh[i], y = 255, fontface = 'bold') +
+    # max temp
+    geom_vline(xintercept = flamm.df$time_at_max_temp[i], linewidth = 1, alpha = 0.4) +
+    annotate('text', label = 'M.Temp.', x = flamm.df$time_at_max_temp[i], y = 245, fontface = 'bold') +
+    geom_vline(xintercept = flamm.df$time_at_max_heat_flux[i], linewidth = 1, alpha = 0.4) +    
+    annotate('text', label = 'M. Heat Flux', x = flamm.df$time_at_max_heat_flux[i], y = 237, fontface = 'bold') +
+    theme_bw() +
+    labs(x = "Time", y = "Temperature", color = " ", title = title.id) +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+  plot.list[[i]] <- plot
+}
+```
+
+```{r}
+# Natural ignitions (ignition = 1)
+plot.list[[4]]
+plot.list[[5]]
+plot.list[[11]]
+plot.list[[32]]
+plot.list[[59]]
+
+# Manual ignitions (ignition = M)
+plot.list[[1]]
+plot.list[[7]]
+plot.list[[8]]
+plot.list[[16]]
+plot.list[[24]]
+```
+
+## August 24 Heat Flux, Temp. Time Series
+```{r}
+aug24.flamm.df <- flamm.df %>% 
+  filter(date == '2022-08-24')
+```
+
+```{r}
+plot.list <- list()
+for(i in 1:nrow(aug24.flamm.df)){
+  plot.id <- paste0('thermocoupler_vis_', aug24.flamm.df$species[i], '_', aug24.flamm.df$plant[i], '_', aug24.flamm.df$rep[i])
+  title.id <- paste0(aug24.flamm.df$species[i], '_', aug24.flamm.df$plant[i], '_', aug24.flamm.df$rep[i],  '_ignition=', aug24.flamm.df$ignition[i])
+  df <- thermocoupler.df.long %>% 
+    filter(date == aug24.flamm.df$date[i]) %>%  #index row, select column for date
+    filter(time >= aug24.flamm.df$start_time[i] & time <= aug24.flamm.df$time_of_glow_end[i]) #again, index row, select columns for start time and end time
+  plot <- ggplot(data = df, aes(x = time, y = temp, color = thermo.id)) +
+    geom_point(size = 1) +
+    # max flame height
+    geom_vline(xintercept = aug24.flamm.df$time_fh[i], linewidth = 1, alpha = 0.4) + #index row, select column for time for max flame height
+    annotate('text', label = 'Max. Flame Height', x = aug24.flamm.df$time_fh[i], y = 255, fontface = 'bold') +
+    # max temp
+    geom_vline(xintercept = aug24.flamm.df$time_at_max_temp[i], linewidth = 1, alpha = 0.4) + #index row, select column for time for max temp
+    annotate('text', label = 'Max. Temp.', x = aug24.flamm.df$time_at_max_temp[i], y = 245, fontface = 'bold') +
+    theme_bw() +
+    labs(x = "Time", y = "Temperature (C)", color = "Thermocoupler ID", title = title.id) +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+  #assign(x = plot.id, value = plot)
+  plot.list[[i]] <- plot
+}
+```
+
+Plots
+```{r}
+plot.list[[1]]
+plot.list[[2]]
+plot.list[[3]]
+plot.list[[4]]
+plot.list[[5]]
+plot.list[[6]]
+plot.list[[7]]
+plot.list[[8]]
+plot.list[[9]]
+plot.list[[10]]
+plot.list[[11]]
+plot.list[[12]]
+plot.list[[13]]
+plot.list[[14]]
+plot.list[[15]]
+plot.list[[16]]
+plot.list[[17]]
+plot.list[[18]]
+```
+
+```{r}
+df <- thermocoupler.df.long %>% 
+    filter(date == aug24.flamm.df$date[1]) %>%  #index row, select column for date
+    filter(time >= aug24.flamm.df$start_time[2] & time <= aug24.flamm.df$time_of_glow_end[18])
+
+plot <- ggplot(data = df, aes(x = time, y = temp, color = thermo.id)) +
+    geom_point(size = 1) +
+    theme_bw() +
+    labs(x = "Time", y = "Temperature (C)", color = "Thermocoupler ID") +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+plot
+```
+
+## Temperature Readings By Day
+```{r}
+# Boxplots
+flamm.df %>% 
+  ggplot(aes(x = date, y = avg_temp_ch2)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.2, aes(color = species), alpha = 0.4) +
+    theme_bw() +
+    labs(x = "Date", y = "Avg. Temp. (CH2)", color = "Species") +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(size = 12, angle = 20),
+          axis.text.y = element_text(size = 12),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+
+flamm.df %>% 
+  ggplot(aes(x = date, y = avg_temp_ch6)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_jitter(width = 0.2, aes(color = species), alpha = 0.4) +
+    theme_bw() +
+    labs(x = "Date", y = "Avg. Temp. (CH6)", color = "Species") +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(size = 12, angle = 20),
+          axis.text.y = element_text(size = 12),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+
+# Density plots
+flamm.df.noNA <- flamm.df %>% 
+  drop_na(avg_temp_ch2)
+
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch2)) +
+    geom_density(fill = 'gray', alpha = 0.4) +
+    geom_vline(aes(xintercept = quantile(flamm.df.noNA$avg_temp_ch2, 0.05))) +
+    geom_vline(aes(xintercept = quantile(flamm.df.noNA$avg_temp_ch2, 0.95))) +
+    theme_bw() +
+    labs(x = "Avg. Temp. (CH2)", y = 'Density') +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(size = 12, angle = 20),
+          axis.text.y = element_text(size = 12),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch6)) +
+    geom_density(fill = 'gray', alpha = 0.4) +
+    geom_vline(aes(xintercept = quantile(flamm.df.noNA$avg_temp_ch6, 0.05))) +
+    geom_vline(aes(xintercept = quantile(flamm.df.noNA$avg_temp_ch6, 0.95))) +
+    theme_bw() +
+    labs(x = "Avg. Temp. (CH6)", y = 'Density') +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(size = 12, angle = 20),
+          axis.text.y = element_text(size = 12),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+
+# Ridgeline plots
+library(ggridges)
+flamm.df %>% 
+  filter(avg_temp_ch2 > 0) %>% 
+  ggplot(aes(x = avg_temp_ch2, y = date, fill = date)) +
+  geom_density_ridges() +
+  theme_ridges() + 
+  labs(x = 'Average Temp (CH2)', y = 'Date') +
+  theme(legend.position = "none",
+        axis.title = element_text(face = 'bold', size = 14),
+        axis.text.x = element_text(size = 12, angle = 20),
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(size = 12))
+
+flamm.df %>% 
+  filter(avg_temp_ch6 > 0) %>% 
+  ggplot(aes(x = avg_temp_ch6, y = date, fill = date)) +
+  geom_density_ridges() +
+  theme_ridges() + 
+  labs(x = 'Average Temp (CH6)', y = 'Date') +
+  theme(legend.position = "none",
+        axis.title = element_text(face = 'bold', size = 14),
+        axis.text.x = element_text(size = 12, angle = 20),
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(size = 12))
+
+# Avg. temp. vs. FD/FH
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch6, y = fd, color = species)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth() +
+    theme_bw() +
+    labs(x = 'Average Temp (CH6)', y = 'Flame Duration', color = "Species") +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+        axis.text.x = element_text(size = 12, angle = 20),
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(size = 12))
+
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch6, y = fh, color = species)) +
+    geom_point(alpha = 0.5) +
+    geom_smooth() +
+    theme_bw() +
+    labs(x = 'Average Temp (CH6)', y = 'Flame Height', color = "Species") +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+        axis.text.x = element_text(size = 12, angle = 20),
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(size = 12))
+```
+
+
+
+# Summaries
+## Temperature
+Here are the various ways we've quantified temperature above:
+- Maximum Temperature (in between ignition and flame end)
+- Starting Temperature
+- Temperature Change (max temp. (as above) - starting temp.)
+- Average Temperature (full test)
+- Average Temperature ('stable'; from 15 seconds after start to 10 seconds before ignition)
+- Max. Temp. (+/- 2 seconds of flame height)
+- Max. Temp. (full duration of test)
+- Temperature Deviation (max. temp. - average temp.)
+  - 12 ways to calculate this due to 2 avg temp. calculations (each with CH2 and CH6) and 3 max. temp. calculations; what is the best way(s)?
+  
+Other things to note:
+- Six different thermocouplers; which one or ones make the most sense for us to use?
+- Missing data for following dates: 
+
+## Heat Flux
+Here are the ways we've quantified heat flux above:
+- Maximum Heat Flux (raw data)
+- Maximum Heat Flux (Loess regressions, with spans determined by optimization routine; for both CH7 and CH8)
+- Average Heat Flux (during flaming combustion, CH8 only)
+- Average Heat Flux (full test, CH8 only)
+- Average Heat Flux ('stable'; from 15 seconds after start to 10 seconds before ignition; for both CH7 and CH8)
+- Heat Flux Deviation from 'stable' average (for both CH7 and CH8; using max. heat flux calculated w/ Loess regressions)
+- 95% percentile (as suggested by Max)
