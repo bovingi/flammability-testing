@@ -19,13 +19,16 @@ library(ggbiplot) #for nicer PCA plots
 library(psych) #for pairs.panels()
 library(sjPlot) #for nice tables of eigenvalues
 library(factoextra) #for k-means clustering
+library(GGally) # For ggcorr()
+library(gam) # for generalized additive models
+library(scales)
 
 # defining functions
 here = here::here
 ggbiplot = ggbiplot::ggbiplot
 
 # reading in data
-flamm.df <- read.csv(here('data', 'processed-data', 'main_plant_flammability.csv'))
+flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 ```
 
 # Summary Boxplots
@@ -55,8 +58,8 @@ ggsave(here('figures', 'plant.traits.exploratory.boxplot.jpg'), height = 20, wid
 ## Flammability Metrics
 ```{r}
 flamm.df.long <- flamm.df %>% 
-  select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, max_heat_flux, max_heat_flux_loessCH7, max_heat_flux_loessCH8) %>%  # took out  gd, gti, ttfg for now
-  pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt), names_to = 'trait', values_to = 'value') %>% 
+  select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, temp_change, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample, branch_volume, heat_flux_change) %>%  # took out  gd, gti, ttfg for now
+  pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample, branch_volume), names_to = 'trait', values_to = 'value') %>% 
   mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
 
 flamm.df.long %>% 
@@ -72,11 +75,11 @@ ggplot(aes(x = species, y = value, color = species)) +
         axis.text.x = element_text(angle = 20, size = 12))
 
 flamm.df.long %>% 
-  filter(trait %in% c('fd', 'fh', 'pfg')) %>% 
+  filter(trait %in% c('fd', 'fh', 'pfg', 'heat_flux_change', 'temp_change')) %>% 
 ggplot(aes(x = species, y = value, color = species)) +
   geom_boxplot() +
   labs(x = "Species", y = "Trait Value") +
-  facet_wrap(~trait, ncol = 4, scales = 'free_y') +
+  facet_wrap(~trait, ncol = 3, scales = 'free_y') +
   theme_bw() +
   theme(legend.position = 'none',
         axis.title = element_text(face = 'bold', size = 16),
@@ -417,9 +420,8 @@ flamm.df %>%
 # Running on all species that have at least 2 ignitions
 binomial_significance('SALLEU')
 binomial_significance('SALAPI')
-binomial_significance('ARTCAL') # sample weight, MPa are significant
+#binomial_significance('ARTCAL') # sample weight, MPa are significant; note that because LMA is screwy for ARTCAL, this was an error
 binomial_significance('CEAGRI')
-binomial_significance('QUEAGR')
 ```
 
 # Investigating Hot Plate/Thermocoupler Height
@@ -478,13 +480,6 @@ flamm.df %>%
     theme_bw()
 
 flamm.df %>% 
-  ggplot(aes(x = as.numeric(hotplate_height), y = max_heat_flux)) +
-    geom_point() +
-    geom_smooth(color = 'black') +
-    labs(x = 'Hot Plate Height (cm)', y = 'Max. Heat Flux (Raw)') +
-    theme_bw()
-
-flamm.df %>% 
   ggplot(aes(x = as.numeric(hotplate_height), y = max_temp)) +
     geom_point() +
     geom_smooth(color = 'black') +
@@ -539,7 +534,7 @@ flamm.df.manual %>%
 # Now, comparing to other flam. metrics
 ### Prepping Dataset ###
 flamm.df.manual.long <- flamm.df.manual %>% 
-  select(date, species, plant, rep, fh, fd, tti, pfg, max_temp, max_heat_flux, max_heat_flux_loessCH7, max_heat_flux_loessCH8) %>%  # took out  gd, gti, ttfg for now
+  select(date, species, plant, rep, fh, fd, tti, pfg, max_temp, max_heat_flux_loessCH7, max_heat_flux_loessCH8) %>%  # took out  gd, gti, ttfg for now
   pivot_longer(!c(date, species, plant, rep, tti), names_to = 'trait', values_to = 'value')
 ### Scatterplots ###
 flamm.df.manual.long %>% 
@@ -576,12 +571,6 @@ summary(fh.tti.lm) # sig.
 
 pfg.tti.lm <- lm(pfg ~ tti, data = flamm.df.manual)
 summary(pfg.tti.lm) # n.s.
-
-mhf.tti.lm <- flamm.df.manual %>% 
-  filter(max_heat_flux > 0) %>% 
-  drop_na(max_heat_flux)
-mhf.tti.lm <- lm(max_heat_flux ~ tti, data = mhf.tti.lm)
-summary(mhf.tti.lm) # n.s.
 
 mhfch7.tti.lm <- flamm.df.manual %>% 
   filter(max_heat_flux_loessCH7 > 0) %>% 
@@ -664,8 +653,6 @@ ggplot(flamm.df, aes(x = sample_wt, y = mpa)) +
 ## Nonlinear Relationships
 Generalized Additive Models 1
 ```{r}
-library(gam) # for generalized additive models
-
 # FH
 flamm.df.temp.fh <- flamm.df %>% 
   drop_na(fh, sample_wt) %>% 
@@ -820,7 +807,6 @@ ggplot(aes(x = leaf_mass_ratio, y = fd)) +
 
 ## Different transformations
 ```{r}
-library(scales)
 flamm.df.sw <- flamm.df %>% 
   mutate(fh = scales::rescale(fh),
          fd = scales::rescale(fd),
@@ -946,7 +932,7 @@ ggplot(flamm.df, aes(x = species, color = species, y = ww_flam_sample)) +
 
 # Scatterplots
 flamm.df.long.scatter <- flamm.df %>% 
-  select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, max_heat_flux, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample) %>%  # took out  gd, gti, ttfg for now
+  select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample) %>%  # took out  gd, gti, ttfg for now
   pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample), names_to = 'trait', values_to = 'value') %>% 
   filter(trait %in% c('fd', 'fh', 'max_temp', 'pfg')) %>% 
   mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
@@ -1240,7 +1226,6 @@ ggplot(flamm.df, aes(x = branch_volume, y = fd)) +
 
 ## Correlations
 ```{r}
-library(GGally) # For ggcorr()
 flamm.df %>% 
   filter(lfm < 500) %>% 
   select(fh, fd, pfg, prop_ig, lfm, leaf_lfm, stem_lfm, LMA, thickness, branch_height, branch_width, branch_length, branch_volume, branching, mpa, sample_wt, stem_mass_ratio, thickness) %>% 

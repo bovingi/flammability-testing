@@ -82,6 +82,13 @@ temp.heat.flux.df <- temp.heat.flux.df %>%
 ```
 
 ## Flammability Data
+### Filtering out QUEAGR, EUCGLO
+```{r}
+flam.df <- flam.df %>% 
+  filter(species != 'QUEAGR', 
+         species != 'EUCGLO')
+```
+
 ### Clocktime, Date Wrangling
 ```{r}
 flam.df <- flam.df %>% 
@@ -180,34 +187,68 @@ flam.df <- flam.df %>%
 rm(df) # Decluttering environment by removing temporary dataframe from above for loop
 ```
 
-### Calculating Heat Flux
-#### Max. Heat Flux
-Still deciding on what to use here... top sensor, side sensor, avg of both?
+Filtering out tests with start temp. < 100 degrees C (note: this threshold may change); this step also gets rid of -Inf values... this may not be what we want (will check with KF)
+```{r}
+flam.df <- flam.df %>%
+  filter(start_temp > 100)
 
-Raw data
-```{r, warning = F}
-flam.df <- flam.df %>% 
-  mutate(max_heat_flux = NA) %>% 
-  mutate(time_at_max_heat_flux = NA)
-temp.heat.flux.df <- temp.heat.flux.df %>% 
-  mutate(max_heat_flux = NA) 
-for(i in 1:nrow(flam.df)){
-  df <- temp.heat.flux.df %>% 
-    filter(date == flam.df$date[i]) %>%  #index row, select column for date
-    filter(time >= flam.df$start_time[i] & time <= flam.df$time_of_glow_end[i]) #again, index row, select columns
-  flam.df$max_heat_flux[i] <- max(df$heat.flux)
-  df$max_heat_flux <- case_when(df$heat.flux == flam.df$max_heat_flux[i] ~ 'yes')
-  df.mhf <- df %>% 
-    filter(max_heat_flux == 'yes')
-  flam.df$time_at_max_heat_flux[i] <- df.mhf$time[1]
-}
-flam.df <- flam.df %>% 
-  mutate(time_at_max_heat_flux = as_hms(time_at_max_heat_flux))
-
-rm(df, df.mhf) # Decluttering environment by removing temporary dataframes from above for loop
+# Note: for dataframe w/o filtering by 100 degrees threshold and w/ -Inf values (i.e., when the datalogger was turned off) in, run the following two lines of code instead of the two lines above and then run the rest of the below code as normal except for the 'saving .csv' chunk (see that chunk)
 ```
 
-Loess regressions
+### Calculating Heat Flux
+#### Optimization Routine
+Since maximum heat flux is going to be determined using Loess regressions, this optimization routine selects the optimal smoothing span to use when looking at heat flux over time
+```{r, warning = FALSE}
+# Splitting flam.df into two dataframes -- one with -Inf values for temp. and heat flux (i.e., datalogger wasn't on) and one without
+flam.df.no.Inf <- flam.df %>% 
+  filter(start_temp > 0)
+flam.df.Inf <- flam.df %>% 
+  filter(start_temp < 0) 
+
+flam.df.sample <- sample_n(flam.df.no.Inf, 50)
+
+CH7results <- data.frame(matrix(NA,    # Create empty data frame
+                          nrow = 50,
+                          ncol = 8))
+
+CH8results <- data.frame(matrix(NA,    # Create empty data frame
+                          nrow = 50,
+                          ncol = 8))
+
+ctrl <- trainControl(method = "cv", number = 5)
+grid <- expand.grid(span = seq(0.01, 0.5, len = 50), degree = 1)
+
+for(i in 1:length(flam.df.sample)){
+  df <- heatflux.df %>% 
+    filter(date == flam.df.sample$date[i]) %>%  #index row, select column for date
+    filter(time >= flam.df.sample$start_time[i] & time <= flam.df.sample$end_time[i]) %>% 
+    mutate(time = as.numeric(time))
+  
+  CH7model <- train(CH7 ~ time, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
+  
+  CH8model <- train(CH8 ~ time, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
+
+  ch7.res <- as.data.frame(CH7model$results)
+  ch7.best <- ch7.res[which.min(ch7.res$RMSE),]
+  CH7results[i,] <- ch7.best
+  
+  ch8.res <- as.data.frame(CH8model$results)
+  ch8.best <- ch8.res[which.min(ch8.res$RMSE),]
+  CH8results[i,] <- ch8.best
+}
+
+colnames(CH7results) <- colnames(ch7.best)
+CH7results <- na.omit(CH7results)
+mean(CH7results$span) # 0.08860465
+
+colnames(CH8results) <- colnames(ch8.best)
+CH8results <- na.omit(CH8results)
+mean(CH8results$span) # 0.03069767
+
+rm(df, ch7.res, ch7.best, ch8.res, ch8.best) # Decluttering environment by removing temporary dataframes from above for loop
+```
+
+#### Max. Heat Flux (Loess regressions)
 ```{r}
 flam.df <- flam.df %>% 
   mutate(max_heat_flux_loessCH7 = NA) %>% 
@@ -217,22 +258,17 @@ flam.df <- flam.df %>%
 heatflux.df <- heatflux.df %>% 
   mutate(max_heat_flux_loessCH7 = NA)  %>% 
   mutate(max_heat_flux_loessCH8 = NA)
-# NOTE: THIS PART WILL NOT BE NECESSARY WHEN ALL DATALOGGER DATA IS INPUTTED
-flam.df.no.Inf <- flam.df %>% 
-  filter(max_heat_flux > 0)
-flam.df.Inf <- flam.df %>% 
-  filter(max_heat_flux < 0) 
 
 for(i in 1:nrow(flam.df.no.Inf)){
   df <- heatflux.df %>% 
     filter(date == flam.df.no.Inf$date[i]) %>%  #index row, select column for date
-    filter(time >= flam.df.no.Inf$start_time[i] & time <= flam.df.no.Inf$time_of_glow_end[i]) %>% #again, index row, select columns
+    filter(time >= flam.df.no.Inf$start_time[i] & time <= flam.df.no.Inf$end_time[i]) %>% #again, index row, select columns
     mutate(time = as.numeric(time))
   
 # Loess regressions
-  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = 0.09826087)
+  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = 0.08860465)
   df$loess.CH7 <- predict(loess.mod.CH7)
-  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = 0.02608696)
+  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = 0.03069767)
   df$loess.CH8 <- predict(loess.mod.CH8)
 
   flam.df.no.Inf$max_heat_flux_loessCH7[i] <- max(df$loess.CH7)
@@ -252,71 +288,56 @@ flam.df.no.Inf <- flam.df.no.Inf %>%
   mutate(time_at_max_heat_flux_loessCH7 = as_hms(time_at_max_heat_flux_loessCH7)) %>% 
   mutate(time_at_max_heat_flux_loessCH8 = as_hms(time_at_max_heat_flux_loessCH8))
 
+flam.df.Inf <- flam.df.Inf %>% 
+  mutate(max_heat_flux_loessCH7 = NA, max_heat_flux_loessCH8 = NA, time_at_max_heat_flux_loessCH7 = NA,
+         time_at_max_heat_flux_loessCH8 = NA)
+
 flam.df <- rbind(flam.df.no.Inf, flam.df.Inf)
 
 rm(df, df.mhf_CH7, df.mhf_CH8) # Decluttering environment by removing temporary dataframes from above for loop
 ```
 
-#### Avg. Heat Flux (flame duration)
+#### Avg. Heat Flux ('Stable Period')
 ```{r}
 flam.df <- flam.df %>% 
-  mutate(avg_fd_heat_flux = NA)
+  mutate(avg_heat_flux_stableCH7 = NA) %>% 
+  mutate(avg_heat_flux_stableCH8 = NA)
 
-for(i in 1:nrow(flam.df)){
-  df <- temp.heat.flux.df %>% 
+flam.df.ignite <- flam.df %>% 
+  drop_na(primary_ignition) %>% 
+  mutate(primary_ignition = as_hms(primary_ignition))
+
+flam.df.nonignite <- flam.df %>% 
+  filter(is.na(primary_ignition))
+
+for(i in 1:nrow(flam.df.ignite)){
+  dfCH7 <- temp.heat.flux.df %>% 
+    filter(sensor.id == 'CH7') %>% # looking at side sensor only (less noise)
+    filter(date == flam.df.ignite$date[i]) %>%  #index row, select column for date
+    filter(time > as_hms(as.POSIXct(flam.df.ignite$start_time[i])+15) &
+           time < as_hms(as.POSIXct(flam.df.ignite$primary_ignition[i])-10)) %>% 
+    summarise(avg_heat_flux_stableCH7 = mean(heat.flux))
+    flam.df.ignite$avg_heat_flux_stableCH7[i] <- dfCH7$avg_heat_flux_stableCH7
+  
+  dfCH8 <- temp.heat.flux.df %>% 
     filter(sensor.id == 'CH8') %>% # looking at side sensor only (less noise)
-    filter(date == flam.df$date[i]) %>%  #index row, select column for date
-    filter(time >= flam.df$primary_ignition[i] & time <= flam.df$primary_time_of_flame_end[i]) %>% 
-    summarise(avg_fd_heat_flux = mean(heat.flux))
-  flam.df$avg_fd_heat_flux[i] <- df$avg_fd_heat_flux
+    filter(date == flam.df.ignite$date[i]) %>%  #index row, select column for date
+    filter(time > as_hms(as.POSIXct(flam.df.ignite$start_time[i])+15) &
+           time < as_hms(as.POSIXct(flam.df.ignite$primary_ignition[i])-10)) %>% 
+    summarise(avg_heat_flux_stableCH8 = mean(heat.flux))
+    flam.df.ignite$avg_heat_flux_stableCH8[i] <- dfCH8$avg_heat_flux_stableCH8
 }
-rm(df) # Decluttering environment by removing temporary dataframe from above for loop
+
+flam.df <- rbind(flam.df.ignite, flam.df.nonignite)
+
+rm(flam.df.ignite, flam.df.nonignite, dfCH7, dfCH8) # Decluttering environment by removing temporary dataframe from above for loop
 ```
 
-#### Optimization Routine
-Since maximum heat flux is going to be determined using Loess regressions, this optimization routine selects the optimal smoothing span to use when looking at heat flux over time
-```{r, warning = FALSE}
-flam.df.sample <- sample_n(flam.df.no.Inf, 50)
-
-CH7results <- data.frame(matrix(NA,    # Create empty data frame
-                          nrow = 50,
-                          ncol = 8))
-
-CH8results <- data.frame(matrix(NA,    # Create empty data frame
-                          nrow = 50,
-                          ncol = 8))
-
-ctrl <- trainControl(method = "cv", number = 5)
-grid <- expand.grid(span = seq(0.01, 0.5, len = 50), degree = 1)
-
-for(i in 1:length(flam.df.sample)){
-  df <- heatflux.df %>% 
-    filter(date == flam.df.sample$date[i]) %>%  #index row, select column for date
-    filter(time >= flam.df.sample$start_time[i] & time <= flam.df.sample$time_of_glow_end[i]) %>% 
-    mutate(time = as.numeric(time))
-  
-  CH7model <- train(CH7 ~ time, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
-  
-  CH8model <- train(CH8 ~ time, data = df, method = "gamLoess", tuneGrid=grid, trControl = ctrl)
-
-  ch7.res <- as.data.frame(CH7model$results)
-  ch7.best <- ch7.res[which.min(ch7.res$RMSE),]
-  CH7results[i,] <- ch7.best
-  
-  ch8.res <- as.data.frame(CH8model$results)
-  ch8.best <- ch8.res[which.min(ch8.res$RMSE),]
-  CH8results[i,] <- ch8.best
-}
-
-colnames(CH7results) <- colnames(ch7.best)
-CH7results <- na.omit(CH7results)
-mean(CH7results$span) # 0.0983
-
-colnames(CH8results) <- colnames(ch8.best)
-CH8results <- na.omit(CH8results)
-mean(CH8results$span) # 0.0261
-
-rm(df, ch7.res, ch7.best, ch8.res, ch8.best) # Decluttering environment by removing temporary dataframes from above for loop
+#### Change from Stable Avg
+This is the metric we decided to use as our main heat flux metric based on exploratory analysees (see datalogger_exploration.Rmd); we used CH8 values, as these had less noise and showed a stronger signal when regressed on flammability metrics
+```{r}
+flam.df <- flam.df %>% 
+    mutate(heat_flux_change = max_heat_flux_loessCH8 - avg_heat_flux_stableCH8)
 ```
 
 ### Proportion Ignited
@@ -349,7 +370,7 @@ flam.df <- flam.df %>%
   mutate(total_branch_mass = as.numeric(total_branch_mass) - 16.9336) %>% 
   mutate(branch_width = as.numeric(branch_width)) %>% 
   dplyr::rename(sample_wt = total_branch_mass) %>% 
-  select(-X)
+  select(-X, -input_by, -potted, -Species) # removing unneccessary columns
 ```
 
 # Exploratory heat flux figures 
@@ -370,23 +391,6 @@ flam.df %>%
     geom_abline(linetype = 4) +
     geom_smooth(method = 'lm', color = 'black') +
     labs(x = 'Max. Heat Flux (Loess, Top Sensor)', y = 'Max. Heat Flux (Loess, Side Sensor)') +
-    theme_bw()
-
-flam.df %>% 
-  mutate(max_heat_flux_loessAVG = (max_heat_flux_loessCH7 + max_heat_flux_loessCH8)/2) %>% 
-  ggplot(aes(x = max_heat_flux_loessAVG, y = avg_fd_heat_flux)) +
-    geom_point() +
-    geom_abline(linetype = 4) +
-    geom_smooth(method = 'lm', color = 'black') +
-    labs(x = 'Max. Heat Flux (Loess Avg.)', y = 'Avg. Heat Flux (during flame duration)') +
-    theme_bw()
-
-flam.df %>%
-  ggplot(aes(x = max_heat_flux_loessCH8, y = avg_fd_heat_flux)) +
-    geom_point() +
-    geom_abline(linetype = 4) +
-    geom_smooth(method = 'lm', color = 'black') +
-    labs(x = 'Max. Heat Flux (Loess, Side Sensor)', y = 'Avg. Heat Flux (during flame duration)') +
     theme_bw()
 ```
 
@@ -452,16 +456,14 @@ ggplot(flam.df.no.Inf, aes(x = ignition, y = max_heat_flux_loessCH7)) +
   geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
   labs(x = 'Ignition', y = 'Max. Heat Flux (Top Sensor, Loess)', color = "Species") +
   theme_bw()
-
-ggplot(flam.df.no.Inf, aes(x = ignition, y = max_heat_flux)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
-  labs(x = 'Ignition', y = 'Max. Heat Flux (Raw Values)', color = "Species") +
-  theme_bw()
 ```
-
 
 # Saving .csv
 ```{r}
+summary(flam.df)
+
 write_csv(flam.df, here('data', 'processed-data', 'clean_flamm_data.csv'))
+
+# For the .csv w/o filtering by ambient temp. and w/o filtering out rows w/o datalogger data:
+#write_csv(flam.df, here('data', 'processed-data', 'flamm_data_without_filtering_datalogger.csv'))
 ```
