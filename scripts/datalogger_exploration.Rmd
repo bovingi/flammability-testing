@@ -34,7 +34,7 @@ for(i in 1:length(thermocoupler.files)){
   thermocoupler.df.list[[i]] <- df
 }
 
-flamm.df <- read.csv(here('data', 'processed-data', 'main_plant_flammability.csv'))
+flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 ```
 
 # Datalogger Data Wrangling
@@ -151,16 +151,18 @@ woo <- flamm.df %>%
 flamm.df <- flamm.df %>% 
   mutate(start_time = as_hms(start_time),
          end_time = as_hms(end_time)) %>%
-  mutate(avg_temp_ch1 = NA, avg_temp_ch2 = NA, avg_temp_ch5 = NA, avg_temp_ch6 = NA)
+  mutate(avg_temp_ch1 = NA, avg_temp_ch2 = NA, avg_temp_ch3 = NA, avg_temp_ch4 = NA, avg_temp_ch5 = NA, avg_temp_ch6 = NA)
 for(i in 1:nrow(flamm.df)){
   df <- thermocoupler.df.long %>% 
-    filter(thermo.id %in% c('CH1', 'CH2', 'CH5', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
+    filter(thermo.id %in% c('CH1', 'CH2', 'CH3', 'CH4', 'CH5', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
     pivot_wider(names_from = 'thermo.id', values_from = 'temp') %>% 
     filter(date == flamm.df$date[i]) %>% 
     filter(time > flamm.df$start_time[i] & time < flamm.df$end_time[i]) %>% 
     filter(ms == 0)
   flamm.df$avg_temp_ch1[i] <- mean(df$CH1)
   flamm.df$avg_temp_ch2[i] <- mean(df$CH2)
+  flamm.df$avg_temp_ch3[i] <- mean(df$CH3)
+  flamm.df$avg_temp_ch4[i] <- mean(df$CH4)
   flamm.df$avg_temp_ch5[i] <- mean(df$CH5)
   flamm.df$avg_temp_ch6[i] <- mean(df$CH6)
 }
@@ -874,8 +876,29 @@ plot.list[[24]]
 
 ## August 24 Heat Flux, Temp. Time Series
 ```{r}
-aug24.flamm.df <- flamm.df %>% 
-  filter(date == '2022-08-24')
+temp.heat.flux.df %>% 
+  filter(date == '2022-08-24') %>% 
+  ggplot(aes(x = time, y = temp, color = thermo.id)) +
+    geom_point(size = 1) +
+    theme_bw() +
+    labs(x = "Time", y = "Temperature (C)", color = "Thermocoupler ID", title = "August 24 Time Series") +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+
+temp.heat.flux.df %>% 
+  filter(date == '2022-08-16') %>% 
+  ggplot(aes(x = time, y = temp, color = thermo.id)) +
+    geom_point(size = 1) +
+    theme_bw() +
+    labs(x = "Time", y = "Temperature (C)", color = "Thermocoupler ID", title = "August 16 Time Series") +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
 ```
 
 ```{r}
@@ -981,6 +1004,32 @@ flamm.df %>%
           legend.title = element_text(face = 'bold', size = 14),
           legend.text = element_text(size = 12))
 
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch3)) +
+    geom_density(fill = 'gray', alpha = 0.4) +
+    geom_vline(aes(xintercept = quantile(flamm.df.noNA$avg_temp_ch3, 0.05))) +
+    geom_vline(aes(xintercept = quantile(flamm.df.noNA$avg_temp_ch3, 0.95))) +
+    theme_bw() +
+    labs(x = "Avg. Temp. (Top Vent)", y = 'Density') +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(size = 12, angle = 20),
+          axis.text.y = element_text(size = 12),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch4)) +
+    geom_density(fill = 'gray', alpha = 0.4) +
+    geom_vline(aes(xintercept = quantile(flamm.df.noNA$avg_temp_ch4, 0.05))) +
+    geom_vline(aes(xintercept = quantile(flamm.df.noNA$avg_temp_ch4, 0.95))) +
+    theme_bw() +
+    labs(x = "Avg. Temp. (Top Glass)", y = 'Density') +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(size = 12, angle = 20),
+          axis.text.y = element_text(size = 12),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+
 # Ridgeline plots
 flamm.df %>% 
   filter(avg_temp_ch1 > 0) %>% 
@@ -1001,6 +1050,32 @@ flamm.df %>%
   geom_density_ridges() +
   theme_ridges() + 
   labs(x = 'Average Temp (CH2)', y = 'Date') +
+  theme(legend.position = "none",
+        axis.title = element_text(face = 'bold', size = 14),
+        axis.text.x = element_text(size = 12, angle = 20),
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(size = 12))
+
+flamm.df %>% 
+  filter(avg_temp_ch3 > 0) %>% 
+  ggplot(aes(x = avg_temp_ch3, y = date, fill = date)) +
+  geom_density_ridges() +
+  theme_ridges() + 
+  labs(x = 'Average Temp (Top Vent)', y = 'Date') +
+  theme(legend.position = "none",
+        axis.title = element_text(face = 'bold', size = 14),
+        axis.text.x = element_text(size = 12, angle = 20),
+        axis.text.y = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 14),
+        legend.text = element_text(size = 12))
+
+flamm.df %>% 
+  filter(avg_temp_ch4 > 0) %>% 
+  ggplot(aes(x = avg_temp_ch4, y = date, fill = date)) +
+  geom_density_ridges() +
+  theme_ridges() + 
+  labs(x = 'Average Temp (Top Front Glass)', y = 'Date') +
   theme(legend.position = "none",
         axis.title = element_text(face = 'bold', size = 14),
         axis.text.x = element_text(size = 12, angle = 20),

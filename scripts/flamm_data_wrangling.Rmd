@@ -187,10 +187,52 @@ flam.df <- flam.df %>%
 rm(df) # Decluttering environment by removing temporary dataframe from above for loop
 ```
 
+
+#### Testing Missing Datalogger Points
+For 13 of the 311 tests, the datalogger was either turned off or not working. The below chunk of code is meant to look at these 13 tests to ensure that removing them will not impact the overarching analysis
+```{r}
+flam.df.datalogger.test <- flam.df %>% 
+  mutate(datalogger.status = case_when(start_temp < 0 ~ 'Off',
+                                       start_temp > 0 ~ 'On'))
+
+# Boxplots for distribution of some of the variables
+flam.df.datalogger.test %>%  
+  pivot_longer(cols = c('fd', 'fh', 'mpa', 'tti', 'total_branch_mass', 'branching'), names_to = 'var', values_to = 'val') %>% 
+  ggplot(aes(x = as.factor(datalogger.status), y = val, color = as.factor(datalogger.status))) +
+    geom_boxplot(outlier.shape = NA, alpha = 0.5) +
+    geom_jitter(alpha = 0.2, width = 0.2) +
+    labs(x = 'Datalogger Status', y = 'Metric Value') +
+    facet_wrap(~var, scales = 'free') +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 16))
+
+# Species vs. mpa
+flam.df.datalogger.test %>% 
+  filter(species != 'NA') %>% 
+  ggplot(aes(x = species, y = mpa, color = as.factor(datalogger.status))) +
+    geom_boxplot(outlier.shape = NA, alpha = 0.5) +
+    geom_jitter(alpha = 0.2, width = 0.2) + 
+    labs(x = 'Species', y = 'Water Potential (MPa)', 
+         color = 'Datalogger Status') + 
+    theme_bw() +
+    annotate(geom = 'text', x = 1, y = 0.4, label = '0/56') +
+    annotate(geom = 'text', x = 2, y = 0.4, label = '0/30') +
+    annotate(geom = 'text', x = 3, y = 0.4, label = '3/54') +
+    annotate(geom = 'text', x = 4, y = 0.4, label = '0/10') +
+    annotate(geom = 'text', x = 5, y = 0.4, label = '4/36') +
+    annotate(geom = 'text', x = 6, y = 0.4, label = '2/22') +
+    annotate(geom = 'text', x = 7, y = 0.4, label = '0/9') +
+    annotate(geom = 'text', x = 8, y = 0.4, label = '0/28') +
+    annotate(geom = 'text', x = 9, y = 0.4, label = '3/65') +
+    annotate(geom = 'text', x = 3, y = 0.42, label = expression(bold('n of datalogger off / total samples:')))
+```
+
+
 Filtering out tests with start temp. < 100 degrees C (note: this threshold may change); this step also gets rid of -Inf values... this may not be what we want (will check with KF)
 ```{r}
-flam.df <- flam.df %>%
-  filter(start_temp > 100)
+#flam.df <- flam.df %>%
+  #filter(start_temp > 100)
 
 # Note: for dataframe w/o filtering by 100 degrees threshold and w/ -Inf values (i.e., when the datalogger was turned off) in, run the following two lines of code instead of the two lines above and then run the rest of the below code as normal except for the 'saving .csv' chunk (see that chunk)
 ```

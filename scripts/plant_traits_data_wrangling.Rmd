@@ -184,7 +184,7 @@ leaf_stem_df <- merge(leaf_data_avgs, stem_data_avgs, by = c('species', 'plant')
 ### Calculating total LFM
 ```{r}
 leaf_stem_df <- leaf_stem_df %>% 
-  mutate(lfm = ifelse(is.na(stem_wet_mass),leaf_lfm, 100*((stem_wet_mass + leaf_wet_mass) - (stem_dry_mass + leaf_dry_mass))/(stem_dry_mass + leaf_dry_mass)))
+  mutate(lfm = ifelse(stem_wet_mass > 99999, leaf_lfm, 100*((stem_wet_mass + leaf_wet_mass) - (stem_dry_mass + leaf_dry_mass))/(stem_dry_mass + leaf_dry_mass)))
 
 leaf_stem_df %>% 
   filter(species != 'IRIDOU') %>% 
@@ -262,7 +262,6 @@ main_traits_df <- main_traits_df %>%
   mutate(stem_width = ifelse(stem_width > 99999, NA, stem_width)) %>%
   mutate(stem_wet_mass = ifelse(stem_wet_mass > 99999, NA, stem_wet_mass)) %>% 
   mutate(stem_dry_mass = ifelse(stem_dry_mass > 99999, NA, stem_dry_mass)) %>% 
-  mutate(lfm = ifelse(stem_lfm > 99999, NA, lfm)) %>% 
   mutate(leaf_area = ifelse(leaf_area > 99999, NA, leaf_area)) %>% 
   mutate(auc_voc = ifelse(auc_voc > 99999, NA, auc_voc)) %>% 
   mutate(avg_voc = ifelse(avg_voc > 99999, NA, avg_voc))
