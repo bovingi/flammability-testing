@@ -387,6 +387,7 @@ flam.df <- flam.df %>%
 flam.df.prop.ig1 <- flam.df %>% 
   group_by(species) %>%
   dplyr::summarise(n = n()) %>% 
+  na.omit() %>% 
   ungroup() 
   
 flam.df.prop.ig2 <- flam.df %>% 
@@ -397,7 +398,7 @@ flam.df.prop.ig2 <- flam.df %>%
 
 flam.df.prop.ig <- cbind(flam.df.prop.ig1, flam.df.prop.ig2) %>% 
   mutate(prop_ig = (n-manual_or_nonignitions)/n) %>% 
-  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUGL', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) # note that EUGL needs to change to EUCGLO
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) # note that EUGL needs to change to EUCGLO
 
 rm(flam.df.prop.ig1, flam.df.prop.ig2) # Decluttering environment by removing temporary dataframes
 

@@ -162,7 +162,7 @@ leaf_area_avgs <- leaf_area %>%
 
 voc_data_avgs <- voc_data %>% 
   group_by(species) %>% 
-  summarise(auc_voc = mean(auc_voc), avg_voc = mean(avg_voc))
+  summarise(auc_voc = mean(auc_voc), avg_voc = mean(avg_voc), norm_avg_voc = mean(avg_voc)/mean(leaf_mass), norm_auc_voc = mean(auc_voc)/mean(leaf_mass))
 ```
 
 ## Combining Traits Data
@@ -248,7 +248,7 @@ main_traits_df <- merge(leaf_stem_v2_df, leaf_area_avgs, by = c('species', 'plan
 # Adding NA values for species we don't have VOC data for (MANDEN, QUEAGR, EUCGLO)
 species <- c('MANDEN', 'QUEAGR', 'EUGL')
 na <- c(rep(999999, 3)) # so that IRIDOU data does not get lost in the merge
-voc_data_avgs_nas <- data.frame(species, na, na)
+voc_data_avgs_nas <- data.frame(species, na, na, na, na)
 colnames(voc_data_avgs_nas) <- colnames(voc_data_avgs)
 voc_data_avgs <- rbind(voc_data_avgs, voc_data_avgs_nas)
 
@@ -264,7 +264,9 @@ main_traits_df <- main_traits_df %>%
   mutate(stem_dry_mass = ifelse(stem_dry_mass > 99999, NA, stem_dry_mass)) %>% 
   mutate(leaf_area = ifelse(leaf_area > 99999, NA, leaf_area)) %>% 
   mutate(auc_voc = ifelse(auc_voc > 99999, NA, auc_voc)) %>% 
-  mutate(avg_voc = ifelse(avg_voc > 99999, NA, avg_voc))
+  mutate(avg_voc = ifelse(avg_voc > 99999, NA, avg_voc)) %>% 
+  mutate(norm_auc_voc = ifelse(norm_auc_voc > 99999, NA, norm_auc_voc)) %>% 
+  mutate(norm_avg_voc = ifelse(norm_avg_voc > 99999, NA, norm_avg_voc))
 ```
 
 ## Calculating LMA, SLA
