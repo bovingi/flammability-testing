@@ -1150,6 +1150,63 @@ flamm.df %>%
         legend.text = element_text(size = 12))
 ```
 
+## Temperature Threshold
+We decided that using CH3 (top vent) would make the most sense based on the above density plots and ridgeline plots. The below code looks at how many samples (and what species) would be eliminated by cutting it off at the 1st, 5th and 10th percentiles
+```{r}
+# 10th percentile
+quantile(flamm.df.noNA$avg_temp_ch3, 0.1)
+flamm.df %>%
+  filter(avg_temp_ch3 < 208.9253) %>% 
+  group_by(species) %>% 
+  tally()
+
+# 7.5th percentile
+quantile(flamm.df.noNA$avg_temp_ch3, 0.075)
+flamm.df %>%
+  filter(avg_temp_ch3 < 189.137) %>% 
+  group_by(species) %>% 
+  tally()
+
+# 5th percentile
+quantile(flamm.df.noNA$avg_temp_ch3, 0.05)
+flamm.df %>%
+  filter(avg_temp_ch3 < 177.5593) %>% 
+  group_by(species) %>% 
+  tally()
+
+# 1st percentile
+quantile(flamm.df.noNA$avg_temp_ch3, 0.01)
+flamm.df %>%
+  filter(avg_temp_ch3 < 161.414) %>% 
+  group_by(species) %>% 
+  tally()
+
+# Density plot
+flamm.df %>% 
+  ggplot(aes(x = avg_temp_ch3)) +
+    geom_density(fill = 'gray', alpha = 0.4) +
+    geom_vline(alpha = 0.5, aes(xintercept =
+                                quantile(flamm.df.noNA$avg_temp_ch3, 0.01))) +
+    annotate('text', x = 161.414, y = 0.03, label = '1%') +
+    geom_vline(alpha = 0.5, aes(xintercept =
+                                quantile(flamm.df.noNA$avg_temp_ch3, 0.05))) +
+    annotate('text', x = 177.5593, y = 0.03, label = '5%') +
+    geom_vline(alpha = 0.5, aes(xintercept =
+                                quantile(flamm.df.noNA$avg_temp_ch3, 0.075))) +
+    annotate('text', x = 189.137, y = 0.03, label = '7.5%') +
+    geom_vline(alpha = 0.5, aes(xintercept =
+                                quantile(flamm.df.noNA$avg_temp_ch3, 0.1))) +
+    annotate('text', x = 208.9253, y = 0.03, label = '10%') +
+    theme_bw() +
+    labs(x = "Avg. Temp. (Top Vent)", y = 'Density') +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(size = 12, angle = 20),
+          axis.text.y = element_text(size = 12),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+```
+
+
 # Summaries
 ## Temperature
 Here are the various ways we've quantified temperature above:

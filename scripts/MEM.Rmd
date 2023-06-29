@@ -1,0 +1,603 @@
+---
+title: "Linear Mixed Effects Models"
+author: "Joe Celebrezze"
+date: "2023-06-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# packages
+library(tidyverse)
+library(here)
+library(lubridate)
+library(ggfortify)
+library(ggpubr)
+library(sjPlot) # for tab_model
+library(psych) #for pairs.panels()
+library(GGally) # For ggcorr()
+library(scales)
+library(lme4) # for lmer
+library(lmerTest) # to try stepwise selection
+library(remef) # for remef
+library(performance) # for multicollinearity check
+
+# defining functions
+here = here::here
+ggbiplot = ggbiplot::ggbiplot
+
+# reading in data
+flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
+```
+
+# Data Structure
+
+For the linear mixed effects models, we are going to be using the *flammability metrics* below as **dependent variables**:
+
+- Flame height (fh)
+- Flame duration (fd)
+- Change in temp. (temp_change)
+- Change in heat flux (heat_flux_change)
+
+The following variables are not going to be considered (with the reasoning behind omitting each one described below):
+
+- Time to ignition (tti): because this variable is conceptually meaningless for all manual ignitions (the majority of ignitions)
+- Post-flame glow (pfg): because we do not necessarily trust the glow end time, as it was challenging to see in video playbacks when the sample stopped glowing. Because of this drawback, we relied on the people present during the flammability lab testing to clap at the end of the glow time, but the timing of this clap did not always correspond with the exact end of glowing
+- Proportion ignited (prop_ig): because this variable has only one value for each species which does not fit the structure of the models
+
+We have a plethora of variables that could be used as predictors and also a lot of potential covariates. The potential **predictors** are grouped and listed below:
+
+*Species*: This will likely be included in every model, as understanding interspecific differences and grouping species by flammability is our central question
+
+*Hydration or dryness*:
+- LFM (can be total LFM, leaf LFM and/or stem LFM)
+- Water potential (mpa)
+- Wet weight (ww_flam_sample)
+- Dry weight (dw_flam_sample)
+
+*Leaf morphology*:
+- LMA or SLA
+- Leaf area (likely unnecessary, as described by LMA and SLA in some capacity)
+- Leaf thickness
+
+*Sample morphology*:
+- Branching
+- Stem to leaf ratio
+- Sample weight* (note: this could also be considered a covariate)
+
+Potential **covariates**:
+
+- Starting temperature (start_temp)
+- Sample weight* (see note above)
+- Sample volume (branch_volume): could also split by height, width and length (although length is mostly the same across samples)
+- Ambient humidity or temperature (note: I don't necessarily trust that the meter was doing a good job gathering this data, as it seems like the temperature of the chamber affected the measurements)
+- Thermocoupler and hot plate height: probably not necessary, as exploratory analyses showed that there weren't any major differences between variables depending on the thermocoupler height or hot plate height
+
+**Random effect**:
+
+- Plant (to account for repeated measurements): note that we will need to make a unique identifier for each plant by combining current columns 'species' and 'plant'. Otherwise, the model will assume that (for example) plant 1 is the same group, treating HETARB 1 and SALLEU 1 as similar when they should not be treated as similar
+
+# Example of MEM Selection
+Using flame height as the dependent variable, I am going to to show how we could potentially frame our thoughts and what steps we could take in the MEM selection for our larger analysis
+
+## Collinearity Check
+Before looking at VIF to check if our models break any collinearity rules (VIF > 5), a visual check of correlations between metrics can identify any obvious problem areas. I am going to include flame height and ALL potential predictors and covariates in the correlation matrix below, although right away we have some expectations about which are going to be colinear (e.g., SLA and LMA).
+
+```{r}
+flamm.df <- flamm.df %>% 
+  drop_na(fh) # dropping any NA's for flame height
+
+flamm.df %>% 
+  filter(start_temp > 0) %>%  # to get rid of -inf values (when datalogger was off)
+  select(fh, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height) %>% 
+  ggcorr(label = T)
+```
+
+From the above correlation matrix, there are some initial 'problem areas':
+- Sample weight and dw_flam_sample and ww_flam_sample: makes sense since sample weight was used in the calculation of these variables
+- Branch volume and sample weight, dw_flam_sample, ww_flam_sample: all describe bulkiness, size of sample in some way
+- LMA and SLA: duh
+- Leaf mass ratio and stem mass ratio: also, duh
+- Stem LFM and LFM
+- Leaf area and dw_flam_sample and ww_flam_sample: more of a surprising one to me, but makes sense conceptually
+
+So, we will eliminate some variables from contention right away:
+- SLA: we can use LMA
+- Stem mass ratio: we can use leaf mass ratioo
+- Stem LFM and leaf LFM: unless we notice something in the EDA that suggests otherwise, I think using total LFM makes sense
+- Leaf area: because leaf area is included in some fashion in the calculation of LMA and due to it's oddly stroong correlation to dw_flam_sample and ww_flam_sample which we're interested in keeping in the models, it makes sense to remove
+
+We can also eliminate ambient temp and humidity since they show absolutely no correlation with flame height (and very little correlation with most variables)
+
+Just for fun, here's an updated correlation matrix with those variables removed
+```{r}
+flamm.df %>% 
+  filter(start_temp > 0) %>%  # to get rid of -inf values (when datalogger was off)
+  select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, thickness, branching, leaf_mass_ratio, sample_wt, start_temp, branch_volume, thermocoupler_height, hotplate_height) %>% 
+  ggcorr(label = T)
+```
+
+Currently, there would be 14 predictors and covariates in the model structure which is far too many for an example. I'm going to cut out thickness, start_temp, thermocoupler_height and hotplate_height due to their limited correlations with flame height (note: i could've also removed mpa, but since the hydration question is something we're generally more interested in, it made sense to keep it in there for now). 10 predictors and covariates is a lot, but it is certainly more managable than 14.
+
+We need to do some basic data wrangling before we do anything with lmer
+```{r}
+# First, fixing 'plant' variable as described in blurb on data structure
+flamm.df <- flamm.df %>% 
+  unite('plant_id', c(species, plant), sep = '_', remove = F)
+
+# Now scaling all variables
+scaled.flamm.df <- flamm.df %>% 
+  mutate(fh = scale(fh), lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample), dw_flam_sample = scale(dw_flam_sample), LMA = scale(LMA), branching = scale(branching), leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt), branch_volume = scale(branch_volume))
+```
+
+Now, checking VIF scores of 'full model'
+```{r}
+# Linear mixed effects model structure w/ lmer()
+fh_full <- lmer(fh ~ species + lfm + mpa + ww_flam_sample + dw_flam_sample + LMA + branching + leaf_mass_ratio + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df)
+
+# Testing multicollinearity w/ performance package
+multicollinearity(fh_full) # Ignore the low, moderate, high categories and focus on VIF scores
+```
+
+LFM, ww_flam_sample, dw_flam_sample, and species all have VIF > 5. We may not need to remove all of them, but we will need to remove at least some of them. Although we're interested in dw_flam_sample and ww_flam_sample, we learned from above correlation matrices that they are strongly correlated with sample_wt. Let's remove them for now and we can try some models with them in the future to see if they improve the AIC score. Initially, I'm not totally sure why species has such an inflated VIF, so let's take a look at the distribution of the other continuous variables as grouped by species to get a better sense of why this could be.
+
+```{r}
+flamm.df %>%
+  select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, branching, leaf_mass_ratio, sample_wt, branch_volume) %>% 
+  pivot_longer(cols = !c(species), names_to = 'variable', values_to = 'value') %>% 
+  ggplot(aes(x = species, y = value, color = species)) +
+    geom_boxplot(alpha = 0.8) +
+    facet_wrap(~variable, scales = 'free') +
+    labs(x = 'Species', y = 'Value') +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(angle = 15, size = 10)) 
+```
+ 
+It looks like LMA (with the exception of ERIKAR) and leaf_mass_ratio have very little within-species variation in this dataset, so this could be a reason why it is getting flagged. Let's keep species in for now and remove LMA and/or leaf_mass_ratio and see how that looks.
+
+Trying out some model structures to try to eliminate multicollinearity while keeping species in the model
+```{r}
+fh_m1 <- lmer(fh ~ species + lfm + mpa + LMA + branching + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, leaf mass ratio and kept in LMA
+multicollinearity(fh_m1) # species and lfm still VIF > 5
+
+fh_m2 <- lmer(fh ~ species + lfm + mpa + branching + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, leaf mass ratio and LMA
+multicollinearity(fh_m2) # species and lfm still VIF > 5
+
+fh_m3 <- lmer(fh ~ species + mpa + branching + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, leaf mass ratio, LMA, and lfm
+multicollinearity(fh_m3) # species barely VIF > 5 (removing lfm seemed to do the trick)
+
+fh_m4 <- lmer(fh ~ species + mpa + LMA + branching + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, leaf mass ratio, and lfm
+multicollinearity(fh_m4) # adding back in LMA made species VIF higher
+
+fh_m5 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, LMA, and lfm
+multicollinearity(fh_m5) # adding back in leaf mass ratio had less of an effect than adding LMA, but still made species VIF higher
+
+fh_m6 <- lmer(fh ~ species + mpa + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, leaf mass ratio, LMA, sample weight and lfm
+multicollinearity(fh_m6) # no multicollinearity; sample weight may have been tied to species
+
+# Trying to re-add other variables to see how it affects species VIF
+fh_m7 <- lmer(fh ~ species + mpa + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, leaf mass ratio, sample weight and lfm
+multicollinearity(fh_m7) # species VIF > 5
+
+fh_m8 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, LMA, sample weight and lfm
+multicollinearity(fh_m8) # No multicollinearity
+
+fh_m9 <- lmer(fh ~ species + mpa + lfm + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, LMA, and sample weight
+multicollinearity(fh_m9) # species and lfm both VIF > 5
+
+fh_m10 <- lmer(fh ~ species + mpa + dw_flam_sample + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed ww, LMA, sample weight and lfm
+multicollinearity(fh_m10) # Species VIF barely > 5
+
+fh_m11 <- lmer(fh ~ species + mpa + ww_flam_sample + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, LMA, sample weight and lfm
+multicollinearity(fh_m11) # Species VIF (even more) barely > 5
+```
+
+Okay, it seems like if we keep species in, we'll have to make some significant sacrifices elsewhere in the model to avoid breaking multicollinearity assumptions. Let's try some model structures w/ removing species:
+```{r}
+fh_m12 <- lmer(fh ~ lfm + mpa + ww_flam_sample + dw_flam_sample + LMA + branching + leaf_mass_ratio + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m12) # ww and dw are collinear
+
+fh_m13 <- lmer(fh ~ lfm + mpa + LMA + branching + leaf_mass_ratio + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df) # no ww or dw
+multicollinearity(fh_m13) # no multicollinearity
+
+fh_m14 <- lmer(fh ~ mpa + lfm  + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df) # no ww or sample wt
+multicollinearity(fh_m14) # no multicollinearity
+
+fh_m15 <- lmer(fh ~ mpa + lfm  + ww_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df) # no ww or sample wt
+multicollinearity(fh_m15) # no multicollinearity
+
+fh_m16 <- lmer(fh ~ mpa + dw_flam_sample + ww_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m16) # ww and dw are collinear
+
+```
+
+Without species in the model, we can do a lot more w/ the model structure. Multicollinearity becomes an issue with LFM, DW, WW, and sample weight. DW or WW and LFM can be in the same model (see fh_m14 and fh_m15), but DW, WW, and sample_wt all need to be considered in separate models. Now we have a decent understanding of which variables could be included in the more in-depth model selection
+
+## AIC-Based Selection
+We have been focused on using AIC to select the 'best' models in the mixed effects model selection. Below, I tried all of the permutations w/o interactions to see which predictor variables are selected in the top models. Interaction terms with species may be important in the final model selection, but to make things a bit simpler for this example, I decided against using any.
+
+Also, note that I started over at fh_m1 below (throwing coding best practices out the window), but that the below models in no way relate to the multicollinearity check above
+
+Starting w/ models with species in, we have mpa, leaf_mass_ratio, branching and branch_volume in the model without multicollinearity with the most variables. Assuming we want to keep species in the model, there are 4 variables that could be arranged in 15 different ways. I also tried some models with just species and a single other variable (e.g., LMA, lfm, dw) to see if that'd work
+```{r, results = 'hide'}
+fh_m1 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m1)
+
+fh_m2 <- lmer(fh ~ species + mpa + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m2)
+
+fh_m3 <- lmer(fh ~ species + mpa + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m3)
+
+fh_m4 <- lmer(fh ~ species + mpa + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m4)
+
+fh_m5 <- lmer(fh ~ species + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m5)
+
+fh_m6 <- lmer(fh ~ species + mpa + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m6)
+
+fh_m7 <- lmer(fh ~ species + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m7)
+
+fh_m8 <- lmer(fh ~ species + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m8)
+
+fh_m9 <- lmer(fh ~ species + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m9)
+
+fh_m10 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m10)
+
+fh_m11 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m11)
+
+fh_m12 <- lmer(fh ~ species + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m12)
+
+fh_m13 <- lmer(fh ~ species + mpa + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m13)
+
+fh_m14 <- lmer(fh ~ species + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m14)
+
+fh_m15 <- lmer(fh ~ species + leaf_mass_ratio + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m15)
+
+fh_m16 <- lmer(fh ~ species + lfm + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m16) # breaks multicollinearity assumption
+
+fh_m17 <- lmer(fh ~ species + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m17)
+
+fh_m18 <- lmer(fh ~ species + dw_flam_sample + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m18)
+
+fh_m19 <- lmer(fh ~ species + ww_flam_sample + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m19)
+
+fh_m20 <- lmer(fh ~ species + sample_wt + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m20)
+```
+
+```{r}
+tab_model(fh_m1, fh_m2, fh_m3, fh_m4, fh_m5, fh_m6, fh_m7, fh_m8, fh_m9, fh_m10,
+          fh_m11, fh_m12, fh_m13, fh_m14, fh_m15, fh_m17, fh_m18, fh_m19, fh_m20,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          string.pred = "Coeffcient", 
+         title = "MEM Selection: Flame Height, Species in Models",
+  string.p = "P-Value", 
+  p.style = "stars")
+```
+
+From the above model selection, dw_flam_sample and ww_flam_sample emerged as key predictors when paired w/ species. 
+
+Before we delve into that a bit further (to see which other variables we could potentially pair with dw or ww in a model), let's do a selection without species. For this selection, since we have 9 predictor variables (although some of them cannot be paired with each other (see multicollinearity notes on LFM, dw, ww, sample weight above)), we will have to approach it a different way, or else we'd have WAY too many possible permutations of predictors. In this model selection, the idea is to whittle down the 'bad' predictors so that we can get to a manageable level of predictors.
+
+```{r, results = 'hide'}
+fh_m21 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m21)
+
+fh_m22 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m22)
+
+fh_m23 <- lmer(fh ~ lfm + mpa + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m23)
+
+# Removing LFM
+fh_m24 <- lmer(fh ~ mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m24)
+
+fh_m25 <- lmer(fh ~ mpa + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m25)
+
+fh_m26 <- lmer(fh ~ mpa + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m26)
+
+# Removing MPa
+fh_m27 <- lmer(fh ~ lfm + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m27)
+
+fh_m28 <- lmer(fh ~ lfm + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m28)
+
+fh_m29 <- lmer(fh ~ lfm + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m29)
+
+# Removing LMA
+fh_m30 <- lmer(fh ~ lfm + mpa + dw_flam_sample + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m30)
+
+fh_m31 <- lmer(fh ~ lfm + mpa + sample_wt + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m31)
+
+fh_m32 <- lmer(fh ~ lfm + mpa + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m32)
+
+# Removing branching
+fh_m33 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m33)
+
+fh_m34 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m34)
+
+fh_m35 <- lmer(fh ~ lfm + mpa + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m35)
+
+# Removing leaf mass ratio
+fh_m36 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m36)
+
+fh_m37 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m37)
+
+fh_m38 <- lmer(fh ~ lfm + mpa + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m38)
+
+# Removing volume
+fh_m39 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m39)
+
+fh_m40 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m40)
+
+fh_m41 <- lmer(fh ~ lfm + mpa + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m41)
+```
+
+```{r}
+tab_model(fh_m21, fh_m22, fh_m23, fh_m24, fh_m25, fh_m26, fh_m27, fh_m28, fh_m29, fh_m30,
+          fh_m31, fh_m32, fh_m33, fh_m34, fh_m35, fh_m36, fh_m37, fh_m38, fh_m39, fh_m40,
+          fh_m41,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          dv.labels = c(rep('full', 3), rep('no lfm', 3), rep('no mpa', 3), rep('no lma', 3), 
+                        rep('no branching', 3), rep('no leaf mass ratio', 3), rep('no volume', 3)),
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          string.pred = "Coeffcient", 
+         title = "MEM Selection: Flame Height, No Species in Models",
+  string.p = "P-Value", 
+  p.style = "stars")
+```
+
+I interpretted the above model selection table as follows: when there is a decrease in the AIC score after removing a variable, that variable makes the overall model fit worse, but when there is an increase in the AIC score after removing a variable, that variable makes the overall model fit better. With that in mind, here's what we see:
+- LFM: generally makes model fit worse (AIC -4 when removed), but conceptually we're interested in it, so we'll leave it in for now (but if wet weight or mpa is present in the model, then we don't need to include mpa)
+- MPa: again, generally makes model fit worse (AIC -3 when removed), but conceptually we're interested in it, so we'll leave it in for now (but if wet weight or LFM is present in the model, then we don't need to include mpa)
+- Volume: if ww, dw, or sample weight is present, makes model fit worse, but if those are not in the model, then it makes model fit better
+- LMA: keep in! Removing this variable dramatically made the model fit worse
+- Branching: it doesn't make a huge difference on model fit; keep in
+- Leaf mass ratio: generally makes model fit worse, so we can remove
+
+Okay, that significantly narrows down the possible options for the model structure. Let's do another table with that new knowledge. Here are the 28 model structures that seem ideal: 
+- 1. hydration (LFM or MPa) + sample size (DW, sample wt or volume) + LMA + branching (6)
+- 2. hydration (LFM or MPa) + sample size (DW, sample wt or volume) + LMA (6)
+- 3. sample size (WW, DW, sample wt or volume) + LMA + branching (4)
+- 4. sample size (WW, DW, sample wt or volume) + LMA (4)
+- 5. hydration (WW, LFM or MPa) + LMA + branching (3)
+- 6. hydration (WW, LFM or MPa) + LMA (3)
+- 7. LMA + branching (1)
+- 8. LMA (1)
+
+where hydration = LFM, MPa or wet weight and sample size = wet weight, dry weight, sample weight or sample volume, but wet weight should not be included in models with LFM or MPa, nor should it be included in models with dry weight or sample weight.
+
+```{r, results = 'hide'}
+# 1.
+fh_m42 <- lmer(fh ~ lfm + dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m42)
+
+fh_m43 <- lmer(fh ~ lfm + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m43)
+
+fh_m44 <- lmer(fh ~ lfm + branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m44)
+
+fh_m45 <- lmer(fh ~ mpa + dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m45)
+
+fh_m46 <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m46)
+
+fh_m47 <- lmer(fh ~ mpa + branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m47)
+
+# 2. 
+fh_m48 <- lmer(fh ~ lfm + dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m48)
+
+fh_m49 <- lmer(fh ~ lfm + sample_wt + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m49)
+
+fh_m50 <- lmer(fh ~ lfm + branch_volume + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m50)
+
+fh_m51 <- lmer(fh ~ mpa + dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m51)
+
+fh_m52 <- lmer(fh ~ mpa + sample_wt + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m52)
+
+fh_m53 <- lmer(fh ~ mpa + branch_volume + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m53)
+
+# 3. 
+fh_m54 <- lmer(fh ~ dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m54)
+
+fh_m55 <- lmer(fh ~ sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m55)
+
+fh_m56 <- lmer(fh ~ branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m56)
+
+fh_m57 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m57)
+
+# 4. 
+fh_m58 <- lmer(fh ~ dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m58)
+
+fh_m59 <- lmer(fh ~ sample_wt + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m59)
+
+fh_m60 <- lmer(fh ~ branch_volume + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m60)
+
+fh_m61 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m61)
+
+# 5. 
+fh_m62 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m62) # note: whoops, same as fh_m57
+
+fh_m63 <- lmer(fh ~ mpa + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m63)
+
+fh_m64 <- lmer(fh ~ lfm + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m64)
+
+# 6.
+fh_m65 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df) # note: whoops, same as fh_m61
+multicollinearity(fh_m65) 
+
+fh_m66 <- lmer(fh ~ mpa + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m66)
+
+fh_m67 <- lmer(fh ~ lfm + LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m67)
+
+# 7.
+fh_m68 <- lmer(fh ~ LMA + branching + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m68)
+
+# 8. 
+fh_m69 <- lmer(fh ~ LMA + (1|plant_id), data = scaled.flamm.df)
+multicollinearity(fh_m69)
+```
+
+Alright, let's add a couple of the best models identified in the table w/ species included and then do a model selection table
+```{r}
+tab_model(fh_m18, fh_m19, fh_m42, fh_m43, fh_m44, fh_m45, fh_m46, fh_m47, fh_m48, fh_m49,
+          fh_m50, fh_m51, fh_m52, fh_m53, fh_m54, fh_m55, fh_m56, fh_m57, fh_m58, fh_m59,
+          fh_m60, fh_m61, fh_m63, fh_m64, fh_m66, fh_m67, fh_m68, fh_m69,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          dv.labels = c(rep('w/ species', 2), rep('hydration + sample size + LMA + branching', 6),
+                        rep('hydration +sample size + LMA', 6), rep('sample size + LMA + branching', 4),
+                        rep('sample size + LMA', 4), rep('hydration + LMA + branching', 2),
+                        rep('hydration + LMA', 2), 'LMA + branching', 'LMA'),
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          string.pred = "Coeffcient", 
+         title = "MEM Selection: Flame Height, Penultimate Model Selection",
+  string.p = "P-Value", 
+  p.style = "stars")
+```
+
+Alright, we're close to being done now. Here's what we learned from the above table:
+- ww_flam_sample is the 'best' sample size predictor, followed up by dw_flam_sample, and distantly followed by sample_wt and branch_volume
+- LFM and MPa are not significantly different in how they affect the AIC score
+- The effect of including branching in the model varies
+- The 'best' models are ww_flam_sample + LMA + branching and ww_flam_sample + LMA
+
+## P-Values
+Because the stars reported in the model table are not totally accurate, we should check out the Kenward-Roger approximations of p-values for each of the top two models
+```{r}
+fh_top1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+summary(fh_top1, ddf = 'Kenward-Roger')
+
+fh_top2 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+summary(fh_top2, ddf = 'Kenward-Roger')
+```
+
+All of the included fixed effects are significant!
+
+## Alternative Process (Note)
+There are other functions that try and get the 'best' model for the data by comparing p-values and discarding multicollinear variables and such; however, in my experience, these functions are flawed, as (1) they often do not select the 'best' model, (2) the user cannot see the processes driving the model selection and cannot tweak the model selection according to their questions or the EDA, and (3) it does not take into account multicollinearity
+```{r}
+# step() is very sensitive to NAs, so we'll have to remove the NA's
+scaled.flamm.df.noNAs <- scaled.flamm.df %>% 
+  select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, branch_volume, LMA, branching, plant_id) %>% 
+  na.omit() # this removed 43 samples
+
+# For the first example, let's throw the kitchen sink at this function and see what it spits out
+fh_step <- lmer(fh ~ species + lfm + mpa + ww_flam_sample + dw_flam_sample + sample_wt + branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs)
+# Stepwise model selection
+step_res <- step(fh_step, ddf = 'Kenward-Roger')
+final <- get_model(step_res)
+# Checking out selected model
+summary(final)
+multicollinearity(final)
+
+# For the second example, let's throw the identified 'best' predictors and species and see what it says
+fh_step2 <- lmer(fh ~ species + ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs)
+# Stepwise model selection
+step_res <- step(fh_step2, ddf = 'Kenward-Roger')
+final <- get_model(step_res)
+# Checking out selected model
+summary(final)
+multicollinearity(final)
+
+# Comparing to top model selected above:
+fh_step_selected <- lmer(fh ~ species + ww_flam_sample + branching + (1|plant_id), data = scaled.flamm.df) 
+# Using full dataset now
+AIC(fh_step_selected)
+AIC(fh_top1)
+# The step-selected is significantly worse; now, maybe this is because of the NAs reintroduced into the data, so this may not be a totally fair comparison.
+```
+
+## Visualization via REMEF
+```{r}
+fh_top1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs) # remef is also sensitive to NAs
+
+scaled.flamm.df.noNAs$r_fh <- remef(fh_top1, fix = c('LMA', 'branching'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effects of LMA and branching and removing the random effects
+
+# With REMEF
+ggplot(scaled.flamm.df.noNAs, aes(x = ww_flam_sample, y = r_fh))  +
+  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  labs(x = 'Wet Weight (scaled)', y = 'Flame Height (effects removed, scaled)') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+
+# Without REMEF
+ggplot(scaled.flamm.df.noNAs, aes(x = ww_flam_sample, y = fh))  +
+  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  labs(x = 'Wet Weight (scaled)', y = 'Flame Height (scaled)') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+```
+
