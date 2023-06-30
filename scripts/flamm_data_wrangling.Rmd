@@ -281,11 +281,11 @@ for(i in 1:length(flam.df.sample)){
 
 colnames(CH7results) <- colnames(ch7.best)
 CH7results <- na.omit(CH7results)
-mean(CH7results$span) # 0.08860465
+mean(CH7results$span) # 0.07534884
 
 colnames(CH8results) <- colnames(ch8.best)
 CH8results <- na.omit(CH8results)
-mean(CH8results$span) # 0.03069767
+mean(CH8results$span) # 0.03744186
 
 rm(df, ch7.res, ch7.best, ch8.res, ch8.best) # Decluttering environment by removing temporary dataframes from above for loop
 ```
@@ -308,9 +308,9 @@ for(i in 1:nrow(flam.df.no.Inf)){
     mutate(time = as.numeric(time))
   
 # Loess regressions
-  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = 0.08860465)
+  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = 0.07534884)
   df$loess.CH7 <- predict(loess.mod.CH7)
-  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = 0.03069767)
+  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = 0.03744186)
   df$loess.CH8 <- predict(loess.mod.CH8)
 
   flam.df.no.Inf$max_heat_flux_loessCH7[i] <- max(df$loess.CH7)

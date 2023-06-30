@@ -600,4 +600,3 @@ ggplot(scaled.flamm.df.noNAs, aes(x = ww_flam_sample, y = fh))  +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
 ```
-

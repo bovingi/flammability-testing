@@ -225,7 +225,9 @@ note: for now, not going to add or takeaway any data prior to merging, so we wil
 stem_leaf_ratio_clean <- stem_leaf_ratio %>% 
   select(species, plant, date, total_branch_mass, total_leaf_mass) %>% 
   mutate(stem_mass_ratio = total_branch_mass/(total_branch_mass + total_leaf_mass)) %>% 
-  mutate(leaf_mass_ratio = total_leaf_mass/(total_branch_mass + total_leaf_mass))
+  mutate(leaf_mass_ratio = total_leaf_mass/(total_branch_mass + total_leaf_mass)) 
+  
+stem_leaf_ratio_clean <- subset(stem_leaf_ratio_clean, !(species == 'SALAPI' & plant %in% c('P9', 'P10') & date == '2022-08-24')) # Removing duplicated values for SALAPI P9 and P10 (must've accidentally measured it twice; I took the first measurements, as they were inputted by the same person as the other SALAPI measurements)
 
 leaf_stem_v2_df <- merge(stem_leaf_ratio_clean, leaf_stem_df, by = c('species', 'plant'))
 ```
@@ -263,21 +265,13 @@ main_traits_df <- main_traits_df %>%
   mutate(stem_wet_mass = ifelse(stem_wet_mass > 99999, NA, stem_wet_mass)) %>% 
   mutate(stem_dry_mass = ifelse(stem_dry_mass > 99999, NA, stem_dry_mass)) %>% 
   mutate(leaf_area = ifelse(leaf_area > 99999, NA, leaf_area)) %>% 
-  mutate(auc_voc = ifelse(auc_voc > 99999, NA, auc_voc)) %>% 
-  mutate(avg_voc = ifelse(avg_voc > 99999, NA, avg_voc)) %>% 
-  mutate(norm_auc_voc = ifelse(norm_auc_voc > 99999, NA, norm_auc_voc)) %>% 
-  mutate(norm_avg_voc = ifelse(norm_avg_voc > 99999, NA, norm_avg_voc))
+  mutate(auc_voc = ifelse(auc_voc == 999999, NA, auc_voc)) %>% 
+  mutate(avg_voc = ifelse(avg_voc == 999999, NA, avg_voc)) %>% 
+  mutate(norm_auc_voc = ifelse(norm_auc_voc == 999999, NA, norm_auc_voc)) %>% 
+  mutate(norm_avg_voc = ifelse(norm_avg_voc == 999999, NA, norm_avg_voc))
 ```
 
-## Calculating LMA, SLA
-Note that for ERIKAR P4-P10 and ARTCAL, leaf wet mass was for all of the leaves rather than just the five used in the leaf scans, hence why those values are NA below
-```{r}
-main_traits_df <- main_traits_df %>% 
-  mutate(LMA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_wet_mass/leaf_area),
-         SLA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_area/leaf_wet_mass))
-```
-
-## Small Adjustments
+## Changing 'plant' to numeric
 ```{r}
 main_traits_df <- main_traits_df %>% 
   mutate(plant = case_when(
@@ -295,7 +289,30 @@ main_traits_df <- main_traits_df %>%
     plant == 'P12' ~ 12
   )) %>% 
   mutate(species = ifelse(species == 'EUGL', 'EUCGLO', species))
+```
 
+
+## Calculating LMA, SLA
+Note that for ERIKAR P4-P10, all ARTCAL, SALLEU P11, SALAPI P12, leaf wet mass was for all of the leaves rather than just the five used in the leaf scans, hence why those values are NA below
+```{r}
+main_traits_df <- main_traits_df %>% 
+  mutate(LMA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_wet_mass/leaf_area),
+         SLA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_area/leaf_wet_mass))
+```
+
+Imputing species mean LMAs for missing values (for HETARB)
+```{r}
+mean_HETARB_LMA <- main_traits_df %>% 
+  drop_na(LMA) %>% 
+  filter(species == 'HETARB') %>% 
+  summarise(LMA = mean(LMA))
+
+main_traits_df <- main_traits_df %>% 
+  mutate(LMA = ifelse(species == 'HETARB' & is.na(LMA), mean_HETARB_LMA[1,1], LMA))
+```
+
+## Small Adjustments
+```{r}
 # Filtering out EUCGLO and QUEAGR; not including these species in this analysis
 main_traits_df <- main_traits_df %>% 
   filter(species != 'EUCGLO',
@@ -310,12 +327,32 @@ flam.df <- read.csv(here('data', 'processed-data', 'clean_flamm_data.csv')) %>%
 main_df <- merge(main_traits_df, flam.df, by = c('species', 'plant'))
 ```
 
+## Small Adjustments (2)
+```{r}
+# One missing mpa value for HETARB; because we don't have many HETARB samples as is, let's impute the species mean for this mpa like we did for LMAs
+mean_HETARB_mpa <- main_df %>% 
+  drop_na(mpa) %>% 
+  filter(species == 'HETARB') %>% 
+  summarise(mpa = mean(mpa))
+
+main_df <- main_df %>% 
+  mutate(mpa = ifelse(species == 'HETARB' & is.na(mpa), mean_HETARB_mpa[1,1], mpa))
+
+# Getting rid of duplicate rows
+duplicates <- main_df %>% 
+  unite('id', c(species, plant, rep), sep = '_', remove = F)
+
+duplicates[duplicated(duplicates$id), ]
+```
+
 # Sample Weight/Size
 ## Dry Weight, Wet Weight
 ```{r}
 main_df <- main_df %>% 
-  mutate(wet_mass = stem_wet_mass + leaf_wet_mass,
-         dry_mass = stem_dry_mass + leaf_dry_mass,
+  mutate(wet_mass = ifelse(species == 'IRIDOU', leaf_wet_mass, # Because IRIDOU has no stems
+                           stem_wet_mass + leaf_wet_mass),
+         dry_mass = ifelse(species == 'IRIDOU', leaf_dry_mass, 
+                           stem_dry_mass + leaf_dry_mass),
          gdw_gfw = dry_mass/(wet_mass+dry_mass),
          dw_flam_sample = gdw_gfw * sample_wt, # need to change to sample weight
          ww_flam_sample = sample_wt - dw_flam_sample)
@@ -329,7 +366,7 @@ main_df <- main_df %>%
 
 # Writing csv
 ```{r}
-#summary(main_traits_df)
+summary(main_traits_df)
 write.csv(main_traits_df, here('data', 'processed-data', 'plant_traits_data.csv'))
 
 summary(main_df)
