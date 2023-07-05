@@ -29,16 +29,19 @@ ggbiplot = ggbiplot::ggbiplot
 
 # reading in data
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
+
+# excluding MANDEN and HETARB
+flamm.df <- flamm.df %>% 
+  filter(species != 'MANDEN' & species != 'HETARB')
 ```
 
 # Summary Boxplots
 ## Plant Traits
 ```{r}
 traits.df.long <- flamm.df %>% 
-  select(date, species, plant, rep, leaf_lfm, stem_lfm, lfm, leaf_area, SLA,
-         thickness, branch_length, branch_width, branch_height, sample_wt,
+  select(date, species, plant, rep, leaf_lfm, stem_lfm, lfm, leaf_area, SLA, LMA,
+         thickness, branch_volume, sample_wt,
          branching, mpa, stem_mass_ratio, leaf_mass_ratio) %>% 
-  filter(branch_height < 100) %>% 
   pivot_longer(!c(date, species, plant, rep), names_to = 'trait', values_to = 'value')
 
 ggplot(traits.df.long, aes(x = species, y = value, color = species)) +
@@ -57,6 +60,9 @@ ggsave(here('figures', 'plant.traits.exploratory.boxplot.jpg'), height = 20, wid
 
 ## Flammability Metrics
 ```{r}
+flam_labels <- c('Flame Height', 'Flame Duration', 'Temperature Change', 'Heat Flux Change', 'Post-Flame Glow', '% Ignited')
+names(flam_labels) <- c('fh', 'fd', 'temp_change', 'heat_flux_change', 'pfg', 'prop_ig')
+
 flamm.df.long <- flamm.df %>% 
   select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, temp_change, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample, branch_volume, heat_flux_change) %>%  # took out  gd, gti, ttfg for now
   pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample, branch_volume), names_to = 'trait', values_to = 'value') %>% 
@@ -66,7 +72,7 @@ flamm.df.long %>%
 ggplot(aes(x = species, y = value, color = species)) +
   geom_boxplot() +
   labs(x = "Species", y = "Trait Value") +
-  facet_wrap(~trait, ncol = 4, scales = 'free_y') +
+  facet_wrap(~trait, ncol = 4, scales = 'free_y', labeller = labeller(trait = flam_labels)) +
   theme_bw() +
   theme(legend.position = 'none',
         axis.title = element_text(face = 'bold', size = 16),
@@ -79,7 +85,7 @@ flamm.df.long %>%
 ggplot(aes(x = species, y = value, color = species)) +
   geom_boxplot() +
   labs(x = "Species", y = "Trait Value") +
-  facet_wrap(~trait, ncol = 3, scales = 'free_y') +
+  facet_wrap(~trait, ncol = 3, scales = 'free_y', labeller = labeller(trait = flam_labels)) +
   theme_bw() +
   theme(legend.position = 'none',
         axis.title = element_text(face = 'bold', size = 16),
@@ -127,7 +133,7 @@ ggsave(here('figures', 'normalized.flamm.metrics.exploratory.boxplot.jpg'), heig
 ## Function
 ```{r}
 flamm.df.long.scatter <- flamm.df.long %>% 
-  dplyr::filter(trait %in% c('fd', 'fh', 'max_temp', 'pfg'))
+  dplyr::filter(trait %in% c('fd', 'fh', 'temp_change', 'heat_flux_change', 'pfg'))
 
 exploratory_scatterplot <- function(expl.var, x.lab){
 flamm.df.long.scatter %>% 
@@ -135,7 +141,7 @@ flamm.df.long.scatter %>%
     geom_point(alpha = 0.6, size = 1.5) +
   geom_smooth(method = 'lm', linewidth = 1, alpha = 0.8, se = F) +
   labs(x = x.lab, y = 'Flamm. Metric Value', color = 'Species')  +
-  facet_wrap(~trait, ncol = 2, scales = 'free_y') +
+  facet_wrap(~trait, ncol = 3, scales = 'free_y', labeller = labeller(trait = flam_labels )) +
   theme_bw() +
   theme(axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 14),
@@ -158,13 +164,21 @@ LFM
 ```{r}
 exploratory_scatterplot(flamm.df.long.scatter$leaf_lfm, 'Leaf Live Fuel Moisture (%)')
 exploratory_scatterplot(flamm.df.long.scatter$stem_lfm, 'Stem Live Fuel Moisture (%)')
+exploratory_scatterplot(flamm.df.long.scatter$lfm, 'Live Fuel Moisture (%)')
+ggsave(here('figures', 'flamm.metrics.vs.lfm.exploratory.jpg'), height = 12, width = 20)
 ```
 
 ## Vs. Sample Weight
+and DW, WW
 ```{r}
 exploratory_scatterplot(flamm.df.long.scatter$sample_wt, 'Sample Weight (g)')
-
 ggsave(here('figures', 'flamm.metrics.vs.sample.wt.exploratory.jpg'), height = 12, width = 20)
+
+exploratory_scatterplot(flamm.df.long.scatter$dw_flam_sample, 'Dry Weight (g)')
+ggsave(here('figures', 'flamm.metrics.vs.dw.exploratory.jpg'), height = 12, width = 20)
+
+exploratory_scatterplot(flamm.df.long.scatter$ww_flam_sample, 'Wet Weight (g)')
+ggsave(here('figures', 'flamm.metrics.vs.ww.exploratory.jpg'), height = 12, width = 20)
 ```
 
 ## Vs. Leaf Metrics
@@ -182,11 +196,13 @@ flamm.df %>%
   mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) %>% 
   ggplot(aes(x = species, y = prop_ig, color = species)) +
     scale_y_continuous(limits = c(0,1)) +
-    geom_point(size = 6) +
+    geom_point(size = 10) +
     geom_text(aes(label = n, x = species, y = prop_ig + 0.1)) +
     labs(x = ' ', y = 'Proportion Ignited') +
     theme_bw() + 
     theme(legend.position = 'none')
+
+ggsave(here('figures', 'main_figures', 'proportion.ignited.jpg'), height = 6, width = 8)
 ```
 
 # PCAs
@@ -280,13 +296,13 @@ flamm_kmeans_scaled_df <- flamm_kmeans_df %>%
 # optimal number of clusters
 # 2 ways to determine optimal cluster 
 # 1. optimal cluster at the elbow
-fviz_nbclust(flamm_kmeans_scaled_df, kmeans, method = "wss") #k = 3 or k = 7
+fviz_nbclust(flamm_kmeans_scaled_df, kmeans, method = "wss") #k = 2 or k = 3
 # 2. silhouette method
 fviz_nbclust(flamm_kmeans_scaled_df, kmeans, method = "silhouette") #k = 2, 7, or 10
 
 # run k-means clustering
-#perform k-means clustering with k = 7 clusters
-km <- kmeans(flamm_kmeans_scaled_df, centers = 3)
+#perform k-means clustering with k = 2 clusters
+km <- kmeans(flamm_kmeans_scaled_df, centers = 2)
 #plot results of final k-means model
 fviz_cluster(km, data = flamm_kmeans_scaled_df)
 #add cluster assigment to original data
@@ -311,7 +327,7 @@ flamm_kmeans_df %>%
   ggplot(aes(x = as.factor(cluster), y = val, color = as.factor(cluster))) +
     geom_boxplot(outlier.shape = NA, alpha= 0.8) +
     geom_jitter(width = 0.2, alpha = 0.2) +
-    facet_wrap(~var, scales = 'free') +
+    facet_wrap(~var, scales = 'free', labeller = labeller(var = flam_labels)) +
     labs(x = 'K-Means Cluster', y = 'Flamm. Metric Value') +
     scale_color_manual(values = c('goldenrod4', 'gold3', 'firebrick')) +
     theme_bw() +
@@ -325,9 +341,8 @@ flamm_kmeans_df %>%
   tally() %>%  
   pivot_wider(names_from = cluster, values_from = n) %>% 
   mutate(`1` = ifelse(is.na(`1`), 0, `1`),
-         `2` = ifelse(is.na(`2`), 0, `2`),
-         `3` = ifelse(is.na(`3`), 0, `3`)) %>% 
-  mutate(kmeans.flam.index = (`3` + `2`)/(`2` + `1` + `3`)) %>% 
+         `2` = ifelse(is.na(`2`), 0, `2`)) %>% 
+  mutate(kmeans.flam.index = (`2`)/(`2` + `1`)) %>% 
   ggplot(aes(x = species, y = kmeans.flam.index, color = species)) +
     geom_point(size = 7) +
     labs(x = 'Species', y = 'K-Means Clustering: Flammability Index') +
@@ -428,16 +443,16 @@ print(paste0(spp, ': LFM P-value = ', summary(m1)$coefficients[2,4]))
 m2 <- glm(ignition ~ mpa + sample_wt, data = df, family = "binomial")
 print(paste0(spp,': MPa P-value = ', summary(m2)$coefficients[2,4]))
 
-m3 <- glm(ignition ~ LMA + sample_wt, data = df, family = "binomial")
-print(paste0(spp, ': LMA P-value = ', summary(m3)$coefficients[2,4]))
-
-m4 <- glm(ignition ~ sample_wt, data = df, family = "binomial")
-print(paste0(spp, ': Sample Wt. P-value = ', summary(m4)$coefficients[2,4]))
+m3 <- glm(ignition ~ sample_wt, data = df, family = "binomial")
+print(paste0(spp, ': Sample Wt. P-value = ', summary(m3)$coefficients[2,4]))
 
 df2 <- df %>% 
   filter(start_temp > 0)
-m5 <- glm(ignition ~ start_temp + sample_wt, data = df2, family = "binomial")
-print(paste0(spp, ': Starting Temp. P-value = ', summary(m5)$coefficients[2,4]))
+m4 <- glm(ignition ~ start_temp + sample_wt, data = df2, family = "binomial")
+print(paste0(spp, ': Starting Temp. P-value = ', summary(m4)$coefficients[2,4]))
+
+m5 <- glm(ignition ~ LMA + sample_wt, data = df, family = "binomial")
+print(paste0(spp, ': LMA P-value = ', summary(m5)$coefficients[2,4]))
 }
 
 flamm.df %>% 
@@ -464,6 +479,7 @@ flamm.df.hp.ht.prop.ig2 <- flamm.df %>%
   filter(ignition %in% c('M', '0')) %>% 
   group_by(hotplate_height, species) %>% 
   dplyr::summarise(manual_or_nonignitions = n()) %>% 
+  ungroup() %>% 
   select(manual_or_nonignitions)
 
 flamm.df.hp.ht.prop.ig <- cbind(flamm.df.hp.ht.prop.ig1, flamm.df.hp.ht.prop.ig2) %>% 
@@ -525,21 +541,22 @@ flamm.df %>%
 ```{r}
 # Does it affect temp. metrics?
 flamm.df %>% 
-  filter(max_temp > 0) %>% 
-  ggplot(aes(x = as.factor(thermocoupler_height), y = max_temp)) +
+  ggplot(aes(x = as.factor(thermocoupler_height), y = temp_change)) +
     geom_jitter(width = 0.2) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA) +
-    labs(x = 'Thermocoupler Height (cm)', y = 'Max. Temp.') +
+    labs(x = 'Thermocoupler Height (cm)', y = 'Temp. Change') +
     theme_bw()
+t.test(temp_change ~ thermocoupler_height, data = flamm.df) # significant
+t.test(max_temp ~ thermocoupler_height, data = flamm.df) # significant
+t.test(heat_flux_change ~ thermocoupler_height, data = flamm.df) # not significant (as expected)
 
 flamm.df %>% 
-  filter(max_temp > 0) %>% 
   ggplot(aes(x = as.factor(thermocoupler_height), y = start_temp)) +
     geom_jitter(width = 0.2) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA) +
     labs(x = 'Thermocoupler Height (cm)', y = 'Starting Temp.') +
     theme_bw()
-# No, I don't think so
+t.test(start_temp ~ thermocoupler_height, data = flamm.df)
 ```
 
 # Manual Ignitions
@@ -953,7 +970,7 @@ ggplot(flamm.df, aes(x = species, color = species, y = ww_flam_sample)) +
 flamm.df.long.scatter <- flamm.df %>% 
   select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample) %>%  # took out  gd, gti, ttfg for now
   pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample), names_to = 'trait', values_to = 'value') %>% 
-  filter(trait %in% c('fd', 'fh', 'max_temp', 'pfg')) %>% 
+  filter(trait %in% c('fd', 'fh', 'pfg', 'temp_change', 'heat_flux_change')) %>% 
   mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
 
 exploratory_scatterplot(flamm.df.long.scatter$dw_flam_sample, 'Dry Weight (g)')
@@ -1243,6 +1260,54 @@ ggplot(flamm.df, aes(x = branch_volume, y = fd)) +
         axis.text.x = element_text(size = 12))
 ```
 
+## Compare to LFM, MPa
+```{r}
+ggplot(flamm.df, aes(x = lfm, y = fh)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 72)+ 
+  stat_regline_equation(label.y = 80) +
+  labs(x = "Live Fuel Moisture", y = "Flame Height (cm)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(x = lfm, y = fd)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 90)+ 
+  stat_regline_equation(label.y = 95) +
+  labs(x = "Live Fuel Moisture", y = "Flame Duration (s)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(x = mpa, y = fh)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 72)+ 
+  stat_regline_equation(label.y = 80) +
+  labs(x = "Water Potential", y = "Flame Height (cm)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+
+ggplot(flamm.df, aes(x = mpa, y = fd)) +
+  geom_point() +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 90)+ 
+  stat_regline_equation(label.y = 95) +
+  labs(x = "Water Potential", y = "Flame Duration (s)") +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 14),
+        axis.text.x = element_text(size = 12))
+```
+
+
 ## Correlations
 ```{r}
 flamm.df %>% 
@@ -1281,13 +1346,14 @@ ggplot(aes(x = as.factor(pre_ignition_glow), y = fd)) +
 ```{r}
 flamm.df %>% 
   pivot_longer(cols = c(fh, fd, pfg, prop_ig, temp_change, heat_flux_change), names_to = 'var', values_to = 'val') %>% 
-  ggplot(aes(x = auc_voc, y = val)) +
+  ggplot(aes(x = auc_voc, y = val, color = species)) +
     geom_point() +
-    geom_smooth(se = F, method = 'lm', color = 'gray30') +
-    facet_wrap(~var, scales = 'free') + 
-    labs(x = 'VOCs (Area Under Curve)', y = 'Flammability Metric Value') +
+    geom_smooth(method = 'lm', color = 'gray30', alpha = 0.8) +
+    facet_wrap(~var, scales = 'free', labeller = labeller(var = flam_labels)) + 
+    labs(x = 'VOCs (Area Under Curve)', y = 'Flammability Metric Value', color = 'Species') +
     theme_bw() +
-    theme(legend.position = 'none',
+    theme(legend.position = 'right',
+          legend.title = element_text(face = 'bold', size = 15),
           axis.title = element_text(face = 'bold', size = 17),
           axis.text.y = element_text(size = 15),
           axis.text.x = element_text(angle = 15, size = 12),
@@ -1295,13 +1361,14 @@ flamm.df %>%
 
 flamm.df %>% 
   pivot_longer(cols = c(fh, fd, pfg, prop_ig, temp_change, heat_flux_change), names_to = 'var', values_to = 'val') %>% 
-  ggplot(aes(x = log(avg_voc), y = val)) +
+  ggplot(aes(x = log(avg_voc), y = val, color = species)) +
     geom_point() +
-    geom_smooth(se = F, method = 'lm', color = 'gray30') +
-    facet_wrap(~var, scales = 'free') + 
-    labs(x = 'VOCs/second (log-transformed)', y = 'Flammability Metric Value') +
+    geom_smooth(method = 'lm', color = 'gray30', alpha = 0.8) +
+    facet_wrap(~var, scales = 'free', labeller = labeller(var = flam_labels)) + 
+    labs(x = 'VOCs/second (log-transformed)', y = 'Flammability Metric Value', color = 'Species') +
     theme_bw() +
-    theme(legend.position = 'none',
+    theme(legend.position = 'right',
+          legend.title = element_text(face = 'bold', size = 15),
           axis.title = element_text(face = 'bold', size = 17),
           axis.text.y = element_text(size = 15),
           axis.text.x = element_text(size = 12),
@@ -1309,13 +1376,14 @@ flamm.df %>%
 
 flamm.df %>% 
   pivot_longer(cols = c(fh, fd, pfg, prop_ig, temp_change, heat_flux_change), names_to = 'var', values_to = 'val') %>% 
-  ggplot(aes(x = log(norm_auc_voc), y = val)) +
+  ggplot(aes(x = log(norm_auc_voc), y = val, color = species)) +
     geom_point() +
-    geom_smooth(se = F, method = 'lm', color = 'gray30') +
-    facet_wrap(~var, scales = 'free') + 
-    labs(x = 'VOCs (AUC; Normalized, log-transformed)', y = 'Flammability Metric Value') +
+    geom_smooth(method = 'lm', color = 'gray30', alpha = 0.8) +
+    facet_wrap(~var, scales = 'free', labeller = labeller(var = flam_labels)) + 
+    labs(x = 'VOCs (AUC; Normalized, log-transformed)', y = 'Flammability Metric Value', color = 'Species') +
     theme_bw() +
-    theme(legend.position = 'none',
+    theme(legend.position = 'right',
+          legend.title = element_text(face = 'bold', size = 15),
           axis.title = element_text(face = 'bold', size = 17),
           axis.text.y = element_text(size = 15),
           axis.text.x = element_text(angle = 15, size = 12),
@@ -1323,13 +1391,14 @@ flamm.df %>%
 
 flamm.df %>% 
   pivot_longer(cols = c(fh, fd, pfg, prop_ig, temp_change, heat_flux_change), names_to = 'var', values_to = 'val') %>% 
-  ggplot(aes(x = log(norm_avg_voc), y = val)) +
+  ggplot(aes(x = log(norm_avg_voc), y = val, color = species)) +
     geom_point() +
-    geom_smooth(se = F, method = 'lm', color = 'gray30') +
-    facet_wrap(~var, scales = 'free') + 
-    labs(x = 'VOCs/second (Normalized, log-transformed)', y = 'Flammability Metric Value') +
+    geom_smooth(method = 'lm', color = 'gray30', alpha = 0.8) +
+    facet_wrap(~var, scales = 'free', labeller = labeller(var = flam_labels)) + 
+    labs(x = 'VOCs/second (Normalized, log-transformed)', y = 'Flammability Metric Value', color = 'Species') +
     theme_bw() +
-    theme(legend.position = 'none',
+    theme(legend.position = 'right',
+          legend.title = element_text(face = 'bold', size = 15),
           axis.title = element_text(face = 'bold', size = 17),
           axis.text.y = element_text(size = 15),
           axis.text.x = element_text(size = 12),
@@ -1342,9 +1411,6 @@ Per request by KF
 ```{r}
 size_labels <- c('Sample Weight (g)', 'Dry Weight (g)', 'Wet Weight (g)', 'Sample Volume (cm3)')
 names(size_labels) <- c('sample_wt', 'dw_flam_sample', 'ww_flam_sample', 'branch_volume')
-
-flam_labels <- c('Flame Height', 'Flame Duration')
-names(flam_labels) <- c('fh', 'fd')
 
 # All species
 flamm.df %>% 
@@ -1365,7 +1431,7 @@ flamm.df %>%
         axis.text.x = element_text(size = 12))
 
 # By species
-spp_vector <- c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'MALLAU')
+spp_vector <- c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'MALLAU', 'ERIKAR')
 plot_list <- list()
 for(i in 1:length(spp_vector)) {
 plot <- flamm.df %>% 
@@ -1391,4 +1457,5 @@ plot_list[[2]]
 plot_list[[3]]
 plot_list[[4]]
 plot_list[[5]]
+plot_list[[6]]
 ```

@@ -291,7 +291,6 @@ main_traits_df <- main_traits_df %>%
   mutate(species = ifelse(species == 'EUGL', 'EUCGLO', species))
 ```
 
-
 ## Calculating LMA, SLA
 Note that for ERIKAR P4-P10, all ARTCAL, SALLEU P11, SALAPI P12, leaf wet mass was for all of the leaves rather than just the five used in the leaf scans, hence why those values are NA below
 ```{r}

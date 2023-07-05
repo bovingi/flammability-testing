@@ -20,11 +20,13 @@ library(sjPlot)
 library(ggpubr)
 library(remef)
 library(lme4)
+library(psych) # for pairs.panels
 
 # defining functions
 here = here::here
 rename = dplyr::rename
 select = dplyr::select
+ggbiplot = ggbiplot::ggbiplot
 
 # reading in data
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
@@ -348,14 +350,13 @@ pca_df2 <- cbind(pca_traits_data, traits.df_pca)
 # 3. Comparing Principal Components
 ```{r}
 pca_df <- pca_df %>% 
-  select(-PC5) %>%  # Not interested in PC5
+  select(-PC4, -PC5) %>%  # Not interested in PC4 or PC5 (>80% of variance explained by first three PCs)
   rename(PC1_flamm = PC1,
          PC2_flamm = PC2,
-         PC3_flamm = PC3,
-         PC4_flamm = PC4)
+         PC3_flamm = PC3)
 
 pca_df2 <- pca_df2 %>% 
-  select(-PC5, -PC6, -PC7, -PC8, -PC9, -PC10, -species) %>%  # Not interested in PC5 through PC10; species in pca_df
+  select(-PC5, -PC6, -PC7, -PC8, -PC9, -PC10, -species) %>%  # Not interested in PC5 through PC10 (>80% of variance explained by first four PCs); species variable already in pca_df
   rename(PC1_traits = PC1,
          PC2_traits = PC2,
          PC3_traits = PC3,
@@ -366,15 +367,15 @@ pca_df_main <- merge(pca_df, pca_df2, by = 'id')
 
 ## Scatterplots
 ```{r}
-pc_labels <- c('PC1 (Flamm.)', 'PC2 (Flamm.)', 'PC3 (Flamm.)', 'PC4 (Flamm.)', 'PC1 (Traits)', 'PC2 (Traits)', 'PC3 (Traits)', 'PC4 (Traits)')
-names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC4_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits', 'PC4_traits')
+pc_labels <- c('PC1 (Flamm.)', 'PC2 (Flamm.)', 'PC3 (Flamm.)', 'PC1 (Traits)', 'PC2 (Traits)', 'PC3 (Traits)', 'PC4 (Traits)')
+names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits', 'PC4_traits')
 
 pca_df_main %>% 
-  pivot_longer(cols = c(PC1_flamm, PC2_flamm, PC3_flamm, PC4_flamm), values_to = 'flamm_pc_score', names_to = 'flamm_pc') %>% 
+  pivot_longer(cols = c(PC1_flamm, PC2_flamm, PC3_flamm), values_to = 'flamm_pc_score', names_to = 'flamm_pc') %>% 
   pivot_longer(cols = c(PC1_traits, PC2_traits, PC3_traits, PC4_traits), values_to = 'traits_pc_score', names_to = 'traits_pc') %>% 
   ggplot(aes(x = traits_pc_score, y = flamm_pc_score)) +
-    geom_point(alpha = 0.7, color = 'gray30') +
-    geom_smooth(method = 'lm', color = 'black') +
+    geom_point(alpha = 0.5, color = 'gray50') +
+    geom_smooth(method = 'lm', color = 'black', alpha = 0.9) +
     stat_cor(label.y = 1.5)+ 
     stat_regline_equation(label.y = 0.9) +
     facet_grid(flamm_pc ~ traits_pc, scales = 'free', labeller = labeller(flamm_pc = pc_labels, traits_pc = pc_labels)) +
@@ -385,6 +386,45 @@ pca_df_main %>%
           strip.text = element_text(size = 13, face = 'bold'))
 ```
 
+## Second-order PCA
+```{r}
+# selecting metrics of interest
+second_order_pca_df <- pca_df_main %>% 
+  select(species, PC1_flamm, PC2_flamm, PC3_flamm, PC1_traits, PC2_traits, PC3_traits, PC4_traits) # selecting principal components from above
+
+# looking at correlation and distribution
+pairs.panels(second_order_pca_df)
+
+# prepping dataset for PCA
+second_order_pca_df <- second_order_pca_df %>% 
+  na.omit()
+
+# running PCA
+second_order_pcobj <- second_order_pca_df %>% 
+  select(-species) %>% 
+  prcomp(center = TRUE, scale = TRUE) 
+
+# first glance at results
+summary(second_order_pcobj)
+plot(second_order_pcobj, type = 'lines') # first 2 explain 51.86% variance
+print(second_order_pcobj) # PC1: flame height, flame duration, max temp and max heat flux (combustibility), PC2: time to ignition, proportion ignited, post-flame glow (ignitability and consumability)
+
+# visualizing results
+ggbiplot(second_order_pcobj,
+         groups = second_order_pca_df$species,
+         ellipse = TRUE, varname.size = 5, alpha = 0.5) +
+  scale_color_manual(values = c('black', 'gray50', 'goldenrod', 'skyblue',
+                                 'red', 'darkblue')) +
+  theme_bw()
+
+# eigenvalue table
+tab_pca(second_order_pcobj, rotation = 'varimax',
+        nmbr.fctr = 5,
+        digits = 2,
+        show.var = TRUE,
+  string.pov = "Proportion of Variance",
+  string.cpov = "Cumulative Proportion") 
+```
 
 # ----------------------------
 
