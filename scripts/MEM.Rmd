@@ -5,6 +5,9 @@ date: "2023-06-28"
 output: html_document
 ---
 
+# Questions
+- How to deal with plant traits variables which are only measured per plant_id?
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -22,6 +25,7 @@ library(lme4) # for lmer
 library(lmerTest) # to try stepwise selection
 library(remef) # for remef
 library(performance) # for multicollinearity check
+library(car) # for qqPlot
 
 # defining functions
 here = here::here
@@ -78,6 +82,72 @@ Potential **covariates**:
 
 - Plant (to account for repeated measurements): note that we will need to make a unique identifier for each plant by combining current columns 'species' and 'plant'. Otherwise, the model will assume that (for example) plant 1 is the same group, treating HETARB 1 and SALLEU 1 as similar when they should not be treated as similar
 
+Looking at the above variables to see how they're situated in the dataset
+```{r}
+# Grouping by plant_id; to check to see which traits do not have any variation per plant_id
+trait.summary.plant_id <- flamm.df %>%  
+  unite('plant_id', c(species, plant), sep = '_', remove = F) %>% 
+  select(fh, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height, plant_id) %>% 
+  mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
+         dw_flam_sample = scale(dw_flam_sample), LMA = scale(LMA), thickness = scale(thickness),
+         leaf_area = scale(leaf_area), branching = scale(branching),
+         leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
+         start_temp = scale(start_temp), branch_volume = scale(branch_volume)) %>%  # scaling traits we want to look at so that standard deviations are comparable
+  group_by(plant_id) %>% 
+  dplyr::summarise(sd_lfm = sd(lfm), sd_mpa = sd(mpa), sd_ww = sd(ww_flam_sample), sd_dw = sd(dw_flam_sample),
+                   sd_lma = sd(LMA), sd_thickness = sd(thickness), sd_leafarea = sd(leaf_area),
+                   sd_branching = sd(branching), sd_leafratio = sd(leaf_mass_ratio), sd_sw = sd(sample_wt),
+                   sd_st = sd(start_temp), sd_volume = sd(branch_volume))
+trait.summary.plant_id %>% 
+  mutate(sd_lfm = ifelse(is.na(sd_lfm), 0, sd_lfm),
+         sd_mpa = ifelse(is.na(sd_mpa), 0, sd_mpa),
+         sd_ww = ifelse(is.na(sd_ww), 0, sd_ww),
+         sd_dw = ifelse(is.na(sd_dw), 0, sd_dw),
+         sd_lma = ifelse(is.na(sd_lma), 0, sd_lma),
+         sd_thickness = ifelse(is.na(sd_thickness), 0, sd_thickness),
+         sd_leafarea = ifelse(is.na(sd_leafarea), 0, sd_leafarea),
+         sd_branching = ifelse(is.na(sd_branching), 0, sd_branching),
+         sd_leafratio = ifelse(is.na(sd_leafratio), 0, sd_leafratio),
+         sd_sw = ifelse(is.na(sd_sw), 0, sd_sw),
+         sd_st = ifelse(is.na(sd_st), 0, sd_st), 
+         sd_volume = ifelse(is.na(sd_volume), 0, sd_volume)) %>% 
+  summary()
+
+# Grouping by species; to check to see which traits do not have any intraspecific variation
+trait.summary.species <- flamm.df %>%  # scaling so that standard deviations are comparable
+  select(fh, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height) %>% 
+  mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
+         dw_flam_sample = scale(dw_flam_sample), LMA = scale(LMA), thickness = scale(thickness),
+         leaf_area = scale(leaf_area), branching = scale(branching),
+         leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
+         start_temp = scale(start_temp), branch_volume = scale(branch_volume)) %>%  # scaling traits we want to look at so that standard deviations are comparable
+  group_by(species) %>% 
+  dplyr::summarise(sd_lfm = sd(lfm), sd_mpa = sd(mpa), sd_ww = sd(ww_flam_sample), sd_dw = sd(dw_flam_sample),
+                   sd_lma = sd(LMA), sd_thickness = sd(thickness), sd_leafarea = sd(leaf_area),
+                   sd_branching = sd(branching), sd_leafratio = sd(leaf_mass_ratio), sd_sw = sd(sample_wt),
+                   sd_st = sd(start_temp), sd_volume = sd(branch_volume))
+trait.summary.species %>% 
+  mutate(sd_lfm = ifelse(is.na(sd_lfm), 0, sd_lfm),
+         sd_mpa = ifelse(is.na(sd_mpa), 0, sd_mpa),
+         sd_ww = ifelse(is.na(sd_ww), 0, sd_ww),
+         sd_dw = ifelse(is.na(sd_dw), 0, sd_dw),
+         sd_lma = ifelse(is.na(sd_lma), 0, sd_lma),
+         sd_thickness = ifelse(is.na(sd_thickness), 0, sd_thickness),
+         sd_leafarea = ifelse(is.na(sd_leafarea), 0, sd_leafarea),
+         sd_branching = ifelse(is.na(sd_branching), 0, sd_branching),
+         sd_leafratio = ifelse(is.na(sd_leafratio), 0, sd_leafratio),
+         sd_sw = ifelse(is.na(sd_sw), 0, sd_sw),
+         sd_st = ifelse(is.na(sd_st), 0, sd_st), 
+         sd_volume = ifelse(is.na(sd_volume), 0, sd_volume)) %>% 
+  summary()
+```
+
+The following plant traits are measured for each plant_id (sd = 0 for plant_id):
+LFM/stem LFM/leaf LFM, LMA/SLA, thickness, leaf area, leaf ratio/stem ratio
+
+vs. the following traits which have unique values for each plant_id:
+MPa, wet weight/dry weight (note: LFM used in calculation), branching, sample weight, starting temp., sample volume
+
 # Example of MEM Selection
 Using flame height as the dependent variable, I am going to to show how we could potentially frame our thoughts and what steps we could take in the MEM selection for our larger analysis
 
@@ -89,7 +159,6 @@ flamm.df <- flamm.df %>%
   drop_na(fh) # dropping any NA's for flame height
 
 flamm.df %>% 
-  filter(start_temp > 0) %>%  # to get rid of -inf values (when datalogger was off)
   select(fh, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height) %>% 
   ggcorr(label = T)
 ```
@@ -104,7 +173,7 @@ From the above correlation matrix, there are some initial 'problem areas':
 
 So, we will eliminate some variables from contention right away:
 - SLA: we can use LMA
-- Stem mass ratio: we can use leaf mass ratioo
+- Stem mass ratio: we can use leaf mass ratio
 - Stem LFM and leaf LFM: unless we notice something in the EDA that suggests otherwise, I think using total LFM makes sense
 - Leaf area: because leaf area is included in some fashion in the calculation of LMA and due to it's oddly stroong correlation to dw_flam_sample and ww_flam_sample which we're interested in keeping in the models, it makes sense to remove
 
@@ -215,6 +284,15 @@ multicollinearity(fh_m16) # ww and dw are collinear
 ```
 
 Without species in the model, we can do a lot more w/ the model structure. Multicollinearity becomes an issue with LFM, DW, WW, and sample weight. DW or WW and LFM can be in the same model (see fh_m14 and fh_m15), but DW, WW, and sample_wt all need to be considered in separate models. Now we have a decent understanding of which variables could be included in the more in-depth model selection
+
+## Interaction Check
+Although I don't plan on including interaction terms in the AIC-based selection (below) for this example, as it would make the selection even more complicated than it already is, it is worth checking to see whether there is evidence that there should/could be interaction terms included in the fixed and/or random effects. I am also using this chunk as a trial of interaction.plot()
+```{r}
+with(scaled.flamm.df, {
+  interaction.plot(species, plant, fh)
+  interaction.plot(species, plant, fh)})
+```
+
 
 ## AIC-Based Selection
 We have been focused on using AIC to select the 'best' models in the mixed effects model selection. Below, I tried all of the permutations w/o interactions to see which predictor variables are selected in the top models. Interaction terms with species may be important in the final model selection, but to make things a bit simpler for this example, I decided against using any.
@@ -502,19 +580,24 @@ multicollinearity(fh_m68)
 # 8. 
 fh_m69 <- lmer(fh ~ LMA + (1|plant_id), data = scaled.flamm.df)
 multicollinearity(fh_m69)
+
+# Adding interaction terms to random effect for top 2 models
+fh_int1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id:species), data = scaled.flamm.df)
+
+fh_int2 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id:species), data = scaled.flamm.df)
 ```
 
 Alright, let's add a couple of the best models identified in the table w/ species included and then do a model selection table
 ```{r}
 tab_model(fh_m18, fh_m19, fh_m42, fh_m43, fh_m44, fh_m45, fh_m46, fh_m47, fh_m48, fh_m49,
           fh_m50, fh_m51, fh_m52, fh_m53, fh_m54, fh_m55, fh_m56, fh_m57, fh_m58, fh_m59,
-          fh_m60, fh_m61, fh_m63, fh_m64, fh_m66, fh_m67, fh_m68, fh_m69,
+          fh_m60, fh_m61, fh_m63, fh_m64, fh_m66, fh_m67, fh_m68, fh_m69, fh_int1, fh_int2,
           show.reflvl = TRUE, 
           digits = 3, 
           dv.labels = c(rep('w/ species', 2), rep('hydration + sample size + LMA + branching', 6),
                         rep('hydration +sample size + LMA', 6), rep('sample size + LMA + branching', 4),
                         rep('sample size + LMA', 4), rep('hydration + LMA + branching', 2),
-                        rep('hydration + LMA', 2), 'LMA + branching', 'LMA'),
+                        rep('hydration + LMA', 2), 'LMA + branching', 'LMA', 'Interaction 1', 'Interaction 2'),
           show.aic = TRUE, 
           show.ci = FALSE,
           show.icc = FALSE, 
@@ -541,6 +624,48 @@ summary(fh_top2, ddf = 'Kenward-Roger')
 ```
 
 All of the included fixed effects are significant!
+
+## Checking Assumptions (more thoroughly)
+Following environmental computing tutorial
+```{r}
+# lmer removes NAs but our linear model in the ANOVA, so we'll have to remove the NA's
+scaled.flamm.df.noNAs <- scaled.flamm.df %>% 
+  select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, branch_volume, LMA, branching, plant_id) %>% 
+  na.omit() # this removed 43 samples
+
+# Model
+fh_top1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs)
+
+#Checking Assumptions
+#Assumption 1: Observed y are independent, randomly sampled
+#Assumption 2: Residuals are normally distributed - use qqplot
+fh_top1.res <- residuals(fh_top1)
+qqPlot(fh_top1.res) #From package CAR, looks good to me
+#Assumptions 3 and 4: Residuals have constant variance; and there is a straight line relationship between y and x and random effects (z) - use residuals vs. fitted plot
+plot(fh_top1)
+#Assumption 5: Random effects are independent of y - random sampling
+#Assumption 6: Random effects are normally distributed - tough to check
+
+#Test effects of fixed effect with ANOVA
+fh_top1.0 <- lmer(fh ~ (1|plant_id), data = scaled.flamm.df.noNAs)
+anova(fh_top1, fh_top1.0) #P-value shows that fixed effect has significant effect on the y
+
+#Test effects of random effect with parametric bootstrap method
+nBoot=1000
+lrStat=rep(NA,nBoot)
+fh_null <- lm(fh ~ ww_flam_sample + LMA + branching, data = scaled.flamm.df.noNAs) # null model
+fh_alt <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs, REML = F) # alternate model
+lrObs <- 2*logLik(fh_alt) - 2*logLik(fh_null) # observed test stat
+for(iBoot in 1:nBoot)
+{
+  scaled.flamm.df.noNAs$fhSim=unlist(simulate(fh_null)) #resampled data
+  bNull <- lm(fh ~ ww_flam_sample + LMA + branching, data = scaled.flamm.df.noNAs) # null model
+  bAlt <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs, REML = F) # alternate model
+  lrStat[iBoot] <- 2*logLik(bAlt) - 2*logLik(bNull) # resampled test stat
+}
+mean(lrStat>lrObs) #P-value for test of plant_id effect
+```
+
 
 ## Alternative Process (Note)
 There are other functions that try and get the 'best' model for the data by comparing p-values and discarding multicollinear variables and such; however, in my experience, these functions are flawed, as (1) they often do not select the 'best' model, (2) the user cannot see the processes driving the model selection and cannot tweak the model selection according to their questions or the EDA, and (3) it does not take into account multicollinearity

@@ -156,13 +156,6 @@ ggsave(here('figures', 'flamm.metrics.vs.mpa.exploratory.jpg'), height = 12, wid
 
 LFM
 ```{r}
-#  erikar causing issues due to very high LFM values
-#flamm.df.long.no.erikar <- flamm.df.long %>% 
-#  filter(species != 'ERIKAR') %>% 
-#  filter(species != 'SALLEU')
-#exploratory_scatterplot(flamm.df.long.no.erikar$lfm, 'Live Fuel Moisture (%)')
-#ggsave(here('figures', 'flamm.metrics.vs.lfm.exploratory.jpg'), height = 12, width = 20)
-
 exploratory_scatterplot(flamm.df.long.scatter$leaf_lfm, 'Leaf Live Fuel Moisture (%)')
 exploratory_scatterplot(flamm.df.long.scatter$stem_lfm, 'Stem Live Fuel Moisture (%)')
 ```
@@ -269,6 +262,9 @@ tab_pca(traits_pca, rotation = 'varimax') # From package sjPlot
 # k-means Clustering
 ## Flamm Metrics
 ```{r}
+# so it's replicable
+set.seed(16)
+
 # prepping dataset
 id <- c(1:nrow(flamm_pca_df))
 flamm_kmeans_df <- cbind(flamm_pca_df, id) %>% 
@@ -331,7 +327,7 @@ flamm_kmeans_df %>%
   mutate(`1` = ifelse(is.na(`1`), 0, `1`),
          `2` = ifelse(is.na(`2`), 0, `2`),
          `3` = ifelse(is.na(`3`), 0, `3`)) %>% 
-  mutate(kmeans.flam.index = (`3` + `1`)/(`2` + `1` + `3`)) %>% 
+  mutate(kmeans.flam.index = (`3` + `2`)/(`2` + `1` + `3`)) %>% 
   ggplot(aes(x = species, y = kmeans.flam.index, color = species)) +
     geom_point(size = 7) +
     labs(x = 'Species', y = 'K-Means Clustering: Flammability Index') +
@@ -565,7 +561,7 @@ flamm.df.manual %>%
 # Now, comparing to other flam. metrics
 ### Prepping Dataset ###
 flamm.df.manual.long <- flamm.df.manual %>% 
-  select(date, species, plant, rep, fh, fd, tti, pfg, max_temp, max_heat_flux_loessCH7, max_heat_flux_loessCH8) %>%  # took out  gd, gti, ttfg for now
+  select(date, species, plant, rep, fh, fd, tti, pfg, temp_change, heat_flux_change) %>%  # took out  gd, gti, ttfg for now
   pivot_longer(!c(date, species, plant, rep, tti), names_to = 'trait', values_to = 'value')
 ### Scatterplots ###
 flamm.df.manual.long %>% 
@@ -573,7 +569,7 @@ flamm.df.manual.long %>%
   geom_point(alpha = 0.6, size = 1.5) +
   geom_smooth(method = 'lm', linewidth = 1, alpha = 0.8, se = F) +
   labs(x = 'Time to Ignition', y = 'Flamm. Metric Value', title = 'Manual Ignitions Exploratory Analysis')  +
-  facet_wrap(~trait, ncol = 4, scales = 'free_y') +
+  facet_wrap(~trait, ncol = 3, scales = 'free_y') +
   theme_bw() +
   theme(axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 14),
@@ -595,38 +591,30 @@ flamm.df.manual.long %>%
         strip.text = element_text(face = 'bold', size = 16))
 ### Linear Regressions ###
 fd.tti.lm <- lm(fd ~ tti, data = flamm.df.manual)
-summary(fd.tti.lm) # sig.
+summary(fd.tti.lm) # n.s.
 
 fh.tti.lm <- lm(fh ~ tti, data = flamm.df.manual)
-summary(fh.tti.lm) # sig.
+summary(fh.tti.lm) # n.s.
 
 pfg.tti.lm <- lm(pfg ~ tti, data = flamm.df.manual)
 summary(pfg.tti.lm) # n.s.
 
-mhfch7.tti.lm <- flamm.df.manual %>% 
-  filter(max_heat_flux_loessCH7 > 0) %>% 
-  drop_na(max_heat_flux_loessCH7)
-mhfch7.tti.lm <- lm(max_heat_flux_loessCH7 ~ tti, data = mhfch7.tti.lm)
-summary(mhfch7.tti.lm) # sig.
+temp_change.tti.lm <- lm(temp_change ~ tti, data = flamm.df.manual)
+summary(temp_change.tti.lm) # significant!
 
-mhfch8.tti.lm <- flamm.df.manual %>% 
-  filter(max_heat_flux_loessCH8 > 0) %>% 
-  drop_na(max_heat_flux_loessCH8)
-mhfch8.tti.lm <- lm(max_heat_flux_loessCH8 ~ tti, data = mhfch8.tti.lm)
-summary(mhfch8.tti.lm) # sig.
-
-mt.tti.lm <- flamm.df.manual %>% 
-  filter(max_temp > 0) %>% 
-  drop_na(max_temp)
-mt.tti.lm <- lm(max_temp ~ tti, data = mt.tti.lm)
-summary(mt.tti.lm) # n.s.
+hf_change.tti.lm <- lm(heat_flux_change ~ tti, data = flamm.df.manual)
+summary(hf_change.tti.lm)
 # ~~ by species ~~ #
 fdxsp.tti.lm <- lm(fd ~ tti*species, data = flamm.df.manual)
 summary(fdxsp.tti.lm) # n.s.
 fhxsp.tti.lm <- lm(fh ~ tti*species, data = flamm.df.manual)
 summary(fhxsp.tti.lm) # n.s.
 pfgxsp.tti.lm <- lm(pfg ~ tti*species, data = flamm.df.manual)
-summary(pfgxsp.tti.lm) # n.s.
+summary(pfgxsp.tti.lm) # tti x MALLAU, tti x CEAGRI sig.
+tempxsp.tti.lm <- lm(temp_change ~ tti*species, data = flamm.df.manual)
+summary(tempxsp.tti.lm) # tti x HETARB sig.
+hfxsp.tti.lm <- lm(heat_flux_change ~ tti*species, data = flamm.df.manual)
+summary(hfxsp.tti.lm) # n.s.
 ```
 
 # Sample Weight Exploration
@@ -634,7 +622,7 @@ First, independent of species, look into linear and nonlinear relationships with
 
 ## Linear Relationships
 ```{r}
-## FD ## - sig.
+## FD ## - SIGNIFICANT
 fd.sw.lm <- lm(scale(fd) ~ scale(sample_wt), data = flamm.df)
 summary(fd.sw.lm)
 plot(fd.sw.lm)
@@ -643,7 +631,7 @@ ggplot(flamm.df, aes(x = sample_wt, y = fd)) +
   geom_smooth(method = 'lm') +
   labs(x = 'Sample Wt. (g)', y = 'Flame Duration (s)') +
   theme_bw()
-## FH ## - sig.
+## FH ## - SIGNIFICANT
 fh.sw.lm <- lm(scale(fh) ~ scale(sample_wt), data = flamm.df)
 summary(fh.sw.lm)
 plot(fh.sw.lm)
@@ -652,7 +640,7 @@ ggplot(flamm.df, aes(x = sample_wt, y = fh)) +
   geom_smooth(method = 'lm') +
   labs(x = 'Sample Wt. (g)', y = 'Flame Height (cm)') +
   theme_bw()
-## PFG ## - sig.
+## PFG ## - SIGNIFICANT
 pfg.sw.lm <- lm(scale(pfg) ~ scale(sample_wt), data = flamm.df)
 summary(pfg.sw.lm)
 plot(pfg.sw.lm)
@@ -661,7 +649,7 @@ ggplot(flamm.df, aes(x = sample_wt, y = pfg)) +
   geom_smooth(method = 'lm') +
   labs(x = 'Sample Wt. (g)', y = 'Post-Flame Glow (s)') +
   theme_bw()
-## LFM ## - sig.
+## LFM ## - SIGNIFICANT
 lfm.sw.lm <- lm(lfm ~ sample_wt, data = flamm.df)
 summary(lfm.sw.lm)
 plot(lfm.sw.lm)

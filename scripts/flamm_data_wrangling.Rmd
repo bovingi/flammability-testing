@@ -159,19 +159,21 @@ for(i in 1:nrow(flam.df)){
 flam.df <- flam.df %>% 
   mutate(time_at_max_temp = as_hms(time_at_max_temp))
 
-#rm(df, df.mt) # Decluttering environment by removing temporary dataframes from above for loop
+rm(df, df.mt) # Decluttering environment by removing temporary dataframes from above for loop
 ```
 
 Starting Temp. and Temp. Change
 ```{r, warning = F}
 flam.df <- flam.df %>% 
+  mutate(max_temp = ifelse(max_temp < -9999, NA, max_temp)) %>%  # making all -Inf values for max_temp NA
   mutate(start_temp = NA) %>% 
   mutate(start_temp_sensor = NA)
 thermocoupler.df.long <- thermocoupler.df.long %>% 
   mutate(start_temp = 'yes')
+
 for(i in 1:nrow(flam.df)){
   df <- thermocoupler.df.long %>% 
-    filter(thermo.id %in% c('CH1', 'CH2', 'CH5', 'CH6')) %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
+    filter(ifelse(is.na(max_temp), thermo.id %in% c('CH1', 'CH2', 'CH5', 'CH6'), thermo.id == flam.df$max_temp_sensor[i])) %>% # using the same thermocoupler as was used when finding the max. temp. metric unless there was no max temp (in that case, using CH1, CH2, CH5 or CH6)
     filter(date == flam.df$date[i]) %>% 
     filter(time == flam.df$start_time[i]) %>% 
     filter(ms == 0)
@@ -181,15 +183,65 @@ for(i in 1:nrow(flam.df)){
     filter(start_temp == 'yes')
   flam.df$start_temp_sensor[i] <- df.st$thermo.id[1]
 }
-flam.df <- flam.df %>% 
-  mutate(temp_change = max_temp - start_temp)
 
-rm(df) # Decluttering environment by removing temporary dataframe from above for loop
+flam.df <- flam.df %>% 
+  mutate(temp_change = max_temp - start_temp) # calculating temp. change!
+
+rm(df, df.st) # Decluttering environment by removing temporary dataframe from above for loop
 ```
 
+#### Full Test Average Temp (Top Vent, CH3)
+Because we have reason to believe that certain tests were conducted with one of the hotplates or one of the burners malfunctioning or off (based on exploratory analyses of the temperature data), we decided that it was necessary to use a temperature threshold to remove some of the samples that may have been burned in strange conditions. For this threshold, CH3 (thermocoupler near the top vent) was identified as the 'best' thermocoupler to use based on the distribution of average temperatures and because, conceptually, it makes sense that this locaiton would be the least variable from test-to-test unless the temperature of the chamber itself was different (which is what we're trying to figure out)
+```{r}
+flam.df <- flam.df %>% 
+  mutate(avg_temp_ch3 = NA)
+for(i in 1:nrow(flam.df)){
+  df <- thermocoupler.df.long %>% 
+    filter(thermo.id == 'CH3') %>% # if we want to exclude vent thermocoupler, top glass thermocoupler
+    filter(date == flam.df$date[i]) %>% 
+    filter(time > flam.df$start_time[i] & time < flam.df$end_time[i]) %>% 
+    filter(ms == 0)
+  flam.df$avg_temp_ch3[i] <- mean(df$temp)
+}
+
+flam.df.threshold <- flam.df %>% 
+  drop_na(avg_temp_ch3) %>% 
+  filter(avg_temp_ch3 > 0 & avg_temp_ch3 < 9999999)
+
+# Density plot
+flam.df %>% 
+  ggplot(aes(x = avg_temp_ch3)) +
+    geom_density(fill = 'gray', alpha = 0.4) +
+    geom_vline(alpha = 0.5, aes(xintercept =
+                                quantile(flam.df.threshold$avg_temp_ch3, 0.01))) +
+    annotate('text', x = quantile(flam.df.threshold$avg_temp_ch3, 0.01), y = 0.03, label = '1%') +
+    geom_vline(alpha = 0.5, aes(xintercept =
+                                quantile(flam.df.threshold$avg_temp_ch3, 0.05))) +
+    annotate('text', x = quantile(flam.df.threshold$avg_temp_ch3, 0.05), y = 0.03, label = '5%') +
+    geom_vline(alpha = 0.5, aes(xintercept =
+                                quantile(flam.df.threshold$avg_temp_ch3, 0.075))) +
+    annotate('text', x = quantile(flam.df.threshold$avg_temp_ch3, 0.075), y = 0.03, label = '7.5%') +
+    geom_vline(alpha = 0.5, aes(xintercept =
+                                quantile(flam.df.threshold$avg_temp_ch3, 0.1))) +
+    annotate('text', x = quantile(flam.df.threshold$avg_temp_ch3, 0.1), y = 0.03, label = '10%') +
+    theme_bw() +
+    labs(x = "Avg. Temp. (Top Vent)", y = 'Density') +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.x = element_text(size = 12, angle = 20),
+          axis.text.y = element_text(size = 12),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+
+# 7.5% percentile looks like best option for a threshold
+quantile(flam.df.threshold$avg_temp_ch3, 0.075)
+flam.df %>%
+  filter(avg_temp_ch3 < 201.7275) %>% 
+  group_by(species, ignition) %>% 
+  tally()
+```
 
 #### Testing Missing Datalogger Points
-For 13 of the 311 tests, the datalogger was either turned off or not working. The below chunk of code is meant to look at these 13 tests to ensure that removing them will not impact the overarching analysis
+For 12 of the 311 tests, the datalogger was either turned off or not working. The below chunk of code is meant to look at these 12 tests to ensure that removing them will not impact the overarching analysis
 ```{r}
 flam.df.datalogger.test <- flam.df %>% 
   mutate(datalogger.status = case_when(start_temp < 0 ~ 'Off',
@@ -226,28 +278,30 @@ flam.df.datalogger.test %>%
     annotate(geom = 'text', x = 8, y = 0.4, label = '0/28') +
     annotate(geom = 'text', x = 9, y = 0.4, label = '3/65') +
     annotate(geom = 'text', x = 3, y = 0.42, label = expression(bold('n of datalogger off / total samples:')))
+
+# Ignition status of instances when datalogger was off
+flam.df.datalogger.test %>% 
+  filter(datalogger.status == 'Off') %>% 
+  group_by(species, ignition) %>% 
+  tally()
 ```
 
 
-Filtering out tests with start temp. < 100 degrees C (note: this threshold may change); this step also gets rid of -Inf values... this may not be what we want (will check with KF)
+### Temperature Threshold/Datalogger Off
 ```{r}
-#flam.df <- flam.df %>%
-  #filter(start_temp > 100)
-
-# Note: for dataframe w/o filtering by 100 degrees threshold and w/ -Inf values (i.e., when the datalogger was turned off) in, run the following two lines of code instead of the two lines above and then run the rest of the below code as normal except for the 'saving .csv' chunk (see that chunk)
+flam.df <- flam.df %>%
+  filter(avg_temp_ch3 > 201.7275) %>%  # Using 7.5% as identified above
+  filter(start_temp > 0) # Although the above line of code removed the majority of the instances where the datalogger was off (as the avg. temp. was -Inf for most of those instances), there were a couple of stragglers which will be removed using this line of code
 ```
 
 ### Calculating Heat Flux
 #### Optimization Routine
 Since maximum heat flux is going to be determined using Loess regressions, this optimization routine selects the optimal smoothing span to use when looking at heat flux over time
 ```{r, warning = FALSE}
-# Splitting flam.df into two dataframes -- one with -Inf values for temp. and heat flux (i.e., datalogger wasn't on) and one without
-flam.df.no.Inf <- flam.df %>% 
-  filter(start_temp > 0)
-flam.df.Inf <- flam.df %>% 
-  filter(start_temp < 0) 
+# So it's replicable:
+set.seed(16)
 
-flam.df.sample <- sample_n(flam.df.no.Inf, 50)
+flam.df.sample <- sample_n(flam.df, 50)
 
 CH7results <- data.frame(matrix(NA,    # Create empty data frame
                           nrow = 50,
@@ -281,11 +335,11 @@ for(i in 1:length(flam.df.sample)){
 
 colnames(CH7results) <- colnames(ch7.best)
 CH7results <- na.omit(CH7results)
-mean(CH7results$span) # 0.07534884
+mean(CH7results$span) # 0.05772727
 
 colnames(CH8results) <- colnames(ch8.best)
 CH8results <- na.omit(CH8results)
-mean(CH8results$span) # 0.03744186
+mean(CH8results$span) # 0.02704545
 
 rm(df, ch7.res, ch7.best, ch8.res, ch8.best) # Decluttering environment by removing temporary dataframes from above for loop
 ```
@@ -301,40 +355,34 @@ heatflux.df <- heatflux.df %>%
   mutate(max_heat_flux_loessCH7 = NA)  %>% 
   mutate(max_heat_flux_loessCH8 = NA)
 
-for(i in 1:nrow(flam.df.no.Inf)){
+for(i in 1:nrow(flam.df)){
   df <- heatflux.df %>% 
-    filter(date == flam.df.no.Inf$date[i]) %>%  #index row, select column for date
-    filter(time >= flam.df.no.Inf$start_time[i] & time <= flam.df.no.Inf$end_time[i]) %>% #again, index row, select columns
+    filter(date == flam.df$date[i]) %>%  #index row, select column for date
+    filter(time >= flam.df$start_time[i] & time <= flam.df$end_time[i]) %>% #again, index row, select columns
     mutate(time = as.numeric(time))
   
 # Loess regressions
-  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = 0.07534884)
+  loess.mod.CH7 <- loess(CH7 ~ time, data = df, span = mean(CH7results$span))
   df$loess.CH7 <- predict(loess.mod.CH7)
-  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = 0.03744186)
+  loess.mod.CH8 <- loess(CH8 ~ time, data = df, span = mean(CH8results$span))
   df$loess.CH8 <- predict(loess.mod.CH8)
 
-  flam.df.no.Inf$max_heat_flux_loessCH7[i] <- max(df$loess.CH7)
-  flam.df.no.Inf$max_heat_flux_loessCH8[i] <- max(df$loess.CH8)
+  flam.df$max_heat_flux_loessCH7[i] <- max(df$loess.CH7)
+  flam.df$max_heat_flux_loessCH8[i] <- max(df$loess.CH8)
   
-  df$max_heat_flux_loessCH7 <- case_when(df$loess.CH7 == flam.df.no.Inf$max_heat_flux_loessCH7[i] ~ 'yes')
-  df$max_heat_flux_loessCH8 <- case_when(df$loess.CH8 == flam.df.no.Inf$max_heat_flux_loessCH8[i] ~ 'yes')
+  df$max_heat_flux_loessCH7 <- case_when(df$loess.CH7 == flam.df$max_heat_flux_loessCH7[i] ~ 'yes')
+  df$max_heat_flux_loessCH8 <- case_when(df$loess.CH8 == flam.df$max_heat_flux_loessCH8[i] ~ 'yes')
   
   df.mhf_CH7 <- df %>% 
     filter(max_heat_flux_loessCH7 == 'yes')
-  flam.df.no.Inf$time_at_max_heat_flux_loessCH7[i] <- df.mhf_CH7$time[1]
+  flam.df$time_at_max_heat_flux_loessCH7[i] <- df.mhf_CH7$time[1]
   df.mhf_CH8 <- df %>% 
     filter(max_heat_flux_loessCH8 == 'yes')
-  flam.df.no.Inf$time_at_max_heat_flux_loessCH8[i] <- df.mhf_CH8$time[1]
+  flam.df$time_at_max_heat_flux_loessCH8[i] <- df.mhf_CH8$time[1]
 }
-flam.df.no.Inf <- flam.df.no.Inf %>% 
+flam.df <- flam.df %>% 
   mutate(time_at_max_heat_flux_loessCH7 = as_hms(time_at_max_heat_flux_loessCH7)) %>% 
   mutate(time_at_max_heat_flux_loessCH8 = as_hms(time_at_max_heat_flux_loessCH8))
-
-flam.df.Inf <- flam.df.Inf %>% 
-  mutate(max_heat_flux_loessCH7 = NA, max_heat_flux_loessCH8 = NA, time_at_max_heat_flux_loessCH7 = NA,
-         time_at_max_heat_flux_loessCH8 = NA)
-
-flam.df <- rbind(flam.df.no.Inf, flam.df.Inf)
 
 rm(df, df.mhf_CH7, df.mhf_CH8) # Decluttering environment by removing temporary dataframes from above for loop
 ```
@@ -376,7 +424,7 @@ rm(flam.df.ignite, flam.df.nonignite, dfCH7, dfCH8) # Decluttering environment b
 ```
 
 #### Change from Stable Avg
-This is the metric we decided to use as our main heat flux metric based on exploratory analysees (see datalogger_exploration.Rmd); we used CH8 values, as these had less noise and showed a stronger signal when regressed on flammability metrics
+This is the metric we decided to use as our main heat flux metric based on exploratory analyses (see datalogger_exploration.Rmd); we used CH8 values, as these had less noise and showed a stronger signal when regressed on flammability metrics
 ```{r}
 flam.df <- flam.df %>% 
     mutate(heat_flux_change = max_heat_flux_loessCH8 - avg_heat_flux_stableCH8)
@@ -416,97 +464,9 @@ flam.df <- flam.df %>%
   select(-X, -input_by, -potted, -Species) # removing unneccessary columns
 ```
 
-# Exploratory heat flux figures 
-(will remove later, but currently in process of figuring out heat flux)
-```{r}
-flam.df %>% 
-  mutate(max_heat_flux_loessAVG = (max_heat_flux_loessCH7 + max_heat_flux_loessCH8)/2) %>% 
-  ggplot(aes(x = max_heat_flux_loessCH8, y = max_heat_flux_loessAVG)) +
-    geom_point() +
-    geom_abline(linetype = 4) +
-    geom_smooth(method = 'lm', color = 'black') +
-    labs(x = 'Max. Heat Flux (Loess, Side Sensor)', y = 'Max. Heat Flux (Loess Avg.)') +
-    theme_bw()
-
-flam.df %>%
-  ggplot(aes(x = max_heat_flux_loessCH7, y = max_heat_flux_loessCH8)) +
-    geom_point() +
-    geom_abline(linetype = 4) +
-    geom_smooth(method = 'lm', color = 'black') +
-    labs(x = 'Max. Heat Flux (Loess, Top Sensor)', y = 'Max. Heat Flux (Loess, Side Sensor)') +
-    theme_bw()
-```
-
-```{r}
-heatflux.vis <- function(index){
-heatflux.df.woop <- heatflux.df %>% 
-  filter(date == flam.df.no.Inf$date[index]) %>%  #index row, select column for date
-  filter(time >= flam.df.no.Inf$start_time[index] & time <= flam.df.no.Inf$time_of_glow_end[index]) %>% 
-  mutate(time = as.numeric(time))
-
-loess.mod.CH7 <- loess(CH7 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0983)
-heatflux.df.woop$loess.CH7 <- predict(loess.mod.CH7)
-
-ch7.title <- paste('Top Sensor (span = 0.0983)', flam.df.no.Inf$species[index], flam.df.no.Inf$plant[index], flam.df.no.Inf$rep[index], 'ignition =', flam.df.no.Inf$ignition[index])
-
-plot.top <- ggplot(heatflux.df.woop, aes(x = time)) +
-  geom_point(aes(y = loess.CH7), color = 'black') +
-  geom_point(aes(y = CH7), color = 'blue', alpha = 0.2) +
-  geom_vline(xintercept = flam.df.no.Inf$primary_ignition[index], linetype = 4) +
-  annotate('text', label = 'Primary Ignition', x = flam.df.no.Inf$primary_ignition[index], y = 0.95, fontface = 'bold') +
-  geom_vline(xintercept = flam.df.no.Inf$time_at_max_heat_flux_loessCH7[index], linetype = 5) +
-  annotate('text', label = 'Max Heat Flux', x = flam.df.no.Inf$time_at_max_heat_flux_loessCH7[index], y = 1, fontface = 'bold') +
-  labs(x = 'Time', y = 'Heat Flux (Top Sensor)', title = ch7.title) +
-  theme_bw() + 
-  theme(axis.title = element_text(face = 'bold', size = 14),
-        axis.text = element_text(size = 12))
-
-loess.mod.CH8 <- loess(CH8 ~ as.numeric(time), data = heatflux.df.woop, span = 0.0261)
-heatflux.df.woop$loess.CH8 <- predict(loess.mod.CH8)
-
-ch8.title <- paste('Side Sensor (span = 0.0261)', flam.df.no.Inf$species[index], flam.df.no.Inf$plant[index], flam.df.no.Inf$rep[index], 'ignition =', flam.df.no.Inf$ignition[index])
-
-plot.side <- ggplot(heatflux.df.woop, aes(x = time)) +
-  geom_point(aes(y = loess.CH8), color = 'black') +
-  geom_point(aes(y = CH8), color = 'blue', alpha = 0.2) +
-  geom_vline(xintercept = flam.df.no.Inf$primary_ignition[index], linetype = 4) +
-  annotate('text', label = 'Primary Ignition', x = flam.df.no.Inf$primary_ignition[index], y = 0.5, fontface = 'bold') +
-  geom_vline(xintercept = flam.df.no.Inf$time_at_max_heat_flux_loessCH8[index], linetype = 5) +
-  annotate('text', label = 'Max Heat Flux', x = flam.df.no.Inf$time_at_max_heat_flux_loessCH8[index], y = 0.55, fontface = 'bold') +
-  labs(x = 'Time', y = 'Heat Flux (Side Sensor)', title = ch8.title) +
-  theme_bw() +  
-  theme(axis.title = element_text(face = 'bold', size = 14),
-        axis.text = element_text(size = 12))
-print(plot.side)
-print(plot.top)
-}
-```
-
-```{r}
-heatflux.vis(234)
-```
-
-Boxplots
-```{r}
-ggplot(flam.df.no.Inf, aes(x = ignition, y = max_heat_flux_loessCH8)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
-  labs(x = 'Ignition', y = 'Max. Heat Flux (Side Sensor, Loess)', color = "Species") +
-  theme_bw()
-
-ggplot(flam.df.no.Inf, aes(x = ignition, y = max_heat_flux_loessCH7)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(width = 0.1, height = 0.02, alpha = 0.4, aes(color = species)) +
-  labs(x = 'Ignition', y = 'Max. Heat Flux (Top Sensor, Loess)', color = "Species") +
-  theme_bw()
-```
-
 # Saving .csv
 ```{r}
 summary(flam.df)
 
 write_csv(flam.df, here('data', 'processed-data', 'clean_flamm_data.csv'))
-
-# For the .csv w/o filtering by ambient temp. and w/o filtering out rows w/o datalogger data:
-#write_csv(flam.df, here('data', 'processed-data', 'flamm_data_without_filtering_datalogger.csv'))
 ```

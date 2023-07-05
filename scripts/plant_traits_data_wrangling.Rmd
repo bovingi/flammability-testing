@@ -300,8 +300,9 @@ main_traits_df <- main_traits_df %>%
          SLA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_area/leaf_wet_mass))
 ```
 
-Imputing species mean LMAs for missing values (for HETARB)
+Imputing species mean LMAs/SLAs for missing values (for HETARB and ERIKAR)
 ```{r}
+# LMA
 mean_HETARB_LMA <- main_traits_df %>% 
   drop_na(LMA) %>% 
   filter(species == 'HETARB') %>% 
@@ -309,6 +310,31 @@ mean_HETARB_LMA <- main_traits_df %>%
 
 main_traits_df <- main_traits_df %>% 
   mutate(LMA = ifelse(species == 'HETARB' & is.na(LMA), mean_HETARB_LMA[1,1], LMA))
+
+mean_ERIKAR_LMA <- main_traits_df %>% 
+  drop_na(LMA) %>% 
+  filter(species == 'ERIKAR') %>% 
+  summarise(LMA = mean(LMA))
+
+main_traits_df <- main_traits_df %>% 
+  mutate(LMA = ifelse(species == 'ERIKAR' & is.na(LMA), mean_ERIKAR_LMA[1,1], LMA))
+
+# SLA
+mean_HETARB_SLA <- main_traits_df %>% 
+  drop_na(SLA) %>% 
+  filter(species == 'HETARB') %>% 
+  summarise(SLA = mean(SLA))
+
+main_traits_df <- main_traits_df %>% 
+  mutate(SLA = ifelse(species == 'HETARB' & is.na(SLA), mean_HETARB_SLA[1,1], SLA))
+
+mean_ERIKAR_SLA <- main_traits_df %>% 
+  drop_na(SLA) %>% 
+  filter(species == 'ERIKAR') %>% 
+  summarise(SLA = mean(SLA))
+
+main_traits_df <- main_traits_df %>% 
+  mutate(SLA = ifelse(species == 'ERIKAR' & is.na(SLA), mean_ERIKAR_SLA[1,1], SLA))
 ```
 
 ## Small Adjustments
@@ -363,6 +389,19 @@ main_df <- main_df %>%
 main_df <- main_df %>% 
   mutate(branch_volume = branch_length*branch_width*branch_height)
 ```
+
+# Dealing w/ NAs
+For some of the plant traits, there are NA values that are due to randomly missing data. For these, we'd like to keep the datapoints in the analysis, but -- to do so -- we'll have to impute the data by using either the median or the mean values. First, we should take a look at which values are NA that we could deal with
+```{r}
+summary(main_df)
+```
+
+For SALAPI P8 R2, we have NAs for branch dimensions, sample weight, branching and mpa; because this is only one datapoint, I think the best thing to do is to delete this datapoint
+```{r}
+main_df <- main_df %>% 
+  drop_na(branch_height)
+```
+
 
 # Writing csv
 ```{r}
