@@ -7,6 +7,7 @@ output: html_document
 
 # Questions
 - How to deal with plant traits variables which are only measured per plant_id?
+- REML = FALSE? Based on what I know, REML should = TRUE if you're mostly concerned with variance and covariance, so maybe it makes sense to keep it like this when evaluating VIF scores, but when doing AIC-based model selection, it might make more sense to do REML = FALSE (this is how I have it now, based on recent changes)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -175,7 +176,7 @@ So, we will eliminate some variables from contention right away:
 - SLA: we can use LMA
 - Stem mass ratio: we can use leaf mass ratio
 - Stem LFM and leaf LFM: unless we notice something in the EDA that suggests otherwise, I think using total LFM makes sense
-- Leaf area: because leaf area is included in some fashion in the calculation of LMA and due to it's oddly stroong correlation to dw_flam_sample and ww_flam_sample which we're interested in keeping in the models, it makes sense to remove
+- Leaf area: because leaf area is included in some fashion in the calculation of LMA and due to it's oddly strong correlation to dw_flam_sample and ww_flam_sample which we're interested in keeping in the models, it makes sense to remove
 
 We can also eliminate ambient temp and humidity since they show absolutely no correlation with flame height (and very little correlation with most variables)
 
@@ -236,7 +237,7 @@ fh_m2 <- lmer(fh ~ species + lfm + mpa + branching + sample_wt + branch_volume +
 multicollinearity(fh_m2) # species and lfm still VIF > 5
 
 fh_m3 <- lmer(fh ~ species + mpa + branching + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, leaf mass ratio, LMA, and lfm
-multicollinearity(fh_m3) # species barely VIF > 5 (removing lfm seemed to do the trick)
+multicollinearity(fh_m3) # no multicollinearity (removing lfm seemed to do the trick)
 
 fh_m4 <- lmer(fh ~ species + mpa + LMA + branching + sample_wt + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, leaf mass ratio, and lfm
 multicollinearity(fh_m4) # adding back in LMA made species VIF higher
@@ -252,16 +253,16 @@ fh_m7 <- lmer(fh ~ species + mpa + LMA + branching + branch_volume + (1|plant_id
 multicollinearity(fh_m7) # species VIF > 5
 
 fh_m8 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, LMA, sample weight and lfm
-multicollinearity(fh_m8) # No multicollinearity
+multicollinearity(fh_m8) # species VIF > 5
 
 fh_m9 <- lmer(fh ~ species + mpa + lfm + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, ww, LMA, and sample weight
 multicollinearity(fh_m9) # species and lfm both VIF > 5
 
 fh_m10 <- lmer(fh ~ species + mpa + dw_flam_sample + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed ww, LMA, sample weight and lfm
-multicollinearity(fh_m10) # Species VIF barely > 5
+multicollinearity(fh_m10) # Species VIF > 5
 
 fh_m11 <- lmer(fh ~ species + mpa + ww_flam_sample + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df) # removed dw, LMA, sample weight and lfm
-multicollinearity(fh_m11) # Species VIF (even more) barely > 5
+multicollinearity(fh_m11) # Species VIF > 5
 ```
 
 Okay, it seems like if we keep species in, we'll have to make some significant sacrifices elsewhere in the model to avoid breaking multicollinearity assumptions. Let's try some model structures w/ removing species:
@@ -280,7 +281,6 @@ multicollinearity(fh_m15) # no multicollinearity
 
 fh_m16 <- lmer(fh ~ mpa + dw_flam_sample + ww_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
 multicollinearity(fh_m16) # ww and dw are collinear
-
 ```
 
 Without species in the model, we can do a lot more w/ the model structure. Multicollinearity becomes an issue with LFM, DW, WW, and sample weight. DW or WW and LFM can be in the same model (see fh_m14 and fh_m15), but DW, WW, and sample_wt all need to be considered in separate models. Now we have a decent understanding of which variables could be included in the more in-depth model selection
@@ -301,70 +301,70 @@ Also, note that I started over at fh_m1 below (throwing coding best practices ou
 
 Starting w/ models with species in, we have mpa, leaf_mass_ratio, branching and branch_volume in the model without multicollinearity with the most variables. Assuming we want to keep species in the model, there are 4 variables that could be arranged in 15 different ways. I also tried some models with just species and a single other variable (e.g., LMA, lfm, dw) to see if that'd work
 ```{r, results = 'hide'}
-fh_m1 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
-multicollinearity(fh_m1)
+fh_m1 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
+multicollinearity(fh_m1) # VIF > 5 for species (note, changed REML = T to double-check and it was still VIF > 5)
 
-fh_m2 <- lmer(fh ~ species + mpa + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m2 <- lmer(fh ~ species + mpa + branching + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m2)
 
-fh_m3 <- lmer(fh ~ species + mpa + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m3 <- lmer(fh ~ species + mpa + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m3)
 
-fh_m4 <- lmer(fh ~ species + mpa + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m4 <- lmer(fh ~ species + mpa + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m4)
 
-fh_m5 <- lmer(fh ~ species + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m5 <- lmer(fh ~ species + branching + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m5)
 
-fh_m6 <- lmer(fh ~ species + mpa + (1|plant_id), data = scaled.flamm.df)
+fh_m6 <- lmer(fh ~ species + mpa + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m6)
 
-fh_m7 <- lmer(fh ~ species + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m7 <- lmer(fh ~ species + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m7)
 
-fh_m8 <- lmer(fh ~ species + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m8 <- lmer(fh ~ species + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m8)
 
-fh_m9 <- lmer(fh ~ species + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+fh_m9 <- lmer(fh ~ species + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m9)
 
-fh_m10 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m10 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m10)
 
-fh_m11 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m11 <- lmer(fh ~ species + mpa + leaf_mass_ratio + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m11)
 
-fh_m12 <- lmer(fh ~ species + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
-multicollinearity(fh_m12)
+fh_m12 <- lmer(fh ~ species + leaf_mass_ratio + branching + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = T)
+multicollinearity(fh_m12) # VIF > 5 for species (note, changed REML = T to double-check and it was still VIF > 5)
 
-fh_m13 <- lmer(fh ~ species + mpa + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+fh_m13 <- lmer(fh ~ species + mpa + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m13)
 
-fh_m14 <- lmer(fh ~ species + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m14 <- lmer(fh ~ species + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m14)
 
-fh_m15 <- lmer(fh ~ species + leaf_mass_ratio + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m15 <- lmer(fh ~ species + leaf_mass_ratio + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m15)
 
-fh_m16 <- lmer(fh ~ species + lfm + (1|plant_id), data = scaled.flamm.df)
+fh_m16 <- lmer(fh ~ species + lfm + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m16) # breaks multicollinearity assumption
 
-fh_m17 <- lmer(fh ~ species + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m17 <- lmer(fh ~ species + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m17)
 
-fh_m18 <- lmer(fh ~ species + dw_flam_sample + (1|plant_id), data = scaled.flamm.df)
+fh_m18 <- lmer(fh ~ species + dw_flam_sample + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m18)
 
-fh_m19 <- lmer(fh ~ species + ww_flam_sample + (1|plant_id), data = scaled.flamm.df)
+fh_m19 <- lmer(fh ~ species + ww_flam_sample + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m19)
 
-fh_m20 <- lmer(fh ~ species + sample_wt + (1|plant_id), data = scaled.flamm.df)
+fh_m20 <- lmer(fh ~ species + sample_wt + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m20)
 ```
 
 ```{r}
-tab_model(fh_m1, fh_m2, fh_m3, fh_m4, fh_m5, fh_m6, fh_m7, fh_m8, fh_m9, fh_m10,
-          fh_m11, fh_m12, fh_m13, fh_m14, fh_m15, fh_m17, fh_m18, fh_m19, fh_m20,
+tab_model(fh_m2, fh_m3, fh_m4, fh_m5, fh_m6, fh_m7, fh_m8, fh_m9, fh_m10,
+          fh_m11, fh_m13, fh_m14, fh_m15, fh_m17, fh_m18, fh_m19, fh_m20,
           show.reflvl = TRUE, 
           digits = 3, 
           show.aic = TRUE, 
@@ -376,78 +376,78 @@ tab_model(fh_m1, fh_m2, fh_m3, fh_m4, fh_m5, fh_m6, fh_m7, fh_m8, fh_m9, fh_m10,
   p.style = "stars")
 ```
 
-From the above model selection, dw_flam_sample and ww_flam_sample emerged as key predictors when paired w/ species. 
+From the above model selection, dw_flam_sample, ww_flam_sample and sample weight emerged as key predictors when paired w/ species. 
 
 Before we delve into that a bit further (to see which other variables we could potentially pair with dw or ww in a model), let's do a selection without species. For this selection, since we have 9 predictor variables (although some of them cannot be paired with each other (see multicollinearity notes on LFM, dw, ww, sample weight above)), we will have to approach it a different way, or else we'd have WAY too many possible permutations of predictors. In this model selection, the idea is to whittle down the 'bad' predictors so that we can get to a manageable level of predictors.
 
 ```{r, results = 'hide'}
-fh_m21 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m21 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m21)
 
-fh_m22 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m22 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m22)
 
-fh_m23 <- lmer(fh ~ lfm + mpa + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m23 <- lmer(fh ~ lfm + mpa + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m23)
 
 # Removing LFM
-fh_m24 <- lmer(fh ~ mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m24 <- lmer(fh ~ mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m24)
 
-fh_m25 <- lmer(fh ~ mpa + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m25 <- lmer(fh ~ mpa + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m25)
 
-fh_m26 <- lmer(fh ~ mpa + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m26 <- lmer(fh ~ mpa + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m26)
 
 # Removing MPa
-fh_m27 <- lmer(fh ~ lfm + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m27 <- lmer(fh ~ lfm + dw_flam_sample + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m27)
 
-fh_m28 <- lmer(fh ~ lfm + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m28 <- lmer(fh ~ lfm + sample_wt + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m28)
 
-fh_m29 <- lmer(fh ~ lfm + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m29 <- lmer(fh ~ lfm + LMA + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m29)
 
 # Removing LMA
-fh_m30 <- lmer(fh ~ lfm + mpa + dw_flam_sample + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m30 <- lmer(fh ~ lfm + mpa + dw_flam_sample + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m30)
 
-fh_m31 <- lmer(fh ~ lfm + mpa + sample_wt + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m31 <- lmer(fh ~ lfm + mpa + sample_wt + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m31)
 
-fh_m32 <- lmer(fh ~ lfm + mpa + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m32 <- lmer(fh ~ lfm + mpa + branching + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m32)
 
 # Removing branching
-fh_m33 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m33 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m33)
 
-fh_m34 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m34 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m34)
 
-fh_m35 <- lmer(fh ~ lfm + mpa + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m35 <- lmer(fh ~ lfm + mpa + LMA + leaf_mass_ratio + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m35)
 
 # Removing leaf mass ratio
-fh_m36 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m36 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m36)
 
-fh_m37 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m37 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m37)
 
-fh_m38 <- lmer(fh ~ lfm + mpa + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df)
+fh_m38 <- lmer(fh ~ lfm + mpa + LMA + branching + branch_volume + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m38)
 
 # Removing volume
-fh_m39 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+fh_m39 <- lmer(fh ~ lfm + mpa + dw_flam_sample + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m39)
 
-fh_m40 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+fh_m40 <- lmer(fh ~ lfm + mpa + sample_wt + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m40)
 
-fh_m41 <- lmer(fh ~ lfm + mpa + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df)
+fh_m41 <- lmer(fh ~ lfm + mpa + LMA + branching + leaf_mass_ratio + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m41)
 ```
 
@@ -490,101 +490,101 @@ where hydration = LFM, MPa or wet weight and sample size = wet weight, dry weigh
 
 ```{r, results = 'hide'}
 # 1.
-fh_m42 <- lmer(fh ~ lfm + dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m42 <- lmer(fh ~ lfm + dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m42)
 
-fh_m43 <- lmer(fh ~ lfm + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m43 <- lmer(fh ~ lfm + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m43)
 
-fh_m44 <- lmer(fh ~ lfm + branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m44 <- lmer(fh ~ lfm + branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m44)
 
-fh_m45 <- lmer(fh ~ mpa + dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m45 <- lmer(fh ~ mpa + dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m45)
 
-fh_m46 <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m46 <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m46)
 
-fh_m47 <- lmer(fh ~ mpa + branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m47 <- lmer(fh ~ mpa + branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m47)
 
 # 2. 
-fh_m48 <- lmer(fh ~ lfm + dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m48 <- lmer(fh ~ lfm + dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m48)
 
-fh_m49 <- lmer(fh ~ lfm + sample_wt + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m49 <- lmer(fh ~ lfm + sample_wt + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m49)
 
-fh_m50 <- lmer(fh ~ lfm + branch_volume + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m50 <- lmer(fh ~ lfm + branch_volume + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m50)
 
-fh_m51 <- lmer(fh ~ mpa + dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m51 <- lmer(fh ~ mpa + dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m51)
 
-fh_m52 <- lmer(fh ~ mpa + sample_wt + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m52 <- lmer(fh ~ mpa + sample_wt + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m52)
 
-fh_m53 <- lmer(fh ~ mpa + branch_volume + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m53 <- lmer(fh ~ mpa + branch_volume + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m53)
 
 # 3. 
-fh_m54 <- lmer(fh ~ dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m54 <- lmer(fh ~ dw_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m54)
 
-fh_m55 <- lmer(fh ~ sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m55 <- lmer(fh ~ sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m55)
 
-fh_m56 <- lmer(fh ~ branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m56 <- lmer(fh ~ branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m56)
 
-fh_m57 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m57 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m57)
 
 # 4. 
-fh_m58 <- lmer(fh ~ dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m58 <- lmer(fh ~ dw_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m58)
 
-fh_m59 <- lmer(fh ~ sample_wt + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m59 <- lmer(fh ~ sample_wt + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m59)
 
-fh_m60 <- lmer(fh ~ branch_volume + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m60 <- lmer(fh ~ branch_volume + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m60)
 
-fh_m61 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m61 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m61)
 
 # 5. 
-fh_m62 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m62 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m62) # note: whoops, same as fh_m57
 
-fh_m63 <- lmer(fh ~ mpa + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m63 <- lmer(fh ~ mpa + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m63)
 
-fh_m64 <- lmer(fh ~ lfm + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m64 <- lmer(fh ~ lfm + LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m64)
 
 # 6.
-fh_m65 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df) # note: whoops, same as fh_m61
+fh_m65 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df, REML = F) # note: whoops, same as fh_m61
 multicollinearity(fh_m65) 
 
-fh_m66 <- lmer(fh ~ mpa + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m66 <- lmer(fh ~ mpa + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m66)
 
-fh_m67 <- lmer(fh ~ lfm + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m67 <- lmer(fh ~ lfm + LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m67)
 
 # 7.
-fh_m68 <- lmer(fh ~ LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_m68 <- lmer(fh ~ LMA + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m68)
 
 # 8. 
-fh_m69 <- lmer(fh ~ LMA + (1|plant_id), data = scaled.flamm.df)
+fh_m69 <- lmer(fh ~ LMA + (1|plant_id), data = scaled.flamm.df, REML = F)
 multicollinearity(fh_m69)
 
 # Adding interaction terms to random effect for top 2 models
-fh_int1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id:species), data = scaled.flamm.df)
+fh_int1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id:species), data = scaled.flamm.df, REML = F)
 
-fh_int2 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id:species), data = scaled.flamm.df)
+fh_int2 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id:species), data = scaled.flamm.df, REML = F)
 ```
 
 Alright, let's add a couple of the best models identified in the table w/ species included and then do a model selection table
@@ -608,22 +608,64 @@ tab_model(fh_m18, fh_m19, fh_m42, fh_m43, fh_m44, fh_m45, fh_m46, fh_m47, fh_m48
 ```
 
 Alright, we're close to being done now. Here's what we learned from the above table:
-- ww_flam_sample is the 'best' sample size predictor, followed up by dw_flam_sample, and distantly followed by sample_wt and branch_volume
-- LFM and MPa are not significantly different in how they affect the AIC score
-- The effect of including branching in the model varies
-- The 'best' models are ww_flam_sample + LMA + branching and ww_flam_sample + LMA
+- ww_flam_sample is the 'best' sample size predictor, followed up by sample_wt; branch_volume is the 'worst' sample size predictor
+- MPa seems to be a better predictor than LFM (this is slightly unexpected based on other EDA)
+- Branching seems to slightly improve the model fit, but the effect varies
+
+Here are the top 5 models and their respective (rounded) AIC scores:
+- fh_m46: MPa + sample_wt + LMA + branching, AIC = 367.6
+- fh_m57: ww_flam_sample + LMA + branching, AIC = 367.6
+- fh_m55: sample_wt + LMA + branching, AIC = 368.3
+- fh_m52: MPa + sample_wt + LMA, AIC = 369.4
+- fh_m43: LFM + sample_wt + LMA + branching, AIC = 370.5
+
+Let's see if removing LMA improves the model fit for any of the above models (gut check)
+```{r}
+fh_m46_noLMA <- lmer(fh ~ mpa + sample_wt + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
+
+fh_m57_noLMA <- lmer(fh ~ ww_flam_sample + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
+
+fh_m55_noLMA <- lmer(fh ~ sample_wt + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
+
+fh_m52_noLMA <- lmer(fh ~ mpa + sample_wt + (1|plant_id), data = scaled.flamm.df, REML = F)
+
+fh_m43_noLMA <- lmer(fh ~ lfm + sample_wt + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
+
+tab_model(fh_m46, fh_m46_noLMA, fh_m57, fh_m57_noLMA, fh_m55, fh_m55_noLMA, 
+          fh_m52, fh_m52_noLMA, fh_m43, fh_m43_noLMA,
+          show.reflvl = TRUE, 
+          digits = 3,
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          string.pred = "Coeffcient", 
+         title = "MEM Selection: Flame Height, Removing LMA",
+  string.p = "P-Value", 
+  p.style = "stars")
+```
+
+As expected, removing LMA worsened these models in every case
 
 ## P-Values
 Because the stars reported in the model table are not totally accurate, we should check out the Kenward-Roger approximations of p-values for each of the top two models
 ```{r}
-fh_top1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+fh_top1 <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df) # REML must = T for Kenward-Roger approx. p-values
 summary(fh_top1, ddf = 'Kenward-Roger')
 
-fh_top2 <- lmer(fh ~ ww_flam_sample + LMA + (1|plant_id), data = scaled.flamm.df)
+fh_top2 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+# REML must = T for Kenward-Roger approx. p-values
 summary(fh_top2, ddf = 'Kenward-Roger')
+
+fh_top3 <- lmer(fh ~ sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df)
+# REML must = T for Kenward-Roger approx. p-values
+summary(fh_top3, ddf = 'Kenward-Roger')
+
+fh_top4 <- lmer(fh ~ mpa + sample_wt + LMA + (1|plant_id), data = scaled.flamm.df)
+# REML must = T for Kenward-Roger approx. p-values
+summary(fh_top4, ddf = 'Kenward-Roger')
 ```
 
-All of the included fixed effects are significant!
+For all four of the models investigated, all of the included fixed effects except for LMA are significant!
 
 ## Checking Assumptions (more thoroughly)
 Following environmental computing tutorial
@@ -631,10 +673,10 @@ Following environmental computing tutorial
 # lmer removes NAs but our linear model in the ANOVA, so we'll have to remove the NA's
 scaled.flamm.df.noNAs <- scaled.flamm.df %>% 
   select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, branch_volume, LMA, branching, plant_id) %>% 
-  na.omit() # this removed 43 samples
+  na.omit() # this removed 13 samples
 
 # Model
-fh_top1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs)
+fh_top1 <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs, REML = F)
 
 #Checking Assumptions
 #Assumption 1: Observed y are independent, randomly sampled
@@ -647,14 +689,14 @@ plot(fh_top1)
 #Assumption 6: Random effects are normally distributed - tough to check
 
 #Test effects of fixed effect with ANOVA
-fh_top1.0 <- lmer(fh ~ (1|plant_id), data = scaled.flamm.df.noNAs)
-anova(fh_top1, fh_top1.0) #P-value shows that fixed effect has significant effect on the y
+fh_top1.0 <- lmer(fh ~ (1|plant_id), data = scaled.flamm.df.noNAs, REML = F)
+anova(fh_top1, fh_top1.0) #P-value shows that fixed effects have significant effect on the y
 
 #Test effects of random effect with parametric bootstrap method
 nBoot=1000
 lrStat=rep(NA,nBoot)
-fh_null <- lm(fh ~ ww_flam_sample + LMA + branching, data = scaled.flamm.df.noNAs) # null model
-fh_alt <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs, REML = F) # alternate model
+fh_null <- lm(fh ~ mpa + sample_wt + LMA + branching, data = scaled.flamm.df.noNAs) # null model
+fh_alt <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs, REML = F) # alternate model
 lrObs <- 2*logLik(fh_alt) - 2*logLik(fh_null) # observed test stat
 for(iBoot in 1:nBoot)
 {
@@ -673,7 +715,7 @@ There are other functions that try and get the 'best' model for the data by comp
 # step() is very sensitive to NAs, so we'll have to remove the NA's
 scaled.flamm.df.noNAs <- scaled.flamm.df %>% 
   select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, branch_volume, LMA, branching, plant_id) %>% 
-  na.omit() # this removed 43 samples
+  na.omit() # this removed 13 samples
 
 # For the first example, let's throw the kitchen sink at this function and see what it spits out
 fh_step <- lmer(fh ~ species + lfm + mpa + ww_flam_sample + dw_flam_sample + sample_wt + branch_volume + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs)
@@ -682,10 +724,10 @@ step_res <- step(fh_step, ddf = 'Kenward-Roger')
 final <- get_model(step_res)
 # Checking out selected model
 summary(final)
-multicollinearity(final)
+multicollinearity(final) # step() does not take into account multicollinearity, so the 'final' model is invalid in this example
 
 # For the second example, let's throw the identified 'best' predictors and species and see what it says
-fh_step2 <- lmer(fh ~ species + ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs)
+fh_step2 <- lmer(fh ~ species + mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs)
 # Stepwise model selection
 step_res <- step(fh_step2, ddf = 'Kenward-Roger')
 final <- get_model(step_res)
@@ -694,33 +736,66 @@ summary(final)
 multicollinearity(final)
 
 # Comparing to top model selected above:
-fh_step_selected <- lmer(fh ~ species + ww_flam_sample + branching + (1|plant_id), data = scaled.flamm.df) 
+fh_step_selected <- lmer(fh ~ species + sample_wt + branching + (1|plant_id), data = scaled.flamm.df) 
 # Using full dataset now
 AIC(fh_step_selected)
 AIC(fh_top1)
 # The step-selected is significantly worse; now, maybe this is because of the NAs reintroduced into the data, so this may not be a totally fair comparison.
 ```
 
-## Visualization via REMEF
-```{r}
-fh_top1 <- lmer(fh ~ ww_flam_sample + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs) # remef is also sensitive to NAs
+## Visualizations via REMEF
 
-scaled.flamm.df.noNAs$r_fh <- remef(fh_top1, fix = c('LMA', 'branching'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effects of LMA and branching and removing the random effects
+### MPa vs. FH
+```{r}
+fh_top1 <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs, REML = F) # remef is also sensitive to NAs
+
+scaled.flamm.df.noNAs$r_fh <- remef(fh_top1, fix = c('LMA', 'branching', 'sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effects of LMA, sample weight and branching and removing the random effects to isolate the relationship between mpa and flame height
 
 # With REMEF
-ggplot(scaled.flamm.df.noNAs, aes(x = ww_flam_sample, y = r_fh))  +
+ggplot(scaled.flamm.df.noNAs, aes(x = mpa, y = r_fh))  +
   geom_point(alpha = 0.8, color = 'gray20') +
   geom_smooth(method = 'lm', color = 'gray40') +
-  labs(x = 'Wet Weight (scaled)', y = 'Flame Height (effects removed, scaled)') +
+  stat_cor(label.y = 0.9)+ 
+  stat_regline_equation(label.y = 1.2) +
+  labs(x = 'Water Potential (scaled)', y = 'Flame Height (effects removed, scaled)') +
   theme_bw() +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
 
 # Without REMEF
-ggplot(scaled.flamm.df.noNAs, aes(x = ww_flam_sample, y = fh))  +
+ggplot(scaled.flamm.df.noNAs, aes(x = mpa, y = fh))  +
   geom_point(alpha = 0.8, color = 'gray20') +
   geom_smooth(method = 'lm', color = 'gray40') +
-  labs(x = 'Wet Weight (scaled)', y = 'Flame Height (scaled)') +
+  stat_cor(label.y = 3.5)+ 
+  stat_regline_equation(label.y = 4) +
+  labs(x = 'Water Potential (scaled)', y = 'Flame Height (scaled)') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+```
+
+### Sample Wt. vs. FH
+```{r}
+scaled.flamm.df.noNAs$r_fh2 <- remef(fh_top1, fix = c('LMA', 'branching', 'mpa'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effects of LMA, mpa and branching and removing the random effects to isolate the relationship between sample weight and flame height
+
+# With REMEF
+ggplot(scaled.flamm.df.noNAs, aes(x = sample_wt, y = r_fh2))  +
+  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 2)+ 
+  stat_regline_equation(label.y = 2.5) +
+  labs(x = 'Sample Weight (scaled)', y = 'Flame Height (effects removed, scaled)') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+
+# Without REMEF
+ggplot(scaled.flamm.df.noNAs, aes(x = sample_wt, y = fh))  +
+  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 3.5)+ 
+  stat_regline_equation(label.y = 4) +
+  labs(x = 'Sample Weight (scaled)', y = 'Flame Height (scaled)') +
   theme_bw() +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
