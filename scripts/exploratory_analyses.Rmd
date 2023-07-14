@@ -210,7 +210,7 @@ ggsave(here('figures', 'main_figures', 'proportion.ignited.jpg'), height = 6, wi
 ```{r}
 # selecting metrics of interest
 flamm_pca_df <- flamm.df %>% 
-  select(fd, fh, prop_ig, heat_flux_change, temp_change, pfg, species) # removed tti because that's mostly tied to timing of manual ignition
+  select(fd, fh, prop_ig, heat_flux_change, temp_change, pfg, species, ignition) # removed tti because that's mostly tied to timing of manual ignition
 
 # looking at correlation and distribution
 pairs.panels(flamm_pca_df)
@@ -222,7 +222,7 @@ flamm_pca_df <- flamm_pca_df %>%
 
 # running PCA
 flamm_pca <- flamm_pca_df %>% 
-  select(-species) %>% 
+  select(-species, -ignition) %>% 
   prcomp(center = TRUE, scale = TRUE) 
 
 # first glance at results
@@ -245,7 +245,7 @@ tab_pca(flamm_pca, rotation = 'varimax')
 ```{r}
 # selecting metrics of interest
 traits_pca_df <- flamm.df %>% 
-  select(leaf_mass_ratio, leaf_lfm, stem_lfm, lfm, thickness, mpa, SLA, dw_flam_sample, ww_flam_sample, branch_volume, species)
+  select(leaf_mass_ratio, leaf_lfm, stem_lfm, lfm, thickness, mpa, SLA, dw_flam_sample, ww_flam_sample, branch_volume, species, ignition)
 
 # looking at correlation and distribution
 pairs.panels(traits_pca_df) # from psych package
@@ -256,7 +256,7 @@ traits_pca_df <- traits_pca_df %>%
 
 # running PCA
 traits_pca <- traits_pca_df %>% 
-  select(-species) %>% 
+  select(-species, -ignition) %>% 
   prcomp(center = TRUE, scale = TRUE)  #prcomp from stats package
 
 # first glance at results
@@ -275,8 +275,22 @@ ggbiplot(traits_pca,
 tab_pca(traits_pca, rotation = 'varimax') # From package sjPlot
 ```
 
+# DELETE LATER - JUST TO SHOW KF SOMETHING
+```{r}
+flamm_pca_df %>% 
+  select(-prop_ig) %>% 
+  pivot_longer(cols = !c(species, ignition), values_to = 'val', names_to = 'var') %>% 
+  ggplot(aes(x = species, y = val, color = ignition)) +
+    geom_boxplot() +
+    theme_bw() +
+    labs(x = 'Species', y = 'Flam. Metric Value', color = 'Ignition') +
+    facet_wrap(~var, scales = 'free')
+```
+
+
 # k-means Clustering
 ## Flamm Metrics
+NOTE: Ignition method has significant effect on clustering
 ```{r}
 # so it's replicable
 set.seed(16)
@@ -284,12 +298,14 @@ set.seed(16)
 # prepping dataset
 id <- c(1:nrow(flamm_pca_df))
 flamm_kmeans_df <- cbind(flamm_pca_df, id) %>% 
-  unite('species_id', c(species, id), remove = F)
+  unite('species_id', c(species, id), remove = F)  #%>% 
+  #filter(ignition == 'M')
 
 rownames(flamm_kmeans_df) <- flamm_kmeans_df$species_id
 
 flamm_kmeans_scaled_df <- flamm_kmeans_df %>% 
-  select(-c(species_id, species, id, prop_ig)) %>%  #removing prop_ig for now as it's directly tied to species
+  #filter(ignition == 'M') %>% 
+  select(-c(species_id, species, id, prop_ig, ignition)) %>%  #removing prop_ig for now as it's directly tied to species
   scale() %>% 
   as.data.frame()
 
@@ -342,7 +358,7 @@ flamm_kmeans_df %>%
   pivot_wider(names_from = cluster, values_from = n) %>% 
   mutate(`1` = ifelse(is.na(`1`), 0, `1`),
          `2` = ifelse(is.na(`2`), 0, `2`)) %>% 
-  mutate(kmeans.flam.index = (`2`)/(`2` + `1`)) %>% 
+  mutate(kmeans.flam.index = (`1`)/(`2` + `1`)) %>% 
   ggplot(aes(x = species, y = kmeans.flam.index, color = species)) +
     geom_point(size = 7) +
     labs(x = 'Species', y = 'K-Means Clustering: Flammability Index') +
@@ -351,6 +367,14 @@ flamm_kmeans_df %>%
           axis.title = element_text(face = 'bold', size = 14),
           axis.text = element_text(size = 13),
           axis.text.x = element_text(angle = 15))
+
+flamm_kmeans_df %>% 
+  group_by(ignition, cluster) %>% 
+  tally()
+
+ignition.vs.cluster <- lm(cluster ~ ignition, data = flamm_kmeans_df)
+anova(ignition.vs.cluster)
+summary(ignition.vs.cluster)
 ```
 
 ## Leaf Traits

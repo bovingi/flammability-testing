@@ -1,0 +1,291 @@
+---
+title: 'Clean Mixed Effects Model Selection: AIC, BIC, Mallows CP'
+author: "Joe Celebrezze"
+date: "2023-07-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# packages
+library(tidyverse)
+library(here)
+#library(lubridate)
+#library(ggfortify)
+#library(ggpubr)
+library(sjPlot) # for tab_model
+library(psych) #for pairs.panels()
+library(GGally) # For ggcorr()
+library(scales)
+library(lme4) # for lmer
+#library(lmerTest) # to try stepwise selection
+library(remef) # for remef
+library(performance) # for multicollinearity check
+library(car) # for qqPlot
+library(gtools) # for combination()
+library(kableExtra) # to make nice tables
+
+# defining functions
+here = here::here
+ggbiplot = ggbiplot::ggbiplot
+source(here('scripts', 'mem.selection.function.R')) #this is where mem.selection(), mem.selection.table() and mallows.cp() functions are stored
+
+# reading in data
+flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
+```
+
+# Data Structure
+
+For the linear mixed effects models, we are going to be using the *flammability metrics* below as **dependent variables**:
+
+- Flame height (fh)
+- Flame duration (fd)
+- Change in temp. (temp_change)
+- Change in heat flux (heat_flux_change)
+
+The following variables are not going to be considered (with the reasoning behind omitting each one described below):
+
+- Time to ignition (tti): because this variable is conceptually meaningless for all manual ignitions (the majority of ignitions)
+- Post-flame glow (pfg): because we do not necessarily trust the glow end time, as it was challenging to see in video playbacks when the sample stopped glowing. Because of this drawback, we relied on the people present during the flammability lab testing to clap at the end of the glow time, but the timing of this clap did not always correspond with the exact end of glowing
+- Proportion ignited (prop_ig): because this variable has only one value for each species which does not fit the structure of the models
+
+We have a plethora of variables that could be used as predictors and also a lot of potential covariates. The potential **predictors** are grouped and listed below:
+
+*Species*: This will likely be included in every model, as understanding interspecific differences and grouping species by flammability is our central question
+
+*Hydration or dryness*:
+- LFM (can be total LFM, leaf LFM and/or stem LFM)
+- Water potential (mpa)
+- Wet weight (ww_flam_sample)
+- Dry weight (dw_flam_sample)
+
+*Leaf morphology*:
+- LMA or SLA
+- Leaf area (likely unnecessary, as described by LMA and SLA in some capacity)
+- Leaf thickness
+
+*Sample morphology*:
+- Branching
+- Stem to leaf ratio
+- Sample weight* (note: this could also be considered a covariate)
+
+Potential **covariates**:
+
+- Starting temperature (start_temp)
+- Sample weight* (see note above)
+- Sample volume (branch_volume): could also split by height, width and length (although length is mostly the same across samples)
+- Ambient humidity or temperature (note: I don't necessarily trust that the meter was doing a good job gathering this data, as it seems like the temperature of the chamber affected the measurements)
+- Thermocoupler and hot plate height: probably not necessary, as exploratory analyses showed that there weren't any major differences between variables depending on the thermocoupler height or hot plate height
+
+**Random effect**:
+
+- Plant (to account for repeated measurements): note that we will need to make a unique identifier for each plant by combining current columns 'species' and 'plant'. Otherwise, the model will assume that (for example) plant 1 is the same group, treating HETARB 1 and SALLEU 1 as similar when they should not be treated as similar
+
+Looking at the above variables to see how they're situated in the dataset
+```{r}
+# Grouping by plant_id; to check to see which traits do not have any variation per plant_id
+trait.summary.plant_id <- flamm.df %>%  
+  unite('plant_id', c(species, plant), sep = '_', remove = F) %>% 
+  select(fh, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height, plant_id) %>% 
+  mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
+         dw_flam_sample = scale(dw_flam_sample), LMA = scale(LMA), thickness = scale(thickness),
+         leaf_area = scale(leaf_area), branching = scale(branching),
+         leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
+         start_temp = scale(start_temp), branch_volume = scale(branch_volume)) %>%  # scaling traits we want to look at so that standard deviations are comparable
+  group_by(plant_id) %>% 
+  dplyr::summarise(sd_lfm = sd(lfm), sd_mpa = sd(mpa), sd_ww = sd(ww_flam_sample), sd_dw = sd(dw_flam_sample),
+                   sd_lma = sd(LMA), sd_thickness = sd(thickness), sd_leafarea = sd(leaf_area),
+                   sd_branching = sd(branching), sd_leafratio = sd(leaf_mass_ratio), sd_sw = sd(sample_wt),
+                   sd_st = sd(start_temp), sd_volume = sd(branch_volume))
+trait.summary.plant_id %>% 
+  mutate(sd_lfm = ifelse(is.na(sd_lfm), 0, sd_lfm),
+         sd_mpa = ifelse(is.na(sd_mpa), 0, sd_mpa),
+         sd_ww = ifelse(is.na(sd_ww), 0, sd_ww),
+         sd_dw = ifelse(is.na(sd_dw), 0, sd_dw),
+         sd_lma = ifelse(is.na(sd_lma), 0, sd_lma),
+         sd_thickness = ifelse(is.na(sd_thickness), 0, sd_thickness),
+         sd_leafarea = ifelse(is.na(sd_leafarea), 0, sd_leafarea),
+         sd_branching = ifelse(is.na(sd_branching), 0, sd_branching),
+         sd_leafratio = ifelse(is.na(sd_leafratio), 0, sd_leafratio),
+         sd_sw = ifelse(is.na(sd_sw), 0, sd_sw),
+         sd_st = ifelse(is.na(sd_st), 0, sd_st), 
+         sd_volume = ifelse(is.na(sd_volume), 0, sd_volume)) %>% 
+  summary()
+
+# Grouping by species; to check to see which traits do not have any intraspecific variation
+trait.summary.species <- flamm.df %>%  # scaling so that standard deviations are comparable
+  select(fh, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height) %>% 
+  mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
+         dw_flam_sample = scale(dw_flam_sample), LMA = scale(LMA), thickness = scale(thickness),
+         leaf_area = scale(leaf_area), branching = scale(branching),
+         leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
+         start_temp = scale(start_temp), branch_volume = scale(branch_volume)) %>%  # scaling traits we want to look at so that standard deviations are comparable
+  group_by(species) %>% 
+  dplyr::summarise(sd_lfm = sd(lfm), sd_mpa = sd(mpa), sd_ww = sd(ww_flam_sample), sd_dw = sd(dw_flam_sample),
+                   sd_lma = sd(LMA), sd_thickness = sd(thickness), sd_leafarea = sd(leaf_area),
+                   sd_branching = sd(branching), sd_leafratio = sd(leaf_mass_ratio), sd_sw = sd(sample_wt),
+                   sd_st = sd(start_temp), sd_volume = sd(branch_volume))
+trait.summary.species %>% 
+  mutate(sd_lfm = ifelse(is.na(sd_lfm), 0, sd_lfm),
+         sd_mpa = ifelse(is.na(sd_mpa), 0, sd_mpa),
+         sd_ww = ifelse(is.na(sd_ww), 0, sd_ww),
+         sd_dw = ifelse(is.na(sd_dw), 0, sd_dw),
+         sd_lma = ifelse(is.na(sd_lma), 0, sd_lma),
+         sd_thickness = ifelse(is.na(sd_thickness), 0, sd_thickness),
+         sd_leafarea = ifelse(is.na(sd_leafarea), 0, sd_leafarea),
+         sd_branching = ifelse(is.na(sd_branching), 0, sd_branching),
+         sd_leafratio = ifelse(is.na(sd_leafratio), 0, sd_leafratio),
+         sd_sw = ifelse(is.na(sd_sw), 0, sd_sw),
+         sd_st = ifelse(is.na(sd_st), 0, sd_st), 
+         sd_volume = ifelse(is.na(sd_volume), 0, sd_volume)) %>% 
+  summary()
+```
+
+The following plant traits are measured for each plant_id (sd = 0 for plant_id):
+LFM/stem LFM/leaf LFM, LMA/SLA, thickness, leaf area, leaf ratio/stem ratio
+
+vs. the following traits which have unique values for each plant_id:
+MPa, wet weight/dry weight (note: LFM used in calculation), branching, sample weight, starting temp., sample volume
+
+# Initial Collinearity Check
+Because we have so many variables, we should look at a correlation matrix to determine which variables to include and which ones we could get rid of right away
+```{r}
+flamm.df <- flamm.df %>% 
+  drop_na(fh, fd, pfg, temp_change, heat_flux_change) # dropping any NA's for flam. metrics
+
+flamm.df %>% 
+  select(fh, fd, pfg, temp_change, heat_flux_change, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height) %>% 
+  ggcorr(label = T)
+```
+
+From the above correlation matrix, there are some initial 'problem areas':
+- Sample weight and dw_flam_sample and ww_flam_sample: makes sense since sample weight was used in the calculation of these variables
+- Branch volume and sample weight, dw_flam_sample, ww_flam_sample: all describe bulkiness, size of sample in some way
+- LMA and SLA: duh
+- Leaf mass ratio and stem mass ratio: also, duh
+- Stem LFM and LFM
+- Leaf area and dw_flam_sample and ww_flam_sample: more of a surprising one to me, but makes sense conceptually
+
+So, we will eliminate some variables from contention right away:
+- SLA: we can use LMA
+- Stem mass ratio: we can use leaf mass ratio
+- Stem LFM and leaf LFM: unless we notice something in the EDA that suggests otherwise, I think using total LFM makes sense
+- Leaf area: because leaf area is included in some fashion in the calculation of LMA and due to it's oddly strong correlation to dw_flam_sample and ww_flam_sample which we're interested in keeping in the models, it makes sense to remove
+
+We can also eliminate ambient temp and humidity since they show absolutely no correlation with flame height (and very little correlation with most variables)
+
+# Model Selection 1
+For the first model selection, going to use AIC, BIC, Mallows' CP and use the simple random effects structure (1|plant_id)
+
+For the mem.selection() function, note the following things:
+y.var must be character vector for flam. variable of interest
+predictors must be dataframe w/ only predictors
+df must be dataframe w/ all values
+rem.str must be character vector; default is simple (1|plant_id)
+the output is a list of 2 elements, the first being a dataframe with AIC, BIC, Mallows cp values and the second being a list of the mixed effects models described in the dataframe
+
+For the mem.selection.table() function, note the following things:
+df must be a the model.df output from mem.selection
+mod.list must be the mod.list output from mem.selection
+output is the name of the .html file you wish to save in the 'MEM' folder of figures
+This function serves a dual purpose, to save a kable table in the figures and to store a dataframe of the top models in the local environment for future use (e.g., coefficients table)
+
+## Data Wrangling
+For main dataset (mem.df):
+- Remove IRIDOU
+- Remove non-ignitions
+- Add plant_id variable
+- Select all potentially 'interesting' variables
+- Scale and center them all
+- Remove NA's
+
+For predictors dataset:
+- Use wrangled dataset, mem.df
+- Select predictors we're interested in including in the mixed effects model selection
+```{r}
+mem.selection.table()
+mem.df <- flamm.df %>% 
+  filter(species != 'IRIDOU') %>% 
+  filter(ignition != '0') %>% 
+  unite('plant_id', c(species, plant), sep = '_', remove = F) %>% 
+  select(species, thickness, lfm, leaf_area, LMA, sample_wt, leaf_mass_ratio, branching, mpa,
+         ignition, fh, fd, tti, pfg, temp_change, heat_flux_change, prop_ig, dw_flam_sample,
+         ww_flam_sample, branch_volume, start_temp, plant_id) %>% 
+  mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
+         dw_flam_sample = scale(dw_flam_sample), LMA = scale(LMA), thickness = scale(thickness),
+         leaf_area = scale(leaf_area), branching = scale(branching),
+         leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
+         start_temp = scale(start_temp), branch_volume = scale(branch_volume),
+         fh = scale(fh), fd = scale(fd), tti = scale(tti), pfg = scale(pfg),
+         temp_change = scale(temp_change), heat_flux_change = scale(heat_flux_change)) %>% 
+  na.omit()
+
+mem.predictors.df <- mem.df %>% 
+  select(thickness, lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, dw_flam_sample, ww_flam_sample, start_temp) # ten predictors
+```
+
+## Flame Height
+```{r}
+fh.mem.selection <- mem.selection('fh', mem.predictors.df, mem.df)
+fh.model.df <- fh.mem.selection[[1]]
+fh.mod.list <- fh.mem.selection[[2]]
+fh.top.mem <- mem.selection.table(fh.model.df, fh.mod.list, 'FH_MEM.html') %>% 
+  mutate(flam.var = 'fh')
+```
+
+## Flame Duration
+```{r}
+fd.mem.selection <- mem.selection('fd', mem.predictors.df, mem.df)
+fd.model.df <- fd.mem.selection[[1]]
+fd.mod.list <- fd.mem.selection[[2]]
+fd.top.mem <- mem.selection.table(fd.model.df, fd.mod.list, 'FD_MEM.html') %>% 
+  mutate(flam.var = 'fd')
+```
+
+## Temp. Change
+```{r}
+temp.mem.selection <- mem.selection('temp_change', mem.predictors.df, mem.df)
+temp.model.df <- temp.mem.selection[[1]]
+temp.mod.list <- temp.mem.selection[[2]]
+temp.top.mem <- mem.selection.table(temp.model.df, temp.mod.list, 'TempChange_MEM.html') %>% 
+  mutate(flam.var = 'temp_change')
+```
+
+## Heat Flux Change
+```{r}
+hf.mem.selection <- mem.selection('heat_flux_change', mem.predictors.df, mem.df)
+hf.model.df <- hf.mem.selection[[1]]
+hf.mod.list <- hf.mem.selection[[2]]
+hf.top.mem <- mem.selection.table(hf.model.df, hf.mod.list, 'HFChange_MEM.html') %>% 
+  mutate(flam.var = 'heat_flux_change')
+```
+
+## Coefficients Table
+Although the above tables can be helpful for mem selection, they do not provide any information about coefficients or significance of variables; below, using tab_model, we'll do just that
+```{r}
+top.mem <- rbind(fh.top.mem, fd.top.mem, temp.top.mem, hf.top.mem)
+top.mem.list <- list()
+for(i in 1:nrow(top.mem)){
+  if(top.mem$flam.var[i] == 'fh'){
+    top.mem.list[[i]] <- fh.mod.list[[top.mem$model.id[i]]]
+  } else if(top.mem$flam.var[i] == 'fd'){
+    top.mem.list[[i]] <- fd.mod.list[[top.mem$model.id[i]]]
+  } else if(top.mem$flam.var[i] == 'temp_change'){
+    top.mem.list[[i]] <- temp.mod.list[[top.mem$model.id[i]]]
+  } else if(top.mem$flam.var[i] == 'heat_flux_change'){
+    top.mem.list[[i]] <- hf.mod.list[[top.mem$model.id[i]]]
+  }
+}
+
+tab_model(top.mem.list,
+          show.reflvl = TRUE, 
+          digits = 3, 
+          show.aic = TRUE, 
+          show.ci = FALSE,
+          show.icc = FALSE, 
+          string.pred = "Coeffcient", 
+         title = "MEM Selection: Flame Height, Species in Models",
+  string.p = "P-Value", 
+  p.style = "stars")
+```

@@ -27,13 +27,15 @@ library(lmerTest) # to try stepwise selection
 library(remef) # for remef
 library(performance) # for multicollinearity check
 library(car) # for qqPlot
+library(gtools) # for combination()
 
 # defining functions
 here = here::here
 ggbiplot = ggbiplot::ggbiplot
 
 # reading in data
-flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
+flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv')) %>% 
+  filter(species != 'IRIDOU')
 ```
 
 # Data Structure
@@ -374,6 +376,7 @@ tab_model(fh_m2, fh_m3, fh_m4, fh_m5, fh_m6, fh_m7, fh_m8, fh_m9, fh_m10,
          title = "MEM Selection: Flame Height, Species in Models",
   string.p = "P-Value", 
   p.style = "stars")
+?tab_model
 ```
 
 From the above model selection, dw_flam_sample, ww_flam_sample and sample weight emerged as key predictors when paired w/ species. 
@@ -611,19 +614,20 @@ Alright, we're close to being done now. Here's what we learned from the above ta
 - ww_flam_sample is the 'best' sample size predictor, followed up by sample_wt; branch_volume is the 'worst' sample size predictor
 - MPa seems to be a better predictor than LFM (this is slightly unexpected based on other EDA)
 - Branching seems to slightly improve the model fit, but the effect varies
+- interaction term w/ species for the random effect has no effect on AIC (maybe try AICc)
 
 Here are the top 5 models and their respective (rounded) AIC scores:
-- fh_m46: MPa + sample_wt + LMA + branching, AIC = 367.6
-- fh_m57: ww_flam_sample + LMA + branching, AIC = 367.6
-- fh_m55: sample_wt + LMA + branching, AIC = 368.3
-- fh_m52: MPa + sample_wt + LMA, AIC = 369.4
-- fh_m43: LFM + sample_wt + LMA + branching, AIC = 370.5
+- fh_int1 or fh_57: ww_flam_sample + LMA + branching (interaction in random effect or not; same AIC), AIC = 322.6
+- fh_m46: MPa + sample_wt + LMA + branching, AIC = 323.0
+- fh_m55: sample_wt + LMA + branching, AIC = 323.3
+- fh_m52: MPa + sample_wt + LMA, AIC = 323.8
+- fh_m43: LFM + sample_wt + LMA + branching, AIC = 325.1
 
 Let's see if removing LMA improves the model fit for any of the above models (gut check)
 ```{r}
 fh_m46_noLMA <- lmer(fh ~ mpa + sample_wt + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 
-fh_m57_noLMA <- lmer(fh ~ ww_flam_sample + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
+fh_int1_noLMA <- lmer(fh ~ ww_flam_sample + branching + (1|plant_id:species), data = scaled.flamm.df, REML = F)
 
 fh_m55_noLMA <- lmer(fh ~ sample_wt + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 
@@ -631,20 +635,43 @@ fh_m52_noLMA <- lmer(fh ~ mpa + sample_wt + (1|plant_id), data = scaled.flamm.df
 
 fh_m43_noLMA <- lmer(fh ~ lfm + sample_wt + branching + (1|plant_id), data = scaled.flamm.df, REML = F)
 
-tab_model(fh_m46, fh_m46_noLMA, fh_m57, fh_m57_noLMA, fh_m55, fh_m55_noLMA, 
+tab_model(fh_int1, fh_int1_noLMA, fh_m46, fh_m46_noLMA, fh_m55, fh_m55_noLMA, 
           fh_m52, fh_m52_noLMA, fh_m43, fh_m43_noLMA,
           show.reflvl = TRUE, 
           digits = 3,
           show.aic = TRUE, 
           show.ci = FALSE,
-          show.icc = FALSE, 
+          show.icc = TRUE, 
           string.pred = "Coeffcient", 
          title = "MEM Selection: Flame Height, Removing LMA",
   string.p = "P-Value", 
   p.style = "stars")
-```
 
+anova(fh_int1, fh_m46, fh_m55, fh_m52, fh_m43)
+```
 As expected, removing LMA worsened these models in every case
+
+Let's see if interaction term in the random effect consistently improves model fit -- using CONDITIONAL AIC (AICc)
+```{r}
+#install.packages('cAIC4')
+library(cAIC4)
+
+fh_int46 <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id:species), data = scaled.flamm.df, REML = F)
+
+fh_int55 <- lmer(fh ~ sample_wt + LMA + branching + (1|plant_id:species), data = scaled.flamm.df, REML = F)
+
+fh_int52 <- lmer(fh ~ mpa + sample_wt + LMA + (1|plant_id:species), data = scaled.flamm.df, REML = F)
+
+fh_int43 <- lmer(fh ~ lfm + sample_wt + LMA + branching + (1|plant_id:species), data = scaled.flamm.df, REML = F)
+
+models <- c('fh_m57', 'fh_int1', 'fh_m46', 'fh_int46', 'fh_m55', 'fh_int55', 
+            'fh_m52', 'fh_int52', 'fh_m43', 'fh_int43')
+cond.AIC <- c(cAIC(fh_m57)[[5]], cAIC(fh_int1)[[5]], cAIC(fh_m46)[[5]], cAIC(fh_int46)[[5]],
+              cAIC(fh_m55)[[5]], cAIC(fh_int55)[[5]], cAIC(fh_m52)[[5]], cAIC(fh_int52)[[5]],
+              cAIC(fh_m43)[[5]], cAIC(fh_int43)[[5]])
+df.cAIC <- data.frame(models, cond.AIC)
+```
+Hmmm, with conditional AIC, interaction term does not affect model fit at all. New model was selected as significantly best model though (fh_m46 or fh_int46)
 
 ## P-Values
 Because the stars reported in the model table are not totally accurate, we should check out the Kenward-Roger approximations of p-values for each of the top two models
@@ -672,7 +699,7 @@ Following environmental computing tutorial
 ```{r}
 # lmer removes NAs but our linear model in the ANOVA, so we'll have to remove the NA's
 scaled.flamm.df.noNAs <- scaled.flamm.df %>% 
-  select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, branch_volume, LMA, branching, plant_id) %>% 
+  select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, leaf_mass_ratio, branch_volume, LMA, branching, plant_id) %>% 
   na.omit() # this removed 13 samples
 
 # Model
@@ -714,7 +741,7 @@ There are other functions that try and get the 'best' model for the data by comp
 ```{r}
 # step() is very sensitive to NAs, so we'll have to remove the NA's
 scaled.flamm.df.noNAs <- scaled.flamm.df %>% 
-  select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, branch_volume, LMA, branching, plant_id) %>% 
+  select(fh, species, lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, leaf_mass_ratio, branch_volume, LMA, branching, plant_id) %>% 
   na.omit() # this removed 13 samples
 
 # For the first example, let's throw the kitchen sink at this function and see what it spits out
@@ -726,8 +753,8 @@ final <- get_model(step_res)
 summary(final)
 multicollinearity(final) # step() does not take into account multicollinearity, so the 'final' model is invalid in this example
 
-# For the second example, let's throw the identified 'best' predictors and species and see what it says
-fh_step2 <- lmer(fh ~ species + mpa + sample_wt + LMA + branching + (1|plant_id), data = scaled.flamm.df.noNAs)
+# For the second example, let's throw the identified 'best' model from above and species and see what it says
+fh_step2 <- lmer(fh ~ mpa + sample_wt + LMA + branching + (1|plant_id:species), data = scaled.flamm.df.noNAs)
 # Stepwise model selection
 step_res <- step(fh_step2, ddf = 'Kenward-Roger')
 final <- get_model(step_res)
@@ -736,11 +763,11 @@ summary(final)
 multicollinearity(final)
 
 # Comparing to top model selected above:
-fh_step_selected <- lmer(fh ~ species + sample_wt + branching + (1|plant_id), data = scaled.flamm.df) 
+fh_step_selected <- lmer(fh ~ mpa + sample_wt + branching + (1|plant_id:species), data = scaled.flamm.df) 
 # Using full dataset now
 AIC(fh_step_selected)
 AIC(fh_top1)
-# The step-selected is significantly worse; now, maybe this is because of the NAs reintroduced into the data, so this may not be a totally fair comparison.
+# The step-selected is significantly worse based on AIC score; now, maybe this is because of the NAs reintroduced into the data, so this may not be a totally fair comparison.
 ```
 
 ## Visualizations via REMEF
@@ -800,3 +827,319 @@ ggplot(scaled.flamm.df.noNAs, aes(x = sample_wt, y = fh))  +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
 ```
+
+
+# -------------------------------
+
+# Mixed Effects LASSO
+The below code is meant to serve as (a) practice using the mixed effects LASSO technique and (b) an example to compare with the AIC-based approach outlined above.
+
+## Setup/Neceessary Packages
+```{r}
+library(glmmLasso) # specific to running lasso on generalized linear mixed models
+library(glmnet) # 'best' package for running lasso on generalized linear models; also, has good function for cross-validation process
+```
+## Example 1: Linear Model
+(trying it out w/o random effects)
+```{r}
+# to set up values to check for lambda (for now, will do cross-validation later)
+grid <- 10^seq(10, -2, length = 100)
+
+# setting up model matrices
+x <- scaled.flamm.df.noNAs %>% 
+  select(lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, branch_volume, LMA, branching) %>% 
+  as.matrix() # for first, iteration, throwing *most* of the kitchen sink into the model (but no species)
+y <- scaled.flamm.df.noNAs$fh
+
+lasso.lm <- glmnet(x, y, alpha = 1, lambda = grid)
+plot(lasso.lm)
+```
+
+Cross-validation process for lambda
+```{r}
+# splitting dataset into training and test dataset
+set.seed(16) # so it's reproducible
+train <- sample(c(TRUE, FALSE), nrow(scaled.flamm.df.noNAs), replace = TRUE)
+test <- !train
+y.test <- y[test]
+
+# 1 iteration of cross-validation
+cv.out <- cv.glmnet(x[train,], y[train], alpha = 1)
+plot(cv.out)
+best.lam <- cv.out$lambda.min
+best.lam
+
+# 100 iterations of cross-validation
+best.lam.list <- list(c(rep(NA, 100))) # creating holding list for best lamda
+for(i in 1:100) {
+  set.seed(i)
+  cv.out <- cv.glmnet(x[train,], y[train], alpha = 1)
+  best.lam.list[[1]][i]<- cv.out$lambda.min
+}
+best.lam100 <- mean(best.lam.list[[1]])
+best.lam100
+```
+
+```{r}
+lasso.lm <- glmnet(x, y, alpha = 1, lambda = best.lam100)
+predict(lasso.lm, type = "coefficients", s = best.lam100)[1:9,]
+```
+
+## Example 2: Linear Mixed Effects Model
+
+### Cross-Validation for Lambda
+from https://davidabugaber.com/blog/f/find-the-optimal-mixed-model-for-your-data-with-glmmlasso
+```{r}
+#this loop takes much longer to run because there's more random intercepts
+ 
+#all variables should be either continuous/numerical or factors
+summary(scaled.flamm.df.noNAs)
+scaled.flamm.df.noNAs <- scaled.flamm.df.noNAs %>% 
+  mutate(species = as.factor(species))
+
+#set lambdas... go from 10^-5 to 10^5, in 20 log steps (might take a while)
+lambda <- 10^seq(-5,5, length=20)
+ 
+#dummy vectors of model fit values for each lambda: BIC, AIC, prediction error
+BIC_vec <- rep(Inf, length(lambda))
+AIC_vec <- rep(Inf, length(lambda))
+Devianz_ma<-NULL
+Coeff_ma<-NULL
+ 
+family = gaussian(link = "identity")
+ 
+j<-1
+for (j in 1:length(BIC_vec)){
+ print(paste("Iteration ", j, sep=""))
+ 
+ glm1 <- try( #throwing kitchen sink in; for now, just using plant.id as random effect
+ glmmLasso(fh ~ species + lfm + mpa + ww_flam_sample + dw_flam_sample + sample_wt +
+             branch_volume + LMA + branching,
+ data=scaled.flamm.df.noNAs,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = lambda[j],
+ switch.NR = TRUE,
+ final.re = TRUE), 
+ silent = TRUE)
+ 
+
+# code to make it continue anyway if an error occurs
+  if(class(glm1)!="try-error")
+ { 
+ 
+ #save BIC, AIC
+ BIC_vec[j]<-glm1$bic
+ AIC_vec[j]<-glm1$aic
+ 
+ #save coefficient outputs
+ Coeff_ma<-cbind(Coeff_ma,glm1$coefficients)
+ 
+ #save error (deviance) values
+ y.hat<-predict(glm1,scaled.flamm.df.noNAs) 
+ Devianz_ma[j]<-sum(family$dev.resids(scaled.flamm.df.noNAs$fh,y.hat,wt=rep(1,length(y.hat)))) } }
+
+# Best lamdas, based on different criteria
+lambda[which.min(BIC_vec)]
+# 69.51928
+
+lambda[which.min(AIC_vec)]
+# 0.5455595
+
+lambda[which.min(Devianz_ma)]
+# 233.5721
+
+# They're all different, so going to try LASSO with each of them
+bic.lambda <- lambda[which.min(BIC_vec)] 
+aic.lambda <- lambda[which.min(AIC_vec)] 
+devianz.lambda <- lambda[which.min(Devianz_ma)] 
+```
+
+### LASSO/Model Selection
+
+#### BIC Lambda (intermediate)
+```{r}
+fh_bic_lasso <- glmmLasso(fh ~ species + lfm + mpa + ww_flam_sample + dw_flam_sample + 
+             sample_wt + branch_volume + LMA + branching,
+ data=scaled.flamm.df.noNAs,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = bic.lambda,
+ switch.NR = TRUE,
+ final.re = TRUE)
+
+summary(fh_bic_lasso)
+```
+
+#### AIC Lambda (low)
+```{r}
+fh_aic_lasso <- glmmLasso(fh ~ species + lfm + mpa + ww_flam_sample + dw_flam_sample + 
+             sample_wt + branch_volume + LMA + branching,
+ data=scaled.flamm.df.noNAs,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = aic.lambda,
+ switch.NR = TRUE,
+ final.re = TRUE)
+
+summary(fh_aic_lasso)
+```
+
+#### Devianz Lambda (high)
+```{r}
+fh_dev_lasso <- glmmLasso(fh ~ species + lfm + mpa + ww_flam_sample + dw_flam_sample + 
+             sample_wt + branch_volume + LMA + branching,
+ data=scaled.flamm.df.noNAs,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = devianz.lambda,
+ switch.NR = TRUE,
+ final.re = TRUE)
+
+summary(fh_dev_lasso)
+```
+
+# --------------------------------
+# Mallows' CP
+Since Mallows' CP is a variant of AIC, we can use an adjusted format of AIC to calculate Mallows' CP
+```{r}
+mallows.cp <- function(model, k, n = nrow(scaled.flamm.df.noNAs)) {
+  return(AIC(model) + 2*k / (n - k - 1))
+}
+
+summary(fh_top1)
+BIC(fh_top1)
+AIC(fh_top1)
+mallows.cp(fh_top1, k = 5)
+```
+
+# --------
+
+# MODEL SELECTION - OPTIMIZED
+I think we can optimize a AIC, BIC, mallows' Cp based model selection limiting the amount of user input
+
+Things to consider:
+- Multicollinearity
+- *Random Effect Structure!!*
+
+FIRST: List models
+```{r, warning = F}
+scaled.flamm.df.noNAs.predictors <- scaled.flamm.df.noNAs %>% 
+  select(lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, leaf_mass_ratio, branch_volume, LMA, branching) # select all predictors that you're interested in looking at
+
+# empty list
+mod.list <- list()
+call.vec <- c()
+# setting up a nested for loop to list all possible models including those predictors
+for(i in 2:ncol(scaled.flamm.df.noNAs.predictors)){
+  call <- colnames(scaled.flamm.df.noNAs.predictors) %>%
+          combinations(n = ncol(scaled.flamm.df.noNAs.predictors), r = i, repeats.allowed = F) %>% 
+          apply(1, paste0, collapse = ' + ') # all possible combinations of models from 2 - # of predictors we're interested in (note: cannot include only 1 predictor, as this breaks multicollinearity for loop below; also, we're probably not interested in a model with only one explanatory variable)
+  for(j in (1+length(call.vec)):(length(call)+length(call.vec))){ # adding linear mixed effects model to mod.list
+      mod.list[[j]] <- lmer(as.formula(paste('fh', '~', call[j-length(call.vec)], '+', '(1|plant_id)', sep = '')), data = scaled.flamm.df.noNAs)
+  }
+  call.vec <- append(call.vec, call) # to index where to put model into model list
+}
+```
+
+SECOND: FLAG ANY MODELS THAT BREAK MULTICOLINEARITY ASSUMPTIONS
+```{r}
+model.df <- data.frame(model.id = c(1:length(mod.list)),
+                       call = c(rep(NA, length(mod.list))),
+                       multicollinearity = c(rep(NA, length(mod.list))),
+                       AIC = c(rep(NA, length(mod.list))),
+                       BIC = c(rep(NA, length(mod.list))),
+                       CP = c(rep(NA, length(mod.list))))
+
+for(i in 1:length(mod.list)){
+  vif.df <- multicollinearity(mod.list[[i]])
+  ifelse(max(vif.df$VIF) > 5, model.df$multicollinearity[i] <- 'yes', 
+             model.df$multicollinearity[i] <- 'no')
+}
+
+for(i in 1:length(mod.list)){
+  if(model.df$multicollinearity[i] == 'yes'){
+  mod.list[[i]] <- NA
+}}
+```
+
+THIRD: CALCULATE AIC, BIC, MALLOWS CP
+```{r}
+for(i in 1:length(mod.list)) {
+  if(model.df$multicollinearity[i] == 'yes')
+  {model.df[i, 3:6] <- NA}
+  else{
+    model.df$call[i] <- paste(colnames(mod.list[[i]]@frame), collapse = ', ')
+    model.df$AIC[i] <- AIC(mod.list[[i]])
+    model.df$BIC[i] <- BIC(mod.list[[i]])
+    model.df$CP[i] <- mallows.cp(mod.list[[i]], k = length(mod.list[[i]]@beta - 1))
+  }
+}
+```
+
+# Model Selection Function
+This works ! , but we may alter as necessary
+```{r}
+scaled.flamm.df.noNAs.predictors <- scaled.flamm.df.noNAs %>% 
+  select(lfm, mpa, ww_flam_sample, dw_flam_sample, sample_wt, branch_volume, leaf_mass_ratio, LMA, branching) # select all predictors that you're interested in looking at
+
+# NOTE: y.var and rem.str must be a character vector, predictors must be a dataframe
+mem.selection <- function(y.var, predictors, rem.str = '(1|plant_id)'){
+# FIRST: List models
+# empty list
+mod.list <- list()
+call.vec <- c()
+
+# setting up a nested for loop to list all possible models including those predictors
+for(i in 2:ncol(predictors)){
+  call <- colnames(predictors) %>%
+          combinations(n = ncol(predictors), r = i, repeats.allowed = F) %>% 
+          apply(1, paste0, collapse = ' + ') # all possible combinations of models from 2 - # of predictors we're interested in (note: cannot include only 1 predictor, as this breaks multicollinearity for loop below; also, we're probably not interested in a model with only one explanatory variable)
+  for(j in (1+length(call.vec)):(length(call)+length(call.vec))){ # adding linear mixed effects model to mod.list
+      mod.list[[j]] <- lmer(as.formula(paste(y.var, '~', call[j-length(call.vec)], '+', rem.str, sep = '')), data = scaled.flamm.df.noNAs)
+  }
+  call.vec <- append(call.vec, call) # to index where to put model into model list
+}
+
+# CREATE DATAFRAME
+model.df <- data.frame(model.id = c(1:length(mod.list)),
+                       call = c(rep(NA, length(mod.list))),
+                       multicollinearity = c(rep(NA, length(mod.list))),
+                       AIC = c(rep(NA, length(mod.list))),
+                       BIC = c(rep(NA, length(mod.list))),
+                       CP = c(rep(NA, length(mod.list))))
+
+# SECOND: FLAG ANY MODELS THAT BREAK MULTICOLINEARITY ASSUMPTIONS
+for(i in 1:length(mod.list)){
+  vif.df <- multicollinearity(mod.list[[i]])
+  ifelse(max(vif.df$VIF) > 5, model.df$multicollinearity[i] <- 'yes', 
+             model.df$multicollinearity[i] <- 'no')
+}
+
+for(i in 1:length(mod.list)){
+  if(model.df$multicollinearity[i] == 'yes'){
+  mod.list[[i]] <- NA
+  }}
+
+# THIRD: CALCULATE AIC, BIC, MALLOWS CP
+for(i in 1:length(mod.list)) {
+  if(model.df$multicollinearity[i] == 'yes')
+  {model.df[i, 3:6] <- NA}
+  else{
+    model.df$call[i] <- paste(colnames(mod.list[[i]]@frame), collapse = ', ')
+    model.df$AIC[i] <- AIC(mod.list[[i]])
+    model.df$BIC[i] <- BIC(mod.list[[i]])
+    model.df$CP[i] <- mallows.cp(mod.list[[i]], k = length(mod.list[[i]]@beta - 1))
+  }
+}
+output <- list(model.df, mod.list)
+return(output)
+}
+rm(mod.list, model.df, call.vec)
+mod.list <- list()
+call.vec <- c()
+fh.mem.selection <- mem.selection('fh', scaled.flamm.df.noNAs.predictors)
+fh.model.df <- fh.mem.selection[[1]]
+fh.mod.list <- fh.mem.selection[[2]]
+```
+
