@@ -204,7 +204,6 @@ For predictors dataset:
 - Use wrangled dataset, mem.df
 - Select predictors we're interested in including in the mixed effects model selection
 ```{r}
-mem.selection.table()
 mem.df <- flamm.df %>% 
   filter(species != 'IRIDOU') %>% 
   filter(ignition != '0') %>% 
@@ -222,7 +221,7 @@ mem.df <- flamm.df %>%
   na.omit()
 
 mem.predictors.df <- mem.df %>% 
-  select(thickness, lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, dw_flam_sample, ww_flam_sample, start_temp) # ten predictors
+  select(thickness, lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, dw_flam_sample, ww_flam_sample, start_temp) # ten predictors (NOTE: SPECIES SHOULD BE INCLUDED AS A FIXED EFFECT)
 ```
 
 ## Flame Height
@@ -285,7 +284,8 @@ tab_model(top.mem.list,
           show.ci = FALSE,
           show.icc = FALSE, 
           string.pred = "Coeffcient", 
-         title = "MEM Selection: Flame Height, Species in Models",
+         title = "MEM Selection: Coefficients, Significance for Top Models",
   string.p = "P-Value", 
-  p.style = "stars")
+  p.style = "stars",
+  file = here('figures', 'MEM', 'Top_MEM_Coef.html'))
 ```
