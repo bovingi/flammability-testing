@@ -60,7 +60,7 @@ mem.selection <- function(y.var, predictors, df, rem.str = '(1|plant_id)'){
 mem.selection.table <- function(df, mod.list, output){
   kable.df <- df %>% 
     na.omit() %>% 
-    filter(AIC < (min(AIC)+2) & BIC < (min(BIC)+2)) %>%
+    filter(AIC < (min(AIC)+2) | BIC < (min(BIC)+2)) %>%
     arrange(AIC) %>% 
     select(model.id, call, AIC, BIC)
   

@@ -5,6 +5,7 @@ date: "2023-07-14"
 output: html_document
 ---
 
+# Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
@@ -171,6 +172,7 @@ So, we will eliminate some variables from contention right away:
 - SLA: we can use LMA
 - Stem mass ratio: we can use leaf mass ratio
 - Stem LFM and leaf LFM: unless we notice something in the EDA that suggests otherwise, I think using total LFM makes sense
+
 - Leaf area: because leaf area is included in some fashion in the calculation of LMA and due to it's oddly strong correlation to dw_flam_sample and ww_flam_sample which we're interested in keeping in the models, it makes sense to remove
 
 We can also eliminate ambient temp and humidity since they show absolutely no correlation with flame height (and very little correlation with most variables)
@@ -210,18 +212,19 @@ mem.df <- flamm.df %>%
   unite('plant_id', c(species, plant), sep = '_', remove = F) %>% 
   select(species, thickness, lfm, leaf_area, LMA, sample_wt, leaf_mass_ratio, branching, mpa,
          ignition, fh, fd, tti, pfg, temp_change, heat_flux_change, prop_ig, dw_flam_sample,
-         ww_flam_sample, branch_volume, start_temp, plant_id) %>% 
+         ww_flam_sample, branch_volume, start_temp, leaf_area, plant_id) %>% 
   mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
          dw_flam_sample = scale(dw_flam_sample), LMA = scale(LMA), thickness = scale(thickness),
          leaf_area = scale(leaf_area), branching = scale(branching),
          leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
          start_temp = scale(start_temp), branch_volume = scale(branch_volume),
          fh = scale(fh), fd = scale(fd), tti = scale(tti), pfg = scale(pfg),
-         temp_change = scale(temp_change), heat_flux_change = scale(heat_flux_change)) %>% 
+         temp_change = scale(temp_change), heat_flux_change = scale(heat_flux_change),
+         leaf_area = scale(leaf_area)) %>% 
   na.omit()
 
 mem.predictors.df <- mem.df %>% 
-  select(thickness, lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, dw_flam_sample, ww_flam_sample, start_temp) # ten predictors (NOTE: SPECIES SHOULD BE INCLUDED AS A FIXED EFFECT)
+  select(thickness, lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, dw_flam_sample, ww_flam_sample, start_temp, leaf_area, species) # twelve predictors
 ```
 
 ## Flame Height
@@ -289,3 +292,5 @@ tab_model(top.mem.list,
   p.style = "stars",
   file = here('figures', 'MEM', 'Top_MEM_Coef.html'))
 ```
+
+

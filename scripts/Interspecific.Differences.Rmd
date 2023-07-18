@@ -1,0 +1,65 @@
+---
+title: "Species Differences: Looking at Species-Specific Variables, Average Values
+  for Species"
+author: "Joe Celebrezze"
+date: "2023-07-17"
+output: html_document
+---
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(here)
+library(multcompView) # to display Tukey-Kramer results
+
+here = here::here
+
+# reading in data
+flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
+```
+
+Although the mixed effects model selection tells us a lot about our data and provides useful insights, it doesn't include all of the variables and it leaves some of our question unanswered:
+
+*Question*: How can interspecific differences in flammability be described by plant traits -- plant hydration, plant morphology, leaf traits, VOC's?
+
+With the mixed effects models, we looked into which variables were key in predicting the flammability metrics, but we did not necessarily look into how the above question fully. To do so, let's look at interspecific differences in flammability metrics and then interspecific differences in traits of interest and compare them.
+
+# Flame Height
+```{r}
+fh.spp <- lm(fh ~ species, data = flamm.df)
+fh.spp.aov <- aov(fh ~ species, data = flamm.df)
+fh.spp.tukey <- TukeyHSD(fh.spp.aov)
+
+# Below function is from: https://r-graph-gallery.com/84-tukey-test.html
+# I need to group the treatments that are not different each other together.
+generate_label_df <- function(tukey.obj, variable = 'species'){
+ 
+     # Extract labels and factor levels from Tukey post-hoc 
+     Tukey.levels <- tukey.obj[[variable]][,4]
+     Tukey.labels <- data.frame(multcompLetters(Tukey.levels)['Letters'])
+     
+     #I need to put the labels in the same order as in the boxplot :
+     Tukey.labels$species=rownames(Tukey.labels)
+     Tukey.labels=Tukey.labels[order(Tukey.labels$species) , ]
+     return(Tukey.labels)
+     }
+ 
+# Apply the function on my dataset
+fh.spp.labs <- generate_label_df(fh.spp.tukey)
+
+flamm.df %>%
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'CEAGRI', 'SALAPI', 'MALLAU',
+                                                  'MANDEN', 'SALLEU', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = fh), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = fh), width = 0.2, alpha = 0.2) +
+    geom_text(aes(x = species, y = 65, label = Letters), fontface = 'bold', data = fh.spp.labs) +
+    labs(x = 'Species', y = 'Flame Height (cm)') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 17),
+          axis.text.x = element_text(size = 13, angle = 10),
+          axis.text.y = element_text(size = 15))
+```
+
