@@ -26,7 +26,13 @@ Although the mixed effects model selection tells us a lot about our data and pro
 
 With the mixed effects models, we looked into which variables were key in predicting the flammability metrics, but we did not necessarily look into how the above question fully. To do so, let's look at interspecific differences in flammability metrics and then interspecific differences in traits of interest and compare them.
 
-# Flame Height
+We are also going to do the k-means cluster analysis here on a full dataset, a dataset with flammability metrics, and a dataset with traits to try and gewt at the question above
+
+# Boxplots, ANOVAs
+
+## Flammability Metrics
+
+### Flame Height
 ```{r}
 fh.spp <- lm(fh ~ species, data = flamm.df)
 fh.spp.aov <- aov(fh ~ species, data = flamm.df)
@@ -62,4 +68,121 @@ flamm.df %>%
           axis.text.x = element_text(size = 13, angle = 10),
           axis.text.y = element_text(size = 15))
 ```
+
+### Flame Duration
+```{r}
+fd.spp <- lm(fd ~ species, data = flamm.df)
+fd.spp.aov <- aov(fd ~ species, data = flamm.df)
+fd.spp.tukey <- TukeyHSD(fd.spp.aov)
+
+# Below function is from: https://r-graph-gallery.com/84-tukey-test.html
+# I need to group the treatments that are not different each other together.
+generate_label_df <- function(tukey.obj, variable = 'species'){
+ 
+     # Extract labels and factor levels from Tukey post-hoc 
+     Tukey.levels <- tukey.obj[[variable]][,4]
+     Tukey.labels <- data.frame(multcompLetters(Tukey.levels)['Letters'])
+     
+     #I need to put the labels in the same order as in the boxplot :
+     Tukey.labels$species=rownames(Tukey.labels)
+     Tukey.labels=Tukey.labels[order(Tukey.labels$species) , ]
+     return(Tukey.labels)
+     }
+ 
+# Apply the function on my dataset
+fd.spp.labs <- generate_label_df(fd.spp.tukey)
+
+flamm.df %>%
+  mutate(species = fct_relevel(species, levels = c('CEAGRI', 'MALLAU', 'HETARB', 'SALLEU',
+                                                  'MANDEN', 'SALAPI', 'IRIDOU', 'ARTCAL', 'ERIKAR'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = fd), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = fd), width = 0.2, alpha = 0.2) +
+    geom_text(aes(x = species, y = 65, label = Letters), fontface = 'bold', data = fd.spp.labs) +
+    labs(x = 'Species', y = 'Flame Duration (sec)') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 17),
+          axis.text.x = element_text(size = 13, angle = 10),
+          axis.text.y = element_text(size = 15))
+```
+
+### Temp. Change
+```{r}
+tc.spp <- lm(temp_change ~ species, data = flamm.df)
+tc.spp.aov <- aov(temp_change ~ species, data = flamm.df)
+tc.spp.tukey <- TukeyHSD(tc.spp.aov)
+
+# Below function is from: https://r-graph-gallery.com/84-tukey-test.html
+# I need to group the treatments that are not different each other together.
+generate_label_df <- function(tukey.obj, variable = 'species'){
+ 
+     # Extract labels and factor levels from Tukey post-hoc 
+     Tukey.levels <- tukey.obj[[variable]][,4]
+     Tukey.labels <- data.frame(multcompLetters(Tukey.levels)['Letters'])
+     
+     #I need to put the labels in the same order as in the boxplot :
+     Tukey.labels$species=rownames(Tukey.labels)
+     Tukey.labels=Tukey.labels[order(Tukey.labels$species) , ]
+     return(Tukey.labels)
+     }
+ 
+# Apply the function on my dataset
+tc.spp.labs <- generate_label_df(tc.spp.tukey)
+
+flamm.df %>%
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'SALLEU', 'SALAPI',
+                                                  'CEAGRI', 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  filter(temp_change < 100) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = temp_change), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = temp_change), width = 0.2, alpha = 0.2) +
+    geom_text(aes(x = species, y = 65, label = Letters), fontface = 'bold', data = tc.spp.labs) +
+    labs(x = 'Species', y = 'Temp. Change') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 17),
+          axis.text.x = element_text(size = 13, angle = 10),
+          axis.text.y = element_text(size = 15))
+```
+
+### Temp. Change
+```{r}
+hf.spp <- lm(heat_flux_change ~ species, data = flamm.df)
+hf.spp.aov <- aov(heat_flux_change ~ species, data = flamm.df)
+hf.spp.tukey <- TukeyHSD(hf.spp.aov)
+
+# Below function is from: https://r-graph-gallery.com/84-tukey-test.html
+# I need to group the treatments that are not different each other together.
+generate_label_df <- function(tukey.obj, variable = 'species'){
+ 
+     # Extract labels and factor levels from Tukey post-hoc 
+     Tukey.levels <- tukey.obj[[variable]][,4]
+     Tukey.labels <- data.frame(multcompLetters(Tukey.levels)['Letters'])
+     
+     #I need to put the labels in the same order as in the boxplot :
+     Tukey.labels$species=rownames(Tukey.labels)
+     Tukey.labels=Tukey.labels[order(Tukey.labels$species) , ]
+     return(Tukey.labels)
+     }
+ 
+# Apply the function on my dataset
+hf.spp.labs <- generate_label_df(hf.spp.tukey)
+
+flamm.df %>%
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'SALLEU', 'SALAPI',
+                                                  'CEAGRI', 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = heat_flux_change), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = heat_flux_change), width = 0.2, alpha = 0.2) +
+    geom_text(aes(x = species, y = 0.28, label = Letters), fontface = 'bold', data = tc.spp.labs) +
+    labs(x = 'Species', y = 'Heat Flux Change') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 17),
+          axis.text.x = element_text(size = 13, angle = 10),
+          axis.text.y = element_text(size = 15))
+```
+
+## Sample Size
+
+### Sample Weight
+Because all of the 'sample size' metrics are pretty similar, I think looking at only one, at least for now will work.
 

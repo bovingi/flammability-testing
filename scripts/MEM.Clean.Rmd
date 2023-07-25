@@ -26,6 +26,8 @@ library(performance) # for multicollinearity check
 library(car) # for qqPlot
 library(gtools) # for combination()
 library(kableExtra) # to make nice tables
+library(glmmLasso) # specific to running lasso on generalized linear mixed models
+library(glmnet) # 'best' package for running lasso on generalized linear models; also, has good function for cross-validation process
 
 # defining functions
 here = here::here
@@ -177,7 +179,7 @@ So, we will eliminate some variables from contention right away:
 
 We can also eliminate ambient temp and humidity since they show absolutely no correlation with flame height (and very little correlation with most variables)
 
-# Model Selection 1
+# Model Selection 1: AIC, BIC
 For the first model selection, going to use AIC, BIC, Mallows' CP and use the simple random effects structure (1|plant_id)
 
 For the mem.selection() function, note the following things:
@@ -292,6 +294,231 @@ tab_model(top.mem.list,
   p.style = "stars",
   file = here('figures', 'MEM', 'Top_MEM_Coef.html'))
 ```
+
+# Model Selection 2: LASSO
+The LASSO technique is used for model selection to help us understand instances where the information criteria does not lead to solid conclusions
+
+## Flame Height
+### Lambda Cross-validation 
+from https://davidabugaber.com/blog/f/find-the-optimal-mixed-model-for-your-data-with-glmmlasso
+```{r}
+#this loop takes much longer to run because there's more random intercepts
+ 
+#all variables should be either continuous/numerical or factors
+summary(mem.df)
+
+#set lambdas... go from 10^-5 to 10^5, in 20 log steps (might take a while)
+lambda <- 10^seq(-5,5, length=20)
+ 
+#dummy vectors of model fit values for each lambda: BIC, AIC, prediction error
+BIC_vec <- rep(Inf, length(lambda))
+AIC_vec <- rep(Inf, length(lambda))
+Devianz_ma<-NULL
+Coeff_ma<-NULL
+ 
+family = gaussian(link = "identity")
+ 
+j<-1
+for (j in 1:length(BIC_vec)){
+ print(paste("Iteration ", j, sep=""))
+ 
+ glm1 <- try( #throwing main variables identified by the information criteria model selection into the LASSO cross-validation process; using plant.id as random effect
+ glmmLasso(fh ~ species + mpa + ww_flam_sample + branching + sample_wt,
+ data=mem.df,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = lambda[j],
+ switch.NR = TRUE,
+ final.re = TRUE), 
+ silent = TRUE)
+ 
+
+# code to make it continue anyway if an error occurs
+  if(class(glm1)!="try-error")
+ { 
+ 
+ #save BIC, AIC
+ BIC_vec[j]<-glm1$bic
+ AIC_vec[j]<-glm1$aic
+ 
+ #save coefficient outputs
+ Coeff_ma<-cbind(Coeff_ma,glm1$coefficients)
+ 
+ #save error (deviance) values
+ y.hat<-predict(glm1,mem.df) 
+ Devianz_ma[j]<-sum(family$dev.resids(mem.df$fh,y.hat,wt=rep(1,length(y.hat)))) } }
+
+# Best lamdas, based on different criteria
+lambda[which.min(BIC_vec)]
+# 1e-05
+lambda[which.min(AIC_vec)]
+# 1e-05
+fh_lambda <- lambda[which.min(AIC_vec)]
+```
+
+### Model Selection
+```{r}
+fh_lasso <- glmmLasso(fh ~ species + mpa + ww_flam_sample + branching + sample_wt,
+ data=mem.df,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = fh_lambda,
+ switch.NR = TRUE,
+ final.re = TRUE)
+
+summary(fh_lasso)
+```
+
+LASSO does not help in this case... All variables are included
+
+## Flame Duration
+Because AIC/BIC based model selection came up with some solid results, we don't need to use LASSO
+
+## Temp. Change
+### Lambda Cross-validation 
+from https://davidabugaber.com/blog/f/find-the-optimal-mixed-model-for-your-data-with-glmmlasso
+```{r}
+#this loop takes much longer to run because there's more random intercepts
+ 
+#all variables should be either continuous/numerical or factors
+summary(mem.df)
+
+#set lambdas... go from 10^-5 to 10^5, in 20 log steps (might take a while)
+lambda <- 10^seq(-5,5, length=20)
+ 
+#dummy vectors of model fit values for each lambda: BIC, AIC, prediction error
+BIC_vec <- rep(Inf, length(lambda))
+AIC_vec <- rep(Inf, length(lambda))
+Devianz_ma<-NULL
+Coeff_ma<-NULL
+ 
+family = gaussian(link = "identity")
+ 
+j<-1
+for (j in 1:length(BIC_vec)){
+ print(paste("Iteration ", j, sep=""))
+ 
+ glm1 <- try( #throwing main variables identified by the information criteria model selection into the LASSO cross-validation process; using plant.id as random effect
+ glmmLasso(temp_change ~ species + mpa + sample_wt + ww_flam_sample + dw_flam_sample + start_temp,
+ data=mem.df,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = lambda[j],
+ switch.NR = TRUE,
+ final.re = TRUE), 
+ silent = TRUE)
+ 
+
+# code to make it continue anyway if an error occurs
+  if(class(glm1)!="try-error")
+ { 
+ 
+ #save BIC, AIC
+ BIC_vec[j]<-glm1$bic
+ AIC_vec[j]<-glm1$aic
+ 
+ #save coefficient outputs
+ Coeff_ma<-cbind(Coeff_ma,glm1$coefficients)
+ 
+ #save error (deviance) values
+ y.hat<-predict(glm1,mem.df) 
+ Devianz_ma[j]<-sum(family$dev.resids(mem.df$fh,y.hat,wt=rep(1,length(y.hat)))) } }
+
+# Best lamdas, based on different criteria
+lambda[which.min(BIC_vec)]
+# 1e-05
+lambda[which.min(AIC_vec)]
+# 1e-05
+tc_lambda <- lambda[which.min(AIC_vec)]
+```
+
+### Model Selection
+```{r}
+tc_lasso <- glmmLasso(temp_change ~ species + mpa + sample_wt + ww_flam_sample + dw_flam_sample + start_temp,
+ data=mem.df,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = tc_lambda,
+ switch.NR = TRUE,
+ final.re = TRUE)
+
+summary(tc_lasso)
+```
+
+Again, LASSO is not helpful in this case, as none of the variables are selected
+
+## Heat Flux Change
+### Lambda Cross-validation 
+from https://davidabugaber.com/blog/f/find-the-optimal-mixed-model-for-your-data-with-glmmlasso
+```{r}
+#this loop takes much longer to run because there's more random intercepts
+ 
+#all variables should be either continuous/numerical or factors
+summary(mem.df)
+
+#set lambdas... go from 10^-5 to 10^5, in 20 log steps (might take a while)
+lambda <- 10^seq(-5,5, length=20)
+ 
+#dummy vectors of model fit values for each lambda: BIC, AIC, prediction error
+BIC_vec <- rep(Inf, length(lambda))
+AIC_vec <- rep(Inf, length(lambda))
+Devianz_ma<-NULL
+Coeff_ma<-NULL
+ 
+family = gaussian(link = "identity")
+ 
+j<-1
+for (j in 1:length(BIC_vec)){
+ print(paste("Iteration ", j, sep=""))
+ 
+ glm1 <- try( #throwing main variables identified by the information criteria model selection into the LASSO cross-validation process; using plant.id as random effect
+ glmmLasso(heat_flux_change ~ species + mpa + sample_wt + leaf_mass_ratio + ww_flam_sample,
+ data=mem.df,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = lambda[j],
+ switch.NR = TRUE,
+ final.re = TRUE), 
+ silent = TRUE)
+ 
+
+# code to make it continue anyway if an error occurs
+  if(class(glm1)!="try-error")
+ { 
+ 
+ #save BIC, AIC
+ BIC_vec[j]<-glm1$bic
+ AIC_vec[j]<-glm1$aic
+ 
+ #save coefficient outputs
+ Coeff_ma<-cbind(Coeff_ma,glm1$coefficients)
+ 
+ #save error (deviance) values
+ y.hat<-predict(glm1,mem.df) 
+ Devianz_ma[j]<-sum(family$dev.resids(mem.df$fh,y.hat,wt=rep(1,length(y.hat)))) } }
+
+# Best lamdas, based on different criteria
+lambda[which.min(BIC_vec)]
+# 1e-05
+lambda[which.min(AIC_vec)]
+# 1e-05
+hf_lambda <- lambda[which.min(AIC_vec)]
+```
+
+### Model Selection
+```{r}
+hf_lasso <- glmmLasso(heat_flux_change ~ species + mpa + sample_wt + leaf_mass_ratio + ww_flam_sample,
+ data=mem.df,
+ rnd = list(plant_id=~1), 
+ family = gaussian(link = "identity"),
+ lambda = tc_lambda,
+ switch.NR = TRUE,
+ final.re = TRUE)
+
+summary(hf_lasso)
+```
+
+LASSO selects species and wet weight in the 'top model'; finally it helps us!
 
 # REMEF Figures
 ## Flame Height

@@ -35,7 +35,7 @@ flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 # Data Wrangling 
 ```{r}
 flamm.df <- flamm.df %>% 
-  filter(species %in% c('CEAGRI', 'ERIKAR', 'IRIDOU', 'MALLAU', 'SALAPI', 'SALLEU')) %>% 
+  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU')) %>% 
   filter(ignition != '0') %>% 
   unite('id', c(species, plant, rep), sep = '_', remove = F)
 ```
@@ -47,19 +47,18 @@ Plot setup:
 ```{r warning=FALSE}
 flamm.df_pca <- flamm.df %>% 
   filter(ignition != 0) %>% # No non-ignitions
-   select(fh, fd, pfg, temp_change, heat_flux_change, species, id) %>% 
-   drop_na(fh, fd, pfg, temp_change, heat_flux_change, species)
+   select(fh, fd, temp_change, heat_flux_change, species, id) %>% 
+   drop_na(fh, fd, temp_change, heat_flux_change, species)
 
-figure_pca_quant <- (flamm.df_pca[, c("fh", "fd", "pfg", "temp_change", "heat_flux_change", "species")]) %>%  
+figure_pca_quant <- (flamm.df_pca[, c("fh", "fd", "temp_change", "heat_flux_change", "species")]) %>%  
  transmute("Flame Duration" = fd, #using spaces to shift labels over instead of \t since \t is leading to little blank squares popping up on the plot
            "Flame Height" = fh,
-           "Post-flame Glow" = pfg,
            "Temp Change" = temp_change,
            "Heat Flux Change" = heat_flux_change
           ) %>% 
   na.omit()
 
-figure_pca_cat <- (flamm.df_pca[, c("fh", "fd", "pfg", "temp_change", "heat_flux_change", "species")]) %>%  
+figure_pca_cat <- (flamm.df_pca[, c("fh", "fd", "temp_change", "heat_flux_change", "species")]) %>%  
   na.omit() %>% 
   select(species) %>% 
   transmute("Species" = species)
@@ -69,7 +68,7 @@ figure_prcomp <- prcomp(na.omit(figure_pca_quant),
                           scale = TRUE, 
                           retx=TRUE)
   
-figure_pca <- (flamm.df_pca[, c("fh", "fd", "pfg", "temp_change", "heat_flux_change", "species")]) %>%  
+figure_pca <- (flamm.df_pca[, c("fh", "fd", "temp_change", "heat_flux_change", "species")]) %>%  
   na.omit() 
 ```
 
@@ -123,7 +122,7 @@ circle <- data.frame(PC1 = r * cos(theta), PC2 = r * sin(theta))
 
 #Group by flam. metric: 
 PCA_metrics <- df.v %>% 
-  filter(Variables %in% c("Flame Duration", "Flame Height", "Post-flame Glow", "Temp Change",
+  filter(Variables %in% c("Flame Duration", "Flame Height", "Temp Change",
                           "Heat Flux Change"))
     
 # Calculate the angles and the label offset
@@ -355,7 +354,7 @@ pca_df2 <- cbind(pca_traits_data, traits.df_pca)
 # 3. Comparing Principal Components
 ```{r}
 pca_df <- pca_df %>% 
-  select(-PC4, -PC5) %>%  # Not interested in PC4 or PC5 (>80% of variance explained by first three PCs)
+  select(-PC4) %>%  # Not interested in PC4 or PC5 (>80% of variance explained by first three PCs)
   rename(PC1_flamm = PC1,
          PC2_flamm = PC2,
          PC3_flamm = PC3)
