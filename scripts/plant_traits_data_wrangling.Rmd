@@ -82,7 +82,9 @@ First, getting cup weights data
 ```{r}
 cup_weights_data <- read_csv(here('data', 'raw-data', 'plant-traits', 'cup_weights.csv')) %>% 
   slice_head(n = 82)  %>% 
-  rename(cup_mass = mass, dry_cup_mass = mass_post_drying)
+  rename(cup_mass = mass) %>% 
+  mutate(dry_cup_mass = (mass_post_drying + mass_post_drying2)/2) %>%  # Using average dry cup mass as 'dry cup mass'
+  select(-mass_post_drying, -mass_post_drying2)
 
 leaf_data <- merge(leaf_data, cup_weights_data, by = 'cup_number')
 stem_data <- merge(stem_data, cup_weights_data, by = 'cup_number')
