@@ -14,11 +14,14 @@ library(tidyverse)
 library(here)
 library(multcompView) # to display Tukey-Kramer results
 library(factoextra) #for k-means clustering
+library(lme4) # for MEM
+library(emmeans) # for tukey-kramer tests (w/ random effects)
 
 here = here::here
 
 # reading in data
-flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
+flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv')) %>% 
+  unite('plant_id', c(species, plant), sep = '_', remove = F) # adding plant_id for random effects
 ```
 
 Although the mixed effects model selection tells us a lot about our data and provides useful insights, it doesn't include all of the variables and it leaves some of our question unanswered:
@@ -35,34 +38,19 @@ We are also going to do the k-means cluster analysis here on a full dataset, a d
 
 ### Flame Height
 ```{r}
-fh.spp <- lm(fh ~ species, data = flamm.df)
-fh.spp.aov <- aov(fh ~ species, data = flamm.df)
-fh.spp.tukey <- TukeyHSD(fh.spp.aov)
-
-# Below function is from: https://r-graph-gallery.com/84-tukey-test.html
-# I need to group the treatments that are not different each other together.
-generate_label_df <- function(tukey.obj, variable = 'species'){
- 
-     # Extract labels and factor levels from Tukey post-hoc 
-     Tukey.levels <- tukey.obj[[variable]][,4]
-     Tukey.labels <- data.frame(multcompLetters(Tukey.levels)['Letters'])
-     
-     #I need to put the labels in the same order as in the boxplot :
-     Tukey.labels$species=rownames(Tukey.labels)
-     Tukey.labels=Tukey.labels[order(Tukey.labels$species) , ]
-     return(Tukey.labels)
-     }
- 
-# Apply the function on my dataset
-fh.spp.labs <- generate_label_df(fh.spp.tukey)
+fh.spp <- lmer(fh ~ species + (1|plant_id), data = flamm.df)
+anova(fh.spp)
+fh.spp.tukey <- emmeans(fh.spp, pairwise ~ species, adjust = 'tukey')
+fh.spp.tukey.df <- summary(fh.spp.tukey$contrasts)
+fh.spp.tukey.labels <- data.frame(species = c('HETARB', 'CEAGRI', 'SALAPI', 'MALLAU', 'MANDEN', 'SALLEU', 'ARTCAL', 'IRIDOU', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'ab', 'abc', 'bc', 'bc', 'c', 'c')) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('HETARB', 'CEAGRI', 'SALAPI', 'MALLAU',
-                                                  'MANDEN', 'SALLEU', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
-  ggplot() +
-    geom_boxplot(aes(x = species, y = fh), outlier.shape = NA, alpha= 0.8) +
-    geom_jitter(aes(x = species, y = fh), width = 0.2, alpha = 0.2) +
-    geom_text(aes(x = species, y = 65, label = Letters), fontface = 'bold', data = fh.spp.labs) +
+                                                 'MANDEN', 'SALLEU', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  ggplot(aes(x = species, y = fh)) +
+    geom_boxplot(outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(width = 0.2, alpha = 0.2) +
+    geom_text(aes(x = species, y = 65, label = letters), fontface = 'bold', data = fh.spp.tukey.labels) +
     labs(x = 'Species', y = 'Flame Height (cm)') +
     theme_bw() +
     theme(axis.title = element_text(face = 'bold', size = 17),
@@ -72,12 +60,11 @@ flamm.df %>%
 
 ### Flame Duration
 ```{r}
-fd.spp <- lm(fd ~ species, data = flamm.df)
-fd.spp.aov <- aov(fd ~ species, data = flamm.df)
-fd.spp.tukey <- TukeyHSD(fd.spp.aov)
-
-# Apply the function on my dataset
-fd.spp.labs <- generate_label_df(fd.spp.tukey)
+fd.spp <- lmer(fd ~ species + (1|plant_id), data = flamm.df)
+anova(fd.spp)
+fd.spp.tukey <- emmeans(fd.spp, pairwise ~ species, adjust = 'tukey')
+fd.spp.tukey.df <- summary(fd.spp.tukey$contrasts)
+fd.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'MALLAU', 'HETARB', 'SALLEU', 'MANDEN', 'SALAPI', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'a', 'ab', 'abc', 'abcd', 'bcd', 'cd', 'cd', 'd')) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('CEAGRI', 'MALLAU', 'HETARB', 'SALLEU',
@@ -85,7 +72,7 @@ flamm.df %>%
   ggplot() +
     geom_boxplot(aes(x = species, y = fd), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = fd), width = 0.2, alpha = 0.2) +
-    geom_text(aes(x = species, y = 65, label = Letters), fontface = 'bold', data = fd.spp.labs) +
+    geom_text(aes(x = species, y = 65, label = letters), fontface = 'bold', data = fd.spp.tukey.labels) +
     labs(x = 'Species', y = 'Flame Duration (sec)') +
     theme_bw() +
     theme(axis.title = element_text(face = 'bold', size = 17),
@@ -95,12 +82,11 @@ flamm.df %>%
 
 ### Temp. Change
 ```{r}
-tc.spp <- lm(temp_change ~ species, data = flamm.df)
-tc.spp.aov <- aov(temp_change ~ species, data = flamm.df)
-tc.spp.tukey <- TukeyHSD(tc.spp.aov)
-
-# Apply the function on my dataset
-tc.spp.labs <- generate_label_df(tc.spp.tukey)
+tc.spp <- lmer(temp_change ~ species + (1|plant_id), data = flamm.df)
+anova(tc.spp)
+tc.spp.tukey <- emmeans(tc.spp, pairwise ~ species, adjust = 'tukey')
+tc.spp.tukey.df <- summary(tc.spp.tukey$contrasts)
+tc.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'SALLEU', 'SALAPI', 'CEAGRI', 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'ab', 'ab', 'ab', 'b', 'b', 'b')) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'SALLEU', 'SALAPI',
@@ -109,7 +95,7 @@ flamm.df %>%
   ggplot() +
     geom_boxplot(aes(x = species, y = temp_change), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = temp_change), width = 0.2, alpha = 0.2) +
-    geom_text(aes(x = species, y = 65, label = Letters), fontface = 'bold', data = tc.spp.labs) +
+    geom_text(aes(x = species, y = 45, label = letters), fontface = 'bold', data = tc.spp.tukey.labels) +
     labs(x = 'Species', y = 'Temp. Change') +
     theme_bw() +
     theme(axis.title = element_text(face = 'bold', size = 17),
@@ -119,20 +105,19 @@ flamm.df %>%
 
 ### Heat Flux Change
 ```{r}
-hf.spp <- lm(heat_flux_change ~ species, data = flamm.df)
-hf.spp.aov <- aov(heat_flux_change ~ species, data = flamm.df)
-hf.spp.tukey <- TukeyHSD(hf.spp.aov)
- 
-# Apply the function on my dataset
-hf.spp.labs <- generate_label_df(hf.spp.tukey)
+hf.spp <- lmer(heat_flux_change ~ species + (1|plant_id), data = flamm.df)
+anova(hf.spp)
+hf.spp.tukey <- emmeans(hf.spp, pairwise ~ species, adjust = 'tukey')
+hf.spp.tukey.df <- summary(hf.spp.tukey$contrasts)
+hf.spp.tukey.labels <- data.frame(species = c('HETARB', 'SALAPI', 'MALLAU', 'CEAGRI', 'SALLEU', 'MANDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'ab', 'abc', 'abc', 'bc', 'bc', 'bc', 'bc', 'c')) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 flamm.df %>%
-  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'SALAPI', 'CEAGRI', 'SALLEU',
-                                                   'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'SALAPI', 'MALLAU', 'CEAGRI', 'SALLEU',
+                                                   'MANDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = heat_flux_change), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = heat_flux_change), width = 0.2, alpha = 0.2) +
-    geom_text(aes(x = species, y = 0.28, label = Letters), fontface = 'bold', data = hf.spp.labs) +
+    geom_text(aes(x = species, y = 0.28, label = letters), fontface = 'bold', data = hf.spp.tukey.labels) +
     labs(x = 'Species', y = 'Heat Flux Change') +
     theme_bw() +
     theme(axis.title = element_text(face = 'bold', size = 17),
@@ -145,12 +130,11 @@ flamm.df %>%
 ### Wet Weight
 Because all of the 'sample size' metrics are pretty similar, I think looking at only one, at least for now will work. Wet weight has been instrumental in previous analyses, so we will use it below
 ```{r}
-ww.spp <- lm(ww_flam_sample ~ species, data = flamm.df)
-ww.spp.aov <- aov(ww_flam_sample ~ species, data = flamm.df)
-ww.spp.tukey <- TukeyHSD(ww.spp.aov)
- 
-# Apply the function on my dataset
-ww.spp.labs <- generate_label_df(ww.spp.tukey)
+ww.spp <- lmer(ww_flam_sample ~ species + (1|plant_id), data = flamm.df)
+anova(ww.spp)
+ww.spp.tukey <- emmeans(ww.spp, pairwise ~ species, adjust = 'tukey')
+ww.spp.tukey.df <- summary(ww.spp.tukey$contrasts)
+ww.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'SALAPI', 'CEAGRI', 'SALLEU', 'MANDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'a', 'ab', 'bcd', 'cd', 'cd', 'd', 'd', 'd')) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'SALAPI', 'CEAGRI',
@@ -158,31 +142,8 @@ flamm.df %>%
   ggplot() +
     geom_boxplot(aes(x = species, y = ww_flam_sample), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = ww_flam_sample), width = 0.2, alpha = 0.2) +
-    geom_text(aes(x = species, y = 20, label = Letters), fontface = 'bold', data = ww.spp.labs) +
+    geom_text(aes(x = species, y = 20, label = letters), fontface = 'bold', data = ww.spp.tukey.labels) +
     labs(x = 'Species', y = 'Wet Weight') +
-    theme_bw() +
-    theme(axis.title = element_text(face = 'bold', size = 17),
-          axis.text.x = element_text(size = 13, angle = 10),
-          axis.text.y = element_text(size = 15))
-```
-
-### LFM
-```{r}
-lfm.spp <- lm(lfm ~ species, data = flamm.df)
-lfm.spp.aov <- aov(lfm ~ species, data = flamm.df)
-lfm.spp.tukey <- TukeyHSD(lfm.spp.aov)
- 
-# Apply the function on my dataset
-lfm.spp.labs <- generate_label_df(lfm.spp.tukey)
-
-flamm.df %>%
-  mutate(species = fct_relevel(species, levels = c('HETARB', 'SALLEU', 'MALLAU', 'CEAGRI',
-                                                   'ARTCAL', 'MANDEN', 'IRIDOU', 'SALAPI', 'ERIKAR'))) %>% 
-  ggplot() +
-    geom_boxplot(aes(x = species, y = lfm), outlier.shape = NA, alpha= 0.8) +
-    geom_jitter(aes(x = species, y = lfm), width = 0.2, alpha = 0.2) +
-    geom_text(aes(x = species, y = 320, label = Letters), fontface = 'bold', data = lfm.spp.labs) +
-    labs(x = 'Species', y = 'Live Fuel Moisture') +
     theme_bw() +
     theme(axis.title = element_text(face = 'bold', size = 17),
           axis.text.x = element_text(size = 13, angle = 10),
@@ -191,20 +152,18 @@ flamm.df %>%
 
 ### MPa
 ```{r}
-mpa.spp <- lm(mpa ~ species, data = flamm.df)
-mpa.spp.aov <- aov(mpa ~ species, data = flamm.df)
-mpa.spp.tukey <- TukeyHSD(mpa.spp.aov)
- 
-# Apply the function on my dataset
-mpa.spp.labs <- generate_label_df(mpa.spp.tukey)
+mpa.spp <- lmer(mpa ~ species + (1|plant_id), data = flamm.df)
+anova(mpa.spp)
+mpa.spp.tukey <- emmeans(mpa.spp, pairwise ~ species, adjust = 'tukey')
+mpa.spp.tukey.df <- summary(mpa.spp.tukey$contrasts)
+mpa.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'ARTCAL', 'ERIKAR', 'HETARB', 'MALLAU', 'SALLEU', 'MANDEN', 'SALAPI', 'IRIDOU'), letters = c('a', 'b', 'bc', 'bc', 'bc', 'bcd', 'bcd', 'cd', 'd')) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 flamm.df %>%
-  mutate(species = fct_relevel(species, levels = c('CEAGRI', 'ARTCAL', 'ERIKAR', 'SALLEU',
-                                                   'MANDEN', 'HETARB', 'MALLAU', 'SALAPI', 'IRIDOU'))) %>% 
+  mutate(species = fct_relevel(species, levels = c('CEAGRI', 'ARTCAL', 'ERIKAR', 'HETARB', 'MALLAU', 'SALLEU', 'MANDEN', 'SALAPI', 'IRIDOU'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = mpa), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = mpa), width = 0.2, alpha = 0.2) +
-    geom_text(aes(x = species, y = 0.6, label = Letters), fontface = 'bold', data = mpa.spp.labs) +
+    geom_text(aes(x = species, y = 0.55, label = letters), fontface = 'bold', data = mpa.spp.tukey.labels) +
     labs(x = 'Species', y = 'Water Potential') +
     theme_bw() +
     theme(axis.title = element_text(face = 'bold', size = 17),
