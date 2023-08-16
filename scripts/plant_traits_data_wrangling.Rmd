@@ -391,6 +391,21 @@ main_df <- main_df %>%
   mutate(branch_volume = branch_length*branch_width*branch_height)
 ```
 
+# Branching
+For branching, Rob suggested we use a branching per sample length metric that gives us more information regarding the 'bushiness' of the sample rather than just the number of branches
+```{r}
+main_df <- main_df %>% 
+  rename(no_branches = branching) %>%  # to rename the initial variable to reflect # of branches so that 'branching' reflects what we're actually interested in
+  mutate(branching = (no_branches + 1)/branch_length)
+```
+
+# Density
+Also following a suggestion from Rob, using sample density (g/cm3) as a comparable variable to fuel density which is of-concern on the landscape scale
+```{r}
+main_df <- main_df %>% 
+  mutate(sample_density = sample_wt/branch_volume)
+```
+
 # Dealing w/ NAs
 For some of the plant traits, there are NA values that are due to randomly missing data. For these, we'd like to keep the datapoints in the analysis, but -- to do so -- we'll have to impute the data by using either the median or the mean values. First, we should take a look at which values are NA that we could deal with
 ```{r}
