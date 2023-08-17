@@ -35,7 +35,7 @@ flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 # Data Wrangling 
 ```{r}
 flamm.df <- flamm.df %>% 
-  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'IRIDOU', 'MANDEN', 'HETARB')) %>% 
+  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'IRIDOU')) %>% 
   filter(ignition != '0') %>% 
   unite('id', c(species, plant, rep), sep = '_', remove = F)
 ```
@@ -161,12 +161,12 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40", "red", 'blue')) + 
+  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40")) + 
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'Flamm.PCA1.all.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PCA1.all.ignitions.png'), height = 7, width = 9)
 ```
 
 ## 1.2. PCA Table
@@ -181,7 +181,7 @@ tab_pca(pcobj, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'Flamm.PC.Table1.all.ignitions.html'))
+  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PC.Table1.all.ignitions.html'))
 ```
 
 ## Adding PC Scores to Data
@@ -320,12 +320,12 @@ ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40", "red", 'blue')) + 
+  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40")) + 
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'Traits.PCA1.all.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PCA1.all.ignitions.png'), height = 7, width = 9)
 ```
 
 ## 2.2. PCA Table
@@ -339,7 +339,7 @@ tab_pca(pcobj2, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'Traits.PC.Table1.all.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PC.Table1.all.ignitions.html')) 
 ```
 
 ## Adding PC Scores to Data
@@ -388,7 +388,7 @@ pca_df_main %>%
     theme(axis.title = element_text(size = 16, face = 'bold'),
           axis.text = element_text(size = 13),
           strip.text = element_text(size = 13, face = 'bold'))
-ggsave(here('figures', 'PCA', 'PC.Regressions1.all.ignitions.png'), height = 8, width = 10)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'PC.Regressions1.all.ignitions.png'), height = 8, width = 10)
 ```
 
 ## Second-order PCA
@@ -418,7 +418,8 @@ print(second_order_pcobj) # PC1: flame height, flame duration, max temp and max 
 ggbiplot(second_order_pcobj,
          groups = second_order_pca_df$species,
          ellipse = TRUE, varname.size = 5, alpha = 0.5) +
-  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40", "red", 'blue')) +
+  scale_color_manual(values = c('black', 'gray50', 'goldenrod', 'skyblue',
+                                 'red', 'darkblue')) +
   theme_bw()
 
 # eigenvalue table
@@ -561,12 +562,12 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40", "red", 'blue')) + 
+  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40")) + 
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'FlammandTraits.PCA5.all.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'FlammandTraits.PCA5.all.ignitions.png'), height = 7, width = 9)
 ```
 
 ## 4.2. PCA Table
@@ -580,7 +581,7 @@ tab_pca(pcobj, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'FlammandTraits.PC.Table.all.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'FlammandTraits.PC.Table.all.ignitions.html')) 
 ```
 
 # ----------------------------
@@ -589,7 +590,7 @@ tab_pca(pcobj, rotation = 'varimax',
 ## Data Wrangling
 ```{r}
 flamm.split.df <- flamm.df %>% 
-  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'HETARB', 'MANDEN')) # No IRIDOU
+  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU')) # No IRIDOU
 
 flamm.manual.df <- flamm.split.df %>% 
   filter(ignition == 'M')
@@ -722,12 +723,12 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40", "red")) + 
+  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple")) + 
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'Flamm.PCA2.manual.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PCA2.manual.ignitions.png'), height = 7, width = 9)
 ```
 
 #### 1.2. PCA Table
@@ -742,7 +743,7 @@ tab_pca(pcobj, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'Flamm.PC.Table2.manual.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PC.Table2.manual.ignitions.html')) 
 ```
 
 #### Adding PC Scores to Data
@@ -881,12 +882,12 @@ ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40", "red")) + 
+  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40")) + 
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'Traits.PCA2.manual.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PCA2.manual.ignitions.png'), height = 7, width = 9)
 ```
 
 #### 2.2. PCA Table
@@ -900,7 +901,7 @@ tab_pca(pcobj2, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'Traits.PC.Table2.manual.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PC.Table2.manual.ignitions.html')) 
 ```
 
 #### Adding PC Scores to Data
@@ -949,7 +950,7 @@ pca_df_main %>%
     theme(axis.title = element_text(size = 16, face = 'bold'),
           axis.text = element_text(size = 13),
           strip.text = element_text(size = 13, face = 'bold'))
-ggsave(here('figures', 'PCA', 'PC.Regressions2.manual.ignitions.png'), height = 8, width = 10)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'PC.Regressions2.manual.ignitions.png'), height = 8, width = 10)
 ```
 ### -*-*-*-*-*-
 
@@ -1075,12 +1076,12 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40", "red")) + 
+  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40")) + 
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'Flamm.PCA3.natural.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PCA3.natural.ignitions.png'), height = 7, width = 9)
 ```
 
 #### 1.2. PCA Table
@@ -1095,7 +1096,7 @@ tab_pca(pcobj, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'Flamm.PC.Table3.natural.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PC.Table3.natural.ignitions.html')) 
 ```
 
 #### Adding PC Scores to Data
@@ -1233,12 +1234,12 @@ ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40", "red")) + 
+  scale_color_manual(values = c("black", "orange", "yellow", "skyblue", "purple", "gray40")) + 
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'Traits.PCA3.natural.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PCA3.natural.ignitions.png'), height = 7, width = 9)
 ```
 
 #### 2.2. PCA Table
@@ -1252,7 +1253,7 @@ tab_pca(pcobj2, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'Traits.PC.Table3.natural.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PC.Table3.natural.ignitions.html')) 
 ```
 
 #### Adding PC Scores to Data
@@ -1301,5 +1302,5 @@ pca_df_main %>%
     theme(axis.title = element_text(size = 16, face = 'bold'),
           axis.text = element_text(size = 13),
           strip.text = element_text(size = 13, face = 'bold'))
-ggsave(here('figures', 'PCA', 'PC.Regressions3.natural.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'PC.Regressions3.natural.ignitions.png'), height = 7, width = 9)
 ```
