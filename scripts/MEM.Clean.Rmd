@@ -621,6 +621,7 @@ Significance: speciesMALLAU and sample_wt are significant (only for AIC-based)
 Note: from above models, selecting top models with variables we're interested in looking at in further detail
 
 ## Flame Height
+MAIN:
 Branching:
 ```{r}
 fh_mod <- lmer(fh ~ branching + sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
@@ -628,16 +629,17 @@ fh_mod <- lmer(fh ~ branching + sample_wt + species + (1|plant_id), data = mem.d
 mem.df$r_fh <- remef(fh_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
 
 # With REMEF
-ggplot(mem.df, aes(x = branching, y = r_fh))  +
+fh.branching.remef <- ggplot(mem.df, aes(x = branching, y = r_fh))  +
   geom_point(alpha = 0.8, color = 'gray20') +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 0.9)+ 
   stat_regline_equation(label.y = 1.2) +
-  labs(x = 'Branching (scaled)', y = 'Flame Height (effects removed, scaled)') +
+  labs(x = 'Branching (scaled)', y = 'Flame Height') +
   theme_bw() +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
-ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.fh.png'), width = 8, height = 5.5)
+fh.branching.remef
+#ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.fh.png'), width = 8, height = 5.5)
 
 # Split by Species
 mem.df %>%  filter(species != 'HETARB') %>% 
@@ -754,6 +756,7 @@ ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.fh.spp.png'), width = 8, height =
 ```
 
 ## Flame Duration
+MAIN:
 Branching:
 ```{r}
 fd_mod <- lmer(fd ~ branching + sample_wt + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
@@ -761,16 +764,17 @@ fd_mod <- lmer(fd ~ branching + sample_wt + (1|plant_id), data = mem.df, REML = 
 mem.df$r_fd <- remef(fd_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
 
 # With REMEF
-ggplot(mem.df, aes(x = branching, y = r_fd))  +
+fd.branching.remef <- ggplot(mem.df, aes(x = branching, y = r_fd))  +
   geom_point(alpha = 0.8, color = 'gray20') +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 1.9)+ 
   stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Branching (scaled)', y = 'Flame Duration (effects removed, scaled)') +
+  labs(x = 'Branching (scaled)', y = 'Flame Duration') +
   theme_bw() +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
-ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.fd.png'), width = 8, height = 5.5)
+fd.branching.remef
+#ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.fd.png'), width = 8, height = 5.5)
 
 # Split by Species
 mem.df %>%  filter(species != 'HETARB') %>% 
@@ -854,6 +858,41 @@ ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.fd.spp.png'), width = 8, height =
 ```
 
 ## Heat Flux Change
+MAIN:
+Leaf mass ratio:
+```{r}
+hf_mod <- lmer(heat_flux_change ~ leaf_mass_ratio + sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
+
+mem.df$r_hf <- remef(hf_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
+
+# With REMEF
+hf.lmr.remef <- ggplot(mem.df, aes(x = leaf_mass_ratio, y = r_hf))  +
+  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 1.9)+ 
+  stat_regline_equation(label.y = 2.3) +
+  labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+hf.lmr.remef
+#ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.png'), width = 8, height = 5.5)
+
+# Split by Species
+mem.df %>%  filter(species != 'HETARB') %>% 
+ggplot(aes(x = leaf_mass_ratio, y = r_hf))  +
+  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  facet_wrap(~species, scales = 'free') +
+  stat_cor(label.y = 1.25)+ 
+  stat_regline_equation(label.y = 1.5) +
+  labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change (effects removed, scaled)') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.spp.png'), width = 8, height = 5.5)
+```
+
 Sample Weight:
 ```{r}
 hf_mod <- lmer(heat_flux_change ~ sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
@@ -885,39 +924,6 @@ ggplot(aes(x = mpa, y = r_hf))  +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
 ggsave(here('figures', 'MEM', 'REMEF', 'sw.vs.heatflux.spp.png'), width = 8, height = 5.5)
-```
-
-Leaf mass ratio:
-```{r}
-hf_mod <- lmer(heat_flux_change ~ leaf_mass_ratio + sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
-
-mem.df$r_hf <- remef(hf_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
-
-# With REMEF
-ggplot(mem.df, aes(x = leaf_mass_ratio, y = r_hf))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
-  geom_smooth(method = 'lm', color = 'gray40') +
-  stat_cor(label.y = 1.9)+ 
-  stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change (effects removed, scaled)') +
-  theme_bw() +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
-ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.png'), width = 8, height = 5.5)
-
-# Split by Species
-mem.df %>%  filter(species != 'HETARB') %>% 
-ggplot(aes(x = leaf_mass_ratio, y = r_hf))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
-  geom_smooth(method = 'lm', color = 'gray40') +
-  facet_wrap(~species, scales = 'free') +
-  stat_cor(label.y = 1.25)+ 
-  stat_regline_equation(label.y = 1.5) +
-  labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change (effects removed, scaled)') +
-  theme_bw() +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
-ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.spp.png'), width = 8, height = 5.5)
 ```
 
 Thickness:
@@ -987,6 +993,41 @@ ggsave(here('figures', 'MEM', 'REMEF', 'leafarea.vs.heatflux.spp.png'), width = 
 ```
 
 ## Temp. Change
+MAIN
+Branching:
+```{r}
+temp_mod <- lmer(temp_change ~ start_temp + branching + sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
+
+mem.df$r_temp <- remef(temp_mod, fix = c('start_temp', 'sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
+
+# With REMEF
+temp.branching.remef <- ggplot(mem.df, aes(x = branching, y = r_temp))  +
+  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 1.9)+ 
+  stat_regline_equation(label.y = 2.3) +
+  labs(x = 'Branching (scaled)', y = 'Temp. Change') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+temp.branching.remef
+#ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.temp.png'), width = 8, height = 5.5)
+
+# Split by Species
+mem.df %>%  filter(species != 'HETARB') %>% 
+ggplot(aes(x = branching, y = r_temp))  +
+  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  facet_wrap(~species, scales = 'free') +
+  stat_cor(label.y = 3.8)+ 
+  stat_regline_equation(label.y = 4.3) +
+  labs(x = 'Branching (scaled)', y = 'Temp. Change (effects removed, scaled)') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.temp.spp.png'), width = 8, height = 5.5)
+```
+
 Sample weight:
 ```{r}
 temp_mod <- lmer(temp_change ~ start_temp + sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
@@ -1084,35 +1125,12 @@ ggplot(aes(x = mpa, y = r_temp))  +
 ggsave(here('figures', 'MEM', 'REMEF', 'mpa.vs.temp.spp.png'), width = 8, height = 5.5)
 ```
 
-Branching:
+## Arranged
 ```{r}
-temp_mod <- lmer(temp_change ~ start_temp + branching + sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
-
-mem.df$r_temp <- remef(temp_mod, fix = c('start_temp', 'sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
-
-# With REMEF
-ggplot(mem.df, aes(x = branching, y = r_temp))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
-  geom_smooth(method = 'lm', color = 'gray40') +
-  stat_cor(label.y = 1.9)+ 
-  stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Branching (scaled)', y = 'Temp. Change (effects removed, scaled)') +
-  theme_bw() +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
-ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.temp.png'), width = 8, height = 5.5)
-
-# Split by Species
-mem.df %>%  filter(species != 'HETARB') %>% 
-ggplot(aes(x = branching, y = r_temp))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
-  geom_smooth(method = 'lm', color = 'gray40') +
-  facet_wrap(~species, scales = 'free') +
-  stat_cor(label.y = 3.8)+ 
-  stat_regline_equation(label.y = 4.3) +
-  labs(x = 'Branching (scaled)', y = 'Temp. Change (effects removed, scaled)') +
-  theme_bw() +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
-ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.temp.spp.png'), width = 8, height = 5.5)
+ggarrange(fh.branching.remef, fd.branching.remef, temp.branching.remef, hf.lmr.remef,
+          labels = c('A', 'B', 'C', 'D'), 
+          font.label = list(size = 28),
+          ncol = 2, nrow = 2)
+ggsave(here('figures', 'main_figures', 'remef.scatterplots.png'), height = 8, width = 10)
 ```
+

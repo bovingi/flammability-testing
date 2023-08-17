@@ -31,8 +31,8 @@ ggbiplot = ggbiplot::ggbiplot
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 
 # excluding MANDEN and HETARB
-flamm.df <- flamm.df %>% 
-  filter(species != 'MANDEN' & species != 'HETARB')
+#flamm.df <- flamm.df %>% 
+  #filter(species != 'MANDEN' & species != 'HETARB')
 ```
 
 # Summary Boxplots
