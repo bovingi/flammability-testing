@@ -215,6 +215,33 @@ branching.boxplot <- flamm.df %>%
 branching.boxplot
 ```
 
+### Starting Temp
+```{r}
+st.spp <- lmer(start_temp ~ species + (1|plant_id), data = flamm.df)
+anova(st.spp)
+st.spp.tukey <- emmeans(st.spp, pairwise ~ species, adjust = 'tukey')
+st.spp.tukey.df <- summary(st.spp.tukey$contrasts)
+st.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                              'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'),
+                                  letters = c('b', 'b', 'ab', 'b', 'b', 'ab', 'a', 'b', 'ab'),
+                                  adj = c(0, 6, 0, 6, 0, 6, 0, 6, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
+
+
+flamm.df %>%
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = start_temp), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = start_temp), width = 0.2, alpha = 0.2) +
+    labs(x = 'Species', y = 'Start Temp.') +
+    geom_text(aes(x = species, y = 240 + adj, label = letters), fontface = 'bold',
+              data = st.spp.tukey.labels, size = 6) +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 18),
+          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.y = element_text(size = 15))
+```
+
 ### Avg. VOC Emissions
 ```{r}
 flamm.df %>%
@@ -437,6 +464,7 @@ fviz_nbclust(kmeans_scaled_df, kmeans, method = "silhouette") #k = 2
 # run k-means clustering
 #perform k-means clustering with k = 3 clusters
 km <- kmeans(kmeans_scaled_df, centers = 2)
+
 #plot results of final k-means model
 fviz_cluster(km, data = kmeans_scaled_df) +
   scale_color_manual(values = c('goldenrod4', 'gold3')) +
@@ -509,5 +537,27 @@ t.test(fh ~ cluster, data = kmeans_df) # sig. difference
 t.test(fd ~ cluster, data = kmeans_df) # sig. difference
 t.test(temp_change ~ cluster, data = kmeans_df) # sig. difference
 t.test(heat_flux_change ~ cluster, data = kmeans_df) # sig. difference
+```
+
+### Intermediates Between Clusters
+From above cluster plot, choosing samples that are in the 'intermediate space' between clusters (i.e., that area on the inner margins between the two clusters)
+```{r}
+kmeans_df <- kmeans_df %>% 
+  mutate(int_cluster = ifelse(species_id %in% c('SALAPI_217', 'SALAPI_215', 'SALAPI_214', 'SALAPI_201', 'SALAPI_212', 'SALAPI_199', 'SALAPI_197', 'SALLEU_230', 'SALLEU_252', 'SALLEU_245', 'SALLEU_219', 'SALLEU_225', 'SALLEU_224', 'SALLEU_223', 'SALLEU_253', 'SALLEU_256', 'SALLEU_232', 'SALLEU_251', 'SALLEU_246', 'SALLEU_247', 'SALLEU_231', 'MALLAU_185', 'MALLAU_171', 'MALLAU_169', 'MALLAU_168', 'MALLAU_183', 'MALLAU_172', 'MALLAU_175', 'MALLAU_182', 'CEAGRI_86', 'CEAGRI_78', 'CEAGRI_72', 'MANDEN_187', 'MANDEN_188', 'MANDEN_189', 'MANDEN_190', 'MANDEN_192', 'MANDEN_193', 'MANDEN_195', 'HETARB_138', 'HETARB_136'), 1.5, cluster)
+  )
+
+kmeans_df %>% 
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                                 'MANDEN', 'IRIDOU', 'ERIKAR'))) %>% 
+  ggplot(aes(x = species, y = int_cluster, color = as.factor(int_cluster))) +
+    geom_jitter(width = 0.1, height = 0.1) +
+    scale_y_continuous(breaks = c(1:3)) +
+    labs(x = 'Species', y = 'K-Means Cluster', color = 'Cluster #') +
+    theme_bw() +
+    scale_color_manual(values = c('goldenrod4', 'black', 'gold3')) +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 18),
+          axis.text.y = element_text(size = 16), 
+          axis.text.x = element_text(size = 14, angle = 20))
 ```
 
