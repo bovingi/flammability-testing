@@ -19,6 +19,7 @@ library(emmeans) # for tukey-kramer tests (w/ random effects)
 library(ggpubr)
 
 here = here::here
+alpha = scales::alpha
 
 # reading in data
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv')) %>% 
@@ -444,13 +445,13 @@ names(kmeans_labels) <- c('fh', 'fd', 'temp_change', 'heat_flux_change', 'lfm', 
 # prepping dataset
 kmeans_df <- flamm.df %>% 
   filter(ignition != 0) %>% 
-  select(species, species_id, ignition, fh, fd, temp_change, heat_flux_change, lfm, mpa, sample_wt, LMA, branching, sample_density) %>% 
+  select(species, species_id, ignition, fh, fd, temp_change, heat_flux_change, lfm, mpa, sample_wt, LMA, branching, sample_density, plant_id) %>% 
   na.omit()
 
 rownames(kmeans_df) <- kmeans_df$species_id
 
 kmeans_scaled_df <- kmeans_df %>% 
-  select(-c(species_id, species, ignition)) %>% 
+  select(-c(species_id, species, ignition, plant_id)) %>% 
   scale() %>% 
   as.data.frame()
 
@@ -546,6 +547,7 @@ kmeans_df <- kmeans_df %>%
   mutate(int_cluster = ifelse(species_id %in% c('SALAPI_217', 'SALAPI_215', 'SALAPI_214', 'SALAPI_201', 'SALAPI_212', 'SALAPI_199', 'SALAPI_197', 'SALLEU_230', 'SALLEU_252', 'SALLEU_245', 'SALLEU_219', 'SALLEU_225', 'SALLEU_224', 'SALLEU_223', 'SALLEU_253', 'SALLEU_256', 'SALLEU_232', 'SALLEU_251', 'SALLEU_246', 'SALLEU_247', 'SALLEU_231', 'MALLAU_185', 'MALLAU_171', 'MALLAU_169', 'MALLAU_168', 'MALLAU_183', 'MALLAU_172', 'MALLAU_175', 'MALLAU_182', 'CEAGRI_86', 'CEAGRI_78', 'CEAGRI_72', 'MANDEN_187', 'MANDEN_188', 'MANDEN_189', 'MANDEN_190', 'MANDEN_192', 'MANDEN_193', 'MANDEN_195', 'HETARB_138', 'HETARB_136'), 1.5, cluster)
   )
 
+# species differences
 kmeans_df %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
                                                  'MANDEN', 'IRIDOU', 'ERIKAR'))) %>% 
@@ -559,5 +561,127 @@ kmeans_df %>%
           axis.title = element_text(face = 'bold', size = 18),
           axis.text.y = element_text(size = 16), 
           axis.text.x = element_text(size = 14, angle = 20))
+
+kmeans_df %>% 
+  filter(heat_flux_change < 0.3, sample_density < 0.4, temp_change < 50) %>% 
+  pivot_longer(cols = c(fh, fd, temp_change, heat_flux_change, lfm, mpa, sample_wt, LMA, branching, sample_density), names_to = 'var', values_to = 'val') %>% 
+  ggplot(aes(x = as.factor(int_cluster), y = val, color = as.factor(int_cluster))) +
+    geom_boxplot(outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(width = 0.2, alpha = 0.2) +
+    facet_wrap(~var, scales = 'free', labeller = labeller(var = kmeans_labels), ncol = 5) +
+    geom_text(data = plot.labels.df, mapping = aes(x = -Inf, y = -Inf, label = label),
+              color = 'black', hjust = -0.9, vjust = -11.2, size = 10, fontface = 'bold') +
+    labs(x = 'K-Means Cluster') +
+    scale_color_manual(values = c('goldenrod4', 'black', 'gold3')) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title.x = element_text(face = 'bold', size = 17),
+          axis.title.y = element_blank(),
+          axis.text = element_text(size = 15),
+          strip.text = element_text(face = 'bold', size = 15))
 ```
 
+## Traits and Flammability #2
+```{r}
+flamm.df %>% 
+  ggplot(aes(x = branch_volume, y = sample_density)) +
+    geom_point() +
+    theme_bw()
+
+flamm.df %>% 
+  ggplot(aes(x = sample_wt, y = sample_density)) +
+    geom_point() +
+    theme_bw()
+
+woohoo <- flamm.df %>% 
+  select(species, sample_wt, branch_volume, sample_density, branch_length, branch_height, branch_width)
+```
+
+
+```{r}
+set.seed(2)
+# labels
+kmeans_labels <- c('Flame Height', 'Flame Duration', 'Heat Flux Change', 'Live Fuel Moisture (%)', 'Water Potential (-MPa)', 'Sample Weight (g)', 'Leaf Mass Ratio', 'Branching')
+names(kmeans_labels) <- c('fh', 'fd', 'heat_flux_change', 'lfm', 'mpa', 'sample_wt', 'leaf_mass_ratio', 'branching')
+
+# prepping dataset
+kmeans_df2 <- flamm.df %>% 
+  filter(ignition != 0) %>% 
+  select(species, species_id, ignition, fh, fd, heat_flux_change, lfm, mpa, sample_wt, leaf_mass_ratio, branching, plant_id) %>% 
+  na.omit()
+
+rownames(kmeans_df2) <- kmeans_df2$species_id
+
+kmeans_scaled_df2 <- kmeans_df2 %>% 
+  select(-c(species_id, species, ignition, plant_id)) %>% 
+  scale() %>% 
+  as.data.frame()
+
+# optimal number of clusters
+# 2 ways to determine optimal cluster 
+# 1. optimal cluster at the elbow
+fviz_nbclust(kmeans_scaled_df2, kmeans, method = "wss") #k = 3 or 4
+# 2. silhouette method
+fviz_nbclust(kmeans_scaled_df2, kmeans, method = "silhouette") #k = 2
+
+# run k-means clustering
+#perform k-means clustering with k = 2 clusters
+km <- kmeans(kmeans_scaled_df2, centers = 3)
+km$cluster <- case_when(km$cluster == 1 ~ 1,
+                         km$cluster == 2 ~ 3,
+                         km$cluster == 3 ~ 2)
+
+#plot results of final k-means model
+fviz_cluster(km, data = kmeans_scaled_df2) +
+  scale_color_manual(values = c('goldenrod4', 'gray40', 'gold3')) +
+  scale_fill_manual(values = c(alpha('goldenrod4', 0.5), alpha('gray40', 0.5), alpha('gold3', 0.5))) +
+  theme_bw() +
+  labs(color = 'K-Means Cluster', shape = 'K-Means Cluster', fill = 'K-Means Cluster') +
+  theme(plot.title = element_blank(),
+        legend.title = element_text(face = 'bold', size = 18),
+        legend.text = element_text(size = 16),
+        legend.position = c(0.15, 0.15),
+        axis.title = element_text(face = 'bold', size = 17),
+        axis.text = element_text(size = 15))
+ggsave(here('figures', 'main_figures', 'traits.flam.k.means.cluster.no2.png'), width = 10, height = 7)
+
+#add cluster assigment to original data
+kmeans_df2 <- cbind(kmeans_df2, cluster = km$cluster)
+
+#visualizing how cluster assignment tracks species
+kmeans_df2 %>% 
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  ggplot(aes(x = species, y = cluster, color = as.factor(cluster))) +
+    geom_jitter(width = 0.1, height = 0.1) +
+    scale_y_continuous(breaks = c(1:max(traits_kmeans_df$cluster))) +
+    labs(x = 'Species', y = 'K-Means Cluster', color = 'Cluster #') +
+    theme_bw() +
+    scale_color_manual(values = c('goldenrod4', 'gray40', 'gold3')) +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 18),
+          axis.text.y = element_text(size = 16), 
+          axis.text.x = element_text(size = 14, angle = 20))
+ggsave(here('figures', 'main_figures', 'spp.vs.k.means.cluster.no2.png'), height = 4.5, width = 9)
+
+plot.labels.df <- data.frame(var = c('branching', 'fd', 'fh', 'heat_flux_change', 'leaf_mass_ratio', 'lfm', 'mpa', 'sample_wt'), label = c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'))
+
+kmeans_df2 %>% 
+  filter(heat_flux_change < 0.3) %>% 
+  pivot_longer(cols = c(fh, fd, heat_flux_change, lfm, mpa, sample_wt, leaf_mass_ratio, branching), names_to = 'var', values_to = 'val') %>% 
+  ggplot(aes(x = as.factor(cluster), y = val, color = as.factor(cluster))) +
+    geom_boxplot(outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(width = 0.2, alpha = 0.2) +
+    facet_wrap(~var, scales = 'free', labeller = labeller(var = kmeans_labels), ncol = 4) +
+    geom_text(data = plot.labels.df, mapping = aes(x = -Inf, y = -Inf, label = label),
+              color = 'black', hjust = -0.9, vjust = -11.2, size = 10, fontface = 'bold') +
+    labs(x = 'K-Means Cluster') +
+    scale_color_manual(values = c('goldenrod4', 'gray40', 'gold3')) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title.x = element_text(face = 'bold', size = 17),
+          axis.title.y = element_blank(),
+          axis.text = element_text(size = 15),
+          strip.text = element_text(face = 'bold', size = 15))
+ggsave(here('figures', 'main_figures', 'traits.flam.k.means.boxplot.no2.png'), width = 17, height = 9)
+```

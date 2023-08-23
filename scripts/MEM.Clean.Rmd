@@ -280,6 +280,48 @@ hf.top.mem <- mem.selection.table(hf.model.df, hf.mod.list, 'HFChange_MEM.html')
   mutate(flam.var = 'heat_flux_change')
 ```
 
+## Testing 'Singular' Models
+Due to the way the function above was written, every MEM had to have at least 2 predictors; however, what if the flam. metrics are better predicted by 1 predictor? The below chunk looks at each of the top predictors in 'singular' models to answer this question
+```{r}
+# Flame Height
+fh.sw <- lmer(fh ~ sample_wt + (1|plant_id), mem.df)
+AIC(fh.sw) # sig. worse than top models
+BIC(fh.sw) # sig. better than top models
+fh.br <- lmer(fh ~ branching + (1|plant_id), mem.df)
+AIC(fh.br) # sig. worse than top models
+BIC(fh.br) # sig. worse than top models
+
+# Flame Duration
+fd.sw <- lmer(fd ~ sample_wt + (1|plant_id), mem.df)
+AIC(fd.sw) # sig. worse than top models
+BIC(fd.sw) # sig. better than top models
+fd.br <- lmer(fd ~ branching + (1|plant_id), mem.df)
+AIC(fd.br) # sig. worse than top models
+BIC(fd.br) # sig. worse than top models
+
+# Temp Change
+temp.sw <- lmer(temp_change ~ sample_wt + (1|plant_id), mem.df)
+AIC(temp.sw) # sig. worse than top models
+BIC(temp.sw) # sig. worse than top models
+temp.br <- lmer(temp_change ~ branching + (1|plant_id), mem.df)
+AIC(temp.br) # sig. worse than top models
+BIC(temp.br) # sig. worse than top models
+temp.lfm <- lmer(temp_change ~ lfm + (1|plant_id), mem.df)
+AIC(temp.lfm) # sig. worse than top models
+BIC(temp.lfm) # sig. worse than top models
+temp.st <- lmer(temp_change ~ start_temp + (1|plant_id), mem.df)
+AIC(temp.st) # sig. worse than top models
+BIC(temp.st) # sig. worse than top models
+
+# Heat Flux
+hf.sw <- lmer(heat_flux_change ~ sample_wt + (1|plant_id), mem.df)
+AIC(hf.sw) # not sig. different from top models
+BIC(hf.sw) # sig. better than top models
+hf.lmr <- lmer(heat_flux_change ~ leaf_mass_ratio + (1|plant_id), mem.df)
+AIC(hf.lmr) # sig. worse than top models
+BIC(hf.lmr) # sig. worse than top models
+```
+
 ## Coefficients Table
 Although the above tables can be helpful for mem selection, they do not provide any information about coefficients or significance of variables; below, using tab_model, we'll do just that
 ```{r}
@@ -566,7 +608,7 @@ for (j in 1:length(BIC_vec)){
  print(paste("Iteration ", j, sep=""))
  
  glm1 <- try( #throwing main variables identified by the information criteria model selection into the LASSO cross-validation process; using plant.id as random effect
- glmmLasso(heat_flux_change ~ species + mpa + lfm + sample_wt + leaf_mass_ratio,
+ glmmLasso(heat_flux_change ~ species + sample_wt + leaf_mass_ratio + lfm + mpa,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
@@ -601,12 +643,12 @@ hf_lambda_bic <- lambda[which.min(BIC_vec)]
 ```
 
 ### Model Selection
-```{r}
-hf_lasso <- glmmLasso(heat_flux_change ~ species + mpa + lfm + sample_wt + leaf_mass_ratio,
+```{r}  
+hf_lasso <- glmmLasso(heat_flux_change ~ species + sample_wt + leaf_mass_ratio + lfm + mpa,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
- lambda = hf_lambda_aic,
+ lambda = hf_lambda_bic,
  switch.NR = TRUE,
  final.re = TRUE)
 

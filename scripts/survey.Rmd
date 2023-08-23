@@ -12,6 +12,7 @@ library(here)
 library(tidyverse)
 library(kableExtra)
 library(HH)
+library(devtools)
 library(likert)
 library(cowplot)
 
@@ -94,6 +95,7 @@ age_table <- demographics %>%
             median = median(age))
 age_table
 ```
+
 ```{r}
 gender_table <- demographics %>% 
   drop_na(gender) %>% 
@@ -237,11 +239,11 @@ plants <- data %>%
  mutate(trait_names = case_when(
     trait == "Produces food or edibles" ~ "Edible", 
     trait == "Fragrant (smells good)" ~ "Fragrant", 
-    trait == "Requires little watering to stay healthy" ~ "Drought tolorant", 
+    trait == "Requires little watering to stay healthy" ~ "Drought tolerant", 
     trait  == "Flowers" ~ "Flowers", 
     writein_trait %in% c("wildlife value and screening", "wildlife habitat", "all of the above, especially wildlife food", "good for honey bees & Humming birds", "Hosts birds, provides shade","Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.") ~ "Wildlife habitat", 
     writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Flowers", 
-    writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Drought tolorant"
+    writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Drought tolerant"
   )) %>% 
   drop_na(trait_names)
 ```
@@ -257,6 +259,17 @@ plants %>%
                     ) +
   theme_bw()
 ```
+
+# Plant species
+```{r}
+species_list_data <- data %>% 
+  dplyr::select(plant1, plant2, plant3, plant4, plant5) %>% 
+  pivot_longer(cols = c(plant1, plant2, plant3, plant4, plant5)) %>% 
+  dplyr::select(-name) %>% 
+  na.omit()
+write.csv(species_list_data, here('data', 'species_list_data.csv'))
+```
+
 
 -----------------------------------------------------------------
 ```{r}
@@ -364,7 +377,6 @@ es_likert_cat <- merge(es_likert_counts, es_likert_df) %>%
          neut_percent = neutral,
          high_percent = high, 
          mean_value = mean)
-melted
 ```
 
 #MAIN FIGURE: 
@@ -442,7 +454,7 @@ reg <-  melted %>%
 reg
 
 prov <-  melted %>% 
-  filter(cat_num == 2) %>% 
+  filter(cat_num == 1) %>% 
   ggplot()+
   geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
   coord_flip() + 

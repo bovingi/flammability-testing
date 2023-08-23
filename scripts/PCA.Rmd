@@ -376,7 +376,7 @@ pca_df_main <- merge(pca_df, pca_df2, by = 'id')
 ## Scatterplots
 ### Stand-alone
 ```{r}
-pc_labels <- c('PC1 (Flamm.)', 'PC2 (Flamm.)', 'PC3 (Flamm.)', 'PC4 (Flamm.)', 'PC1 (Traits)', 'PC2 (Traits)', 'PC3 (Traits)', 'PC4 (Traits)')
+pc_labels <- c('PC1 (Heat Flux)', 'PC2 (FD)', 'PC3 (Temp. Change)', 'PC4 (FH)', 'PC1 (Sample Size)', 'PC2 (Branching, LMA, MPa)', 'PC3 (LFM, Thickness)', 'PC4 (Density, Leaf Ratio)')
 names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC4_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits', 'PC4_traits')
 
 pca_df_main %>% 
@@ -401,11 +401,11 @@ ggsave(here('figures', 'PCA', 'PC.Regressions1.all.ignitions.png'), height = 8, 
 
 ### For Arranged Main Figure
 ```{r}
-pc_labels <- c('PC1 (Flamm.)', 'PC2 (Flamm.)', 'PC1 (Traits)', 'PC2 (Traits)', 'PC3 (Traits)')
-names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits')
+pc_labels <- c('PC1 (Heat Flux)', 'PC2 (FD)', 'PC3 (Temp. Change)', 'PC1 (Sample Size)', 'PC2 (Branching, LMA, MPa)', 'PC3 (LFM, Thickness)')
+names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits')
 
 pc.scatterplot <- pca_df_main %>% 
-  pivot_longer(cols = c(PC1_flamm, PC2_flamm), values_to = 'flamm_pc_score', names_to = 'flamm_pc') %>% 
+  pivot_longer(cols = c(PC1_flamm, PC2_flamm, PC3_flamm), values_to = 'flamm_pc_score', names_to = 'flamm_pc') %>% 
   pivot_longer(cols = c(PC1_traits, PC2_traits, PC3_traits), values_to = 'traits_pc_score', names_to = 'traits_pc') %>% 
   ggplot(aes(x = traits_pc_score, y = flamm_pc_score)) +
     geom_point(alpha = 0.5, aes(color = species)) +
@@ -643,7 +643,7 @@ ggarrange(traits.pca, blank, pc.scatterplot, flam.pca, legend, blank,
           font.label = list(size = 28),
           ncol = 2, nrow = 3,
           heights = c(2, 2, 0.5), widths = c(5, 4))
-ggsave(here('figures', 'main_figures', 'pca.and.scatterplots.png'), height = 12, width = 10)
+ggsave(here('figures', 'main_figures', 'pca.and.scatterplots.png'), height = 14, width = 16)
 ```
 
 
