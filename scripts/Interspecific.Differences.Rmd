@@ -44,11 +44,11 @@ fh.spp <- lmer(fh ~ species + (1|plant_id), data = flamm.df)
 anova(fh.spp)
 fh.spp.tukey <- emmeans(fh.spp, pairwise ~ species, adjust = 'tukey')
 fh.spp.tukey.df <- summary(fh.spp.tukey$contrasts)
-fh.spp.tukey.labels <- data.frame(species = c('HETARB', 'CEAGRI', 'SALAPI', 'MALLAU', 'MANDEN', 'SALLEU', 'ARTCAL', 'IRIDOU', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'ab', 'abc', 'bc', 'bc', 'c', 'c'), adj = c(0, 0, 4, 4, 4, 0, 0, 4, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
+fh.spp.tukey.labels <- data.frame(species = c('HETARB', 'CEAGRI', 'SALAPI', 'MALLAU', 'ARCDEN', 'SALLEU', 'ARTCAL', 'IRIDOU', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'ab', 'abc', 'bc', 'bc', 'c', 'c'), adj = c(0, 0, 4, 4, 4, 0, 0, 4, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 fh.boxplot <- flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot(aes(x = species, y = fh)) +
     geom_boxplot(outlier.shape = NA, alpha= 0.8) +
     geom_jitter(width = 0.2, alpha = 0.2) +
@@ -68,12 +68,12 @@ fd.spp <- lmer(fd ~ species + (1|plant_id), data = flamm.df)
 anova(fd.spp)
 fd.spp.tukey <- emmeans(fd.spp, pairwise ~ species, adjust = 'tukey')
 fd.spp.tukey.df <- summary(fd.spp.tukey$contrasts)
-fd.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'MALLAU', 'HETARB', 'SALLEU', 'MANDEN', 'SALAPI', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'a', 'ab', 'abc', 'abcd', 'bcd', 'cd', 'cd', 'd'), adj = c(0, 4, 0, 0, 4, 4, 4, 0, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
+fd.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'MALLAU', 'HETARB', 'SALLEU', 'ARCDEN', 'SALAPI', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'a', 'ab', 'abc', 'abcd', 'bcd', 'cd', 'cd', 'd'), adj = c(0, 4, 0, 0, 4, 4, 4, 0, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 fd.boxplot <- flamm.df %>%
   filter(fd < 70) %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = fd), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = fd), width = 0.2, alpha = 0.2) +
@@ -93,12 +93,12 @@ tc.spp <- lmer(temp_change ~ species + (1|plant_id), data = flamm.df)
 anova(tc.spp)
 tc.spp.tukey <- emmeans(tc.spp, pairwise ~ species, adjust = 'tukey')
 tc.spp.tukey.df <- summary(tc.spp.tukey$contrasts)
-tc.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'SALLEU', 'SALAPI', 'CEAGRI', 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'ab', 'ab', 'ab', 'b', 'b', 'b'),
+tc.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'SALLEU', 'SALAPI', 'CEAGRI', 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'ab', 'ab', 'ab', 'b', 'b', 'b'),
                                   adj = c(0, 3, 0, 3, 0, 3, 0, 3, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 tc.boxplot <- flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   filter(temp_change < 100) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = temp_change), outlier.shape = NA, alpha= 0.8) +
@@ -119,12 +119,12 @@ hf.spp <- lmer(heat_flux_change ~ species + (1|plant_id), data = flamm.df)
 anova(hf.spp)
 hf.spp.tukey <- emmeans(hf.spp, pairwise ~ species, adjust = 'tukey')
 hf.spp.tukey.df <- summary(hf.spp.tukey$contrasts)
-hf.spp.tukey.labels <- data.frame(species = c('HETARB', 'SALAPI', 'MALLAU', 'CEAGRI', 'SALLEU', 'MANDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'ab', 'abc', 'abc', 'bc', 'bc', 'bc', 'bc', 'c'), adj = c(0, 0.015, 0.015, 0, 0, 0.015, 0.015, 0, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
+hf.spp.tukey.labels <- data.frame(species = c('HETARB', 'SALAPI', 'MALLAU', 'CEAGRI', 'SALLEU', 'ARCDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'ab', 'abc', 'abc', 'bc', 'bc', 'bc', 'bc', 'c'), adj = c(0, 0.015, 0.015, 0, 0, 0.015, 0.015, 0, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 hf.boxplot <- flamm.df %>%
   filter(heat_flux_change < 0.3) %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = heat_flux_change), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = heat_flux_change), width = 0.2, alpha = 0.2) +
@@ -147,12 +147,12 @@ sw.spp <- lmer(sample_wt ~ species + (1|plant_id), data = flamm.df)
 anova(sw.spp)
 sw.spp.tukey <- emmeans(sw.spp, pairwise ~ species, adjust = 'tukey')
 sw.spp.tukey.df <- summary(sw.spp.tukey$contrasts)
-sw.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'SALAPI', 'CEAGRI', 'SALLEU', 'MANDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'a', 'b', 'bc', 'c', 'c', 'c', 'c', 'c'), 
+sw.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'SALAPI', 'CEAGRI', 'SALLEU', 'ARCDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'a', 'b', 'bc', 'c', 'c', 'c', 'c', 'c'), 
                                   adj = c(0, 1.7, 1.7, 0, 0, 1.7, 1.7, 0, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 sw.boxplot <- flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = sample_wt), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = sample_wt), width = 0.2, alpha = 0.2) +
@@ -172,11 +172,11 @@ mpa.spp <- lmer(mpa ~ species + (1|plant_id), data = flamm.df)
 anova(mpa.spp)
 mpa.spp.tukey <- emmeans(mpa.spp, pairwise ~ species, adjust = 'tukey')
 mpa.spp.tukey.df <- summary(mpa.spp.tukey$contrasts)
-mpa.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'ARTCAL', 'ERIKAR', 'HETARB', 'MALLAU', 'SALLEU', 'MANDEN', 'SALAPI', 'IRIDOU'), letters = c('a', 'b', 'bc', 'bc', 'bc', 'bcd', 'bcd', 'cd', 'd'), adj = c(0, 0, 0, 0, 0.025, 0, 0.025, 0.025, 0.025)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
+mpa.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'ARTCAL', 'ERIKAR', 'HETARB', 'MALLAU', 'SALLEU', 'ARCDEN', 'SALAPI', 'IRIDOU'), letters = c('a', 'b', 'bc', 'bc', 'bc', 'bcd', 'bcd', 'cd', 'd'), adj = c(0, 0, 0, 0, 0.025, 0, 0.025, 0.025, 0.025)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 mpa.boxplot <- flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = mpa), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = mpa), width = 0.2, alpha = 0.2) +
@@ -196,13 +196,13 @@ branching.spp <- lmer(branching ~ species + (1|plant_id), data = flamm.df)
 anova(branching.spp)
 branching.spp.tukey <- emmeans(branching.spp, pairwise ~ species, adjust = 'tukey')
 branching.spp.tukey.df <- summary(branching.spp.tukey$contrasts)
-branching.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'MANDEN', 'SALLEU', 'ARTCAL', 'MALLAU', 'HETARB', 'ERIKAR', 'SALAPI', 'IRIDOU'), letters = c('a', 'ab', 'ab', 'ab', 'bc', 'bc', 'c', 'c', 'c'),
+branching.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'ARCDEN', 'SALLEU', 'ARTCAL', 'MALLAU', 'HETARB', 'ERIKAR', 'SALAPI', 'IRIDOU'), letters = c('a', 'ab', 'ab', 'ab', 'bc', 'bc', 'c', 'c', 'c'),
                                          adj = c(0, 0.035, 0, 0, 0.035, 0, 0, 0.035, 0.035)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 branching.boxplot <- flamm.df %>%
   filter(branching < 0.75) %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = branching), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = branching), width = 0.2, alpha = 0.2) +
@@ -223,14 +223,14 @@ anova(st.spp)
 st.spp.tukey <- emmeans(st.spp, pairwise ~ species, adjust = 'tukey')
 st.spp.tukey.df <- summary(st.spp.tukey$contrasts)
 st.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                              'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'),
+                                              'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'),
                                   letters = c('b', 'b', 'ab', 'b', 'b', 'ab', 'a', 'b', 'ab'),
                                   adj = c(0, 6, 0, 6, 0, 6, 0, 6, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 
 flamm.df %>%
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = start_temp), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = start_temp), width = 0.2, alpha = 0.2) +
@@ -246,7 +246,7 @@ flamm.df %>%
 ### Avg. VOC Emissions
 ```{r}
 flamm.df %>%
-  filter(species != 'MANDEN') %>% 
+  filter(species != 'ARCDEN') %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI',
                                         'SALLEU', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   dplyr::group_by(species) %>% 
@@ -354,7 +354,7 @@ flamm_kmeans_df %>%
          `2` = ifelse(is.na(`2`), 0, `2`)) %>% 
   mutate(kmeans.flam.index = (`2`)/(`2` + `1`)) %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                   'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                   'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot(aes(x = species, y = kmeans.flam.index, color = species)) +
     geom_point(size = 7) +
     labs(x = 'Species', y = 'K-Means Clustering: Combustibility Index') +
@@ -486,7 +486,7 @@ kmeans_df <- cbind(kmeans_df, cluster = km$cluster)
 #visualizing how cluster assignment tracks species
 kmeans_df %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot(aes(x = species, y = cluster, color = as.factor(cluster))) +
     geom_jitter(width = 0.1, height = 0.1) +
     scale_y_continuous(breaks = c(1:max(traits_kmeans_df$cluster))) +
@@ -544,13 +544,13 @@ t.test(heat_flux_change ~ cluster, data = kmeans_df) # sig. difference
 From above cluster plot, choosing samples that are in the 'intermediate space' between clusters (i.e., that area on the inner margins between the two clusters)
 ```{r}
 kmeans_df <- kmeans_df %>% 
-  mutate(int_cluster = ifelse(species_id %in% c('SALAPI_217', 'SALAPI_215', 'SALAPI_214', 'SALAPI_201', 'SALAPI_212', 'SALAPI_199', 'SALAPI_197', 'SALLEU_230', 'SALLEU_252', 'SALLEU_245', 'SALLEU_219', 'SALLEU_225', 'SALLEU_224', 'SALLEU_223', 'SALLEU_253', 'SALLEU_256', 'SALLEU_232', 'SALLEU_251', 'SALLEU_246', 'SALLEU_247', 'SALLEU_231', 'MALLAU_185', 'MALLAU_171', 'MALLAU_169', 'MALLAU_168', 'MALLAU_183', 'MALLAU_172', 'MALLAU_175', 'MALLAU_182', 'CEAGRI_86', 'CEAGRI_78', 'CEAGRI_72', 'MANDEN_187', 'MANDEN_188', 'MANDEN_189', 'MANDEN_190', 'MANDEN_192', 'MANDEN_193', 'MANDEN_195', 'HETARB_138', 'HETARB_136'), 1.5, cluster)
+  mutate(int_cluster = ifelse(species_id %in% c('SALAPI_217', 'SALAPI_215', 'SALAPI_214', 'SALAPI_201', 'SALAPI_212', 'SALAPI_199', 'SALAPI_197', 'SALLEU_230', 'SALLEU_252', 'SALLEU_245', 'SALLEU_219', 'SALLEU_225', 'SALLEU_224', 'SALLEU_223', 'SALLEU_253', 'SALLEU_256', 'SALLEU_232', 'SALLEU_251', 'SALLEU_246', 'SALLEU_247', 'SALLEU_231', 'MALLAU_185', 'MALLAU_171', 'MALLAU_169', 'MALLAU_168', 'MALLAU_183', 'MALLAU_172', 'MALLAU_175', 'MALLAU_182', 'CEAGRI_86', 'CEAGRI_78', 'CEAGRI_72', 'ARCDEN_187', 'ARCDEN_188', 'ARCDEN_189', 'ARCDEN_190', 'ARCDEN_192', 'ARCDEN_193', 'ARCDEN_195', 'HETARB_138', 'HETARB_136'), 1.5, cluster)
   )
 
 # species differences
 kmeans_df %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot(aes(x = species, y = int_cluster, color = as.factor(int_cluster))) +
     geom_jitter(width = 0.1, height = 0.1) +
     scale_y_continuous(breaks = c(1:3)) +
@@ -651,7 +651,7 @@ kmeans_df2 <- cbind(kmeans_df2, cluster = km$cluster)
 #visualizing how cluster assignment tracks species
 kmeans_df2 %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                 'MANDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot(aes(x = species, y = cluster, color = as.factor(cluster))) +
     geom_jitter(width = 0.1, height = 0.1) +
     scale_y_continuous(breaks = c(1:max(traits_kmeans_df$cluster))) +

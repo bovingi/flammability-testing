@@ -30,9 +30,9 @@ ggbiplot = ggbiplot::ggbiplot
 # reading in data
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 
-# excluding MANDEN and HETARB
+# excluding ARCDEN and HETARB
 #flamm.df <- flamm.df %>% 
-  #filter(species != 'MANDEN' & species != 'HETARB')
+  #filter(species != 'ARCDEN' & species != 'HETARB')
 ```
 
 # Summary Boxplots
@@ -66,7 +66,7 @@ names(flam_labels) <- c('fh', 'fd', 'temp_change', 'heat_flux_change', 'pfg', 'p
 flamm.df.long <- flamm.df %>% 
   select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, temp_change, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample, branch_volume, heat_flux_change) %>%  # took out  gd, gti, ttfg for now
   pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample, branch_volume), names_to = 'trait', values_to = 'value') %>% 
-  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) #note that EUGL needs to change to EUCGLO
 
 flamm.df.long %>% 
 ggplot(aes(x = species, y = value, color = species)) +
@@ -193,7 +193,7 @@ exploratory_scatterplot(flamm.df.long.scatter$thickness, 'Leaf Thickness')
 flamm.df %>% 
   group_by(species) %>%
   dplyr::summarise(n = n(), prop_ig = prop_ig) %>% 
-  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) %>% 
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) %>% 
   ggplot(aes(x = species, y = prop_ig, color = species)) +
     scale_y_continuous(limits = c(0,1)) +
     geom_point(size = 10) +
@@ -274,19 +274,6 @@ ggbiplot(traits_pca,
 # eigenvalue table
 tab_pca(traits_pca, rotation = 'varimax') # From package sjPlot
 ```
-
-# DELETE LATER - JUST TO SHOW KF SOMETHING
-```{r}
-flamm_pca_df %>% 
-  select(-prop_ig) %>% 
-  pivot_longer(cols = !c(species, ignition), values_to = 'val', names_to = 'var') %>% 
-  ggplot(aes(x = species, y = val, color = ignition)) +
-    geom_boxplot() +
-    theme_bw() +
-    labs(x = 'Species', y = 'Flam. Metric Value', color = 'Ignition') +
-    facet_wrap(~var, scales = 'free')
-```
-
 
 # k-means Clustering
 ## Flamm Metrics
@@ -387,7 +374,7 @@ traits_kmeans_df <- cbind(traits_pca_df, id) %>%
 rownames(traits_kmeans_df) <- traits_kmeans_df$species_id
 
 traits_kmeans_scaled_df <- traits_kmeans_df %>% 
-  select(-c(species_id, species, id)) %>% 
+  select(-c(species_id, species, id, ignition)) %>% 
   scale() %>% 
   as.data.frame()
 
@@ -513,7 +500,7 @@ rm(flamm.df.hp.ht.prop.ig1, flamm.df.hp.ht.prop.ig2) # Decluttering environment 
 
 flamm.df.hp.ht.prop.ig %>% 
   filter(n > 5) %>% 
-  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) %>% 
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) %>% 
   ggplot(aes(x = hotplate_height, y = prop_ig, color = species)) +
     scale_y_continuous(limits = c(0,1)) +
     scale_color_manual(values = c('black', 'gray50', 'goldenrod', 'skyblue', 'red', 'darkblue', 'deeppink', 'brown', 'yellowgreen', 'darkgreen')) +
@@ -583,6 +570,55 @@ flamm.df %>%
 t.test(start_temp ~ thermocoupler_height, data = flamm.df)
 ```
 
+# Sampling Date vs. Flam. Metrics
+```{r}
+flamm.df %>%   
+  select(date, species, plant, rep, fh, fd, lfm, mpa, temp_change, heat_flux_change) %>%  # took out  gd, gti, ttfg for now
+  pivot_longer(!c(date, species, plant, rep), names_to = 'flam_metric', values_to = 'value') %>% 
+  ggplot(aes(x = date, y = value, color = species)) +
+    geom_point(alpha = 0.6, size = 1.5) +
+    labs(x = 'Date', y = 'Flamm. Metric Value', color = 'Species')  +
+    facet_wrap(~flam_metric, ncol = 3, scales = 'free_y') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+          axis.text.y = element_text(size = 14),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 16),
+          legend.text = element_text(size = 14),
+          strip.text = element_text(face = 'bold', size = 16))
+# Tough to parse species differences and date differences
+
+spp <- c('ARTCAL', 'CEAGRI', 'ERIKAR', 'HETARB', 'IRIDOU', 'MALLAU', 'ARCDEN', 'SALAPI', 'SALLEU')
+plot.list <- list(NULL)
+for(i in 1:length(spp)) {
+  df <- flamm.df %>%  
+    filter(species == spp[i]) %>% 
+    select(date, species, plant, rep, fh, fd, lfm, mpa, temp_change, heat_flux_change) %>%  # took out  gd, gti, ttfg for now
+    pivot_longer(!c(date, species, plant, rep), names_to = 'flam_metric', values_to = 'value')
+
+  plot <- ggplot(aes(x = date, y = value), data = df) +
+    geom_point(alpha = 0.6, size = 1.5) +
+    labs(x = 'Date', y = 'Flamm. Metric Value', title = paste(spp[i]))  +
+    facet_wrap(~flam_metric, ncol = 3, scales = 'free_y') +
+    theme_bw() +
+    theme(axis.title = element_text(face = 'bold', size = 16),
+          axis.text.y = element_text(size = 14),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+  plot.list[[i]] <- plot
+}
+plot.list[[1]]
+plot.list[[2]]
+plot.list[[3]]
+plot.list[[4]]
+plot.list[[5]]
+plot.list[[6]]
+plot.list[[7]]
+plot.list[[8]]
+plot.list[[9]]
+```
+
 # Manual Ignitions
 Looking into differences in TTI for manual ignitions and how that affects other flam. metrics
 ```{r}
@@ -591,7 +627,7 @@ flamm.df.manual <- flamm.df %>%
 
 # First, interspecific differences in time to ignition
 flamm.df.manual %>% 
-  mutate(species = factor(species, levels = c('IRIDOU', 'CEAGRI', 'ARTCAL', 'MANDEN', 'SALAPI', 'MALLAU', 'SALLEU', 'ERIKAR', 'HETARB', 'QUEAGR'))) %>% 
+  mutate(species = factor(species, levels = c('IRIDOU', 'CEAGRI', 'ARTCAL', 'ARCDEN', 'SALAPI', 'MALLAU', 'SALLEU', 'ERIKAR', 'HETARB', 'QUEAGR'))) %>% 
   ggplot(aes(x = species, y = tti)) + 
     geom_jitter(width = 0.2, aes(color = species)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA) +
@@ -933,7 +969,7 @@ flamm.df.sw %>%
 flamm.df.sw.long <- flamm.df.sw %>% 
   select(date, species, plant, rep, mpa, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, pfg, fh.norm, fd.norm, pfg.norm, fh.norm.sqrt, fd.norm.sqrt, pfg.norm.sqrt, fh.norm.cube.root, fd.norm.cube.root, pfg.norm.cube.root) %>% 
   pivot_longer(!c(date, species, plant, rep, mpa, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt), names_to = 'trait', values_to = 'value') %>% 
-  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) #note that EUGL needs to change to EUCGLO
 
 flamm.df.sw.long %>% 
 ggplot(aes(x = species, y = value, color = species)) +
@@ -995,7 +1031,7 @@ flamm.df.long.scatter <- flamm.df %>%
   select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample) %>%  # took out  gd, gti, ttfg for now
   pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample), names_to = 'trait', values_to = 'value') %>% 
   filter(trait %in% c('fd', 'fh', 'pfg', 'temp_change', 'heat_flux_change')) %>% 
-  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'MANDEN'))) #note that EUGL needs to change to EUCGLO
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) #note that EUGL needs to change to EUCGLO
 
 exploratory_scatterplot(flamm.df.long.scatter$dw_flam_sample, 'Dry Weight (g)')
 exploratory_scatterplot(flamm.df.long.scatter$ww_flam_sample, 'Wet Weight (g)')
@@ -1168,7 +1204,7 @@ flamm.df.temp.fh %>%
         axis.text.x = element_text(size = 12))
 
 flamm.df.temp.fh %>% 
-  mutate(species = factor(species, levels = c('IRIDOU', 'CEAGRI', 'ARTCAL', 'MANDEN', 'SALAPI', 'MALLAU', 'SALLEU', 'ERIKAR', 'HETARB', 'QUEAGR'))) %>% 
+  mutate(species = factor(species, levels = c('IRIDOU', 'CEAGRI', 'ARTCAL', 'ARCDEN', 'SALAPI', 'MALLAU', 'SALLEU', 'ERIKAR', 'HETARB', 'QUEAGR'))) %>% 
   ggplot(aes(x = species, y = fh.dev.poly)) + 
     geom_jitter(width = 0.2, aes(color = species)) +
     geom_boxplot(alpha = 0.2, outlier.shape = NA) +

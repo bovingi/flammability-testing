@@ -18,6 +18,7 @@ library(caret) # for optimization routine
 
 # defining functions
 here = here::here
+select = dplyr::select
 
 # reading in data
 thermocoupler.files <- list.files(here('data', 'raw-data', 'thermocouplers'))
@@ -461,7 +462,8 @@ flam.df <- flam.df %>%
   mutate(total_branch_mass = as.numeric(total_branch_mass) - 16.9336) %>% 
   mutate(branch_width = as.numeric(branch_width)) %>% 
   dplyr::rename(sample_wt = total_branch_mass) %>% 
-  select(-X, -input_by, -potted, -Species) # removing unneccessary columns
+  select(-X, -input_by, -potted, -Species) %>%  # removing unneccessary columns
+  mutate(species = ifelse(species == 'MANDEN', 'ARCDEN', species))
 ```
 
 # Saving .csv

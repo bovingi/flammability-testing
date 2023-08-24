@@ -22,6 +22,7 @@ library(cowplot)
 library(remef)
 library(lme4)
 library(psych) # for pairs.panels
+library(ggsci)
 
 # defining functions
 here = here::here
@@ -36,7 +37,7 @@ flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 # Data Wrangling 
 ```{r}
 flamm.df <- flamm.df %>% 
-  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'IRIDOU', 'MANDEN', 'HETARB')) %>% 
+  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'IRIDOU', 'ARCDEN', 'HETARB')) %>% 
   filter(ignition != '0') %>% 
   unite('id', c(species, plant, rep), sep = '_', remove = F)
 ```
@@ -158,17 +159,18 @@ flam.pca <- ggplot(data = PCAvalues, aes(x = PC1, y = PC2)) +
           panel.grid.major = element_blank(),  # Hide major gridlines
           panel.grid.minor = element_blank(),
           legend.key = element_rect(fill = "white"),
-          legend.position = 'none', # change to 'right' if you want figure alone, change to 'none' if you want to arrange figures
+          legend.position = 'right', # change to 'right' if you want figure alone, change to 'none' if you want to arrange figures
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-  scale_color_manual(values = c("#3C5233", "#CFD11A", "#98897A", "#BB9FED", "#91C499", "#271F30", "#B6DFF9", '#FF3A20')) + 
+  #scale_color_manual(values = c("#3C5233", "#CFD11A", "#98897A", "#BB9FED", "#91C499", "#271F30", "#B6DFF9", '#FF3A20')) + 
+  scale_color_igv() +
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) #+
   #coord_equal() #remove hash if you want to make coordinates equal; for arranging figure, looks best if they're not
 flam.pca
-#ggsave(here('figures', 'PCA', 'Flamm.PCA1.all.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'Flamm.PCA1.all.ignitions.png'), height = 7, width = 9)
 ```
 
 ## 1.2. PCA Table
@@ -653,7 +655,7 @@ ggsave(here('figures', 'main_figures', 'pca.and.scatterplots.png'), height = 14,
 ## Data Wrangling
 ```{r}
 flamm.split.df <- flamm.df %>% 
-  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'HETARB', 'MANDEN')) # No IRIDOU
+  filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'HETARB', 'ARCDEN')) # No IRIDOU
 
 flamm.manual.df <- flamm.split.df %>% 
   filter(ignition == 'M')

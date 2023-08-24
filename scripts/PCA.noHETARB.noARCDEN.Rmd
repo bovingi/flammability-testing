@@ -166,7 +166,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PCA1.all.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'Flamm.PCA1.all.ignitions.png'), height = 7, width = 9)
 ```
 
 ## 1.2. PCA Table
@@ -181,7 +181,7 @@ tab_pca(pcobj, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PC.Table1.all.ignitions.html'))
+  file = here('figures', 'PCA', 'noHETARBnoARCDEN', 'Flamm.PC.Table1.all.ignitions.html'))
 ```
 
 ## Adding PC Scores to Data
@@ -325,7 +325,7 @@ ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PCA1.all.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'Traits.PCA1.all.ignitions.png'), height = 7, width = 9)
 ```
 
 ## 2.2. PCA Table
@@ -339,7 +339,7 @@ tab_pca(pcobj2, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PC.Table1.all.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoARCDEN', 'Traits.PC.Table1.all.ignitions.html')) 
 ```
 
 ## Adding PC Scores to Data
@@ -388,7 +388,7 @@ pca_df_main %>%
     theme(axis.title = element_text(size = 16, face = 'bold'),
           axis.text = element_text(size = 13),
           strip.text = element_text(size = 13, face = 'bold'))
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'PC.Regressions1.all.ignitions.png'), height = 8, width = 10)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'PC.Regressions1.all.ignitions.png'), height = 8, width = 10)
 ```
 
 ## Second-order PCA
@@ -567,7 +567,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'FlammandTraits.PCA5.all.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'FlammandTraits.PCA5.all.ignitions.png'), height = 7, width = 9)
 ```
 
 ## 4.2. PCA Table
@@ -581,7 +581,7 @@ tab_pca(pcobj, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'FlammandTraits.PC.Table.all.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoARCDEN', 'FlammandTraits.PC.Table.all.ignitions.html')) 
 ```
 
 # ----------------------------
@@ -728,7 +728,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PCA2.manual.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'Flamm.PCA2.manual.ignitions.png'), height = 7, width = 9)
 ```
 
 #### 1.2. PCA Table
@@ -743,7 +743,7 @@ tab_pca(pcobj, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PC.Table2.manual.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoARCDEN', 'Flamm.PC.Table2.manual.ignitions.html')) 
 ```
 
 #### Adding PC Scores to Data
@@ -887,7 +887,7 @@ ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PCA2.manual.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'Traits.PCA2.manual.ignitions.png'), height = 7, width = 9)
 ```
 
 #### 2.2. PCA Table
@@ -901,7 +901,7 @@ tab_pca(pcobj2, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PC.Table2.manual.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoARCDEN', 'Traits.PC.Table2.manual.ignitions.html')) 
 ```
 
 #### Adding PC Scores to Data
@@ -950,7 +950,7 @@ pca_df_main %>%
     theme(axis.title = element_text(size = 16, face = 'bold'),
           axis.text = element_text(size = 13),
           strip.text = element_text(size = 13, face = 'bold'))
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'PC.Regressions2.manual.ignitions.png'), height = 8, width = 10)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'PC.Regressions2.manual.ignitions.png'), height = 8, width = 10)
 ```
 ### -*-*-*-*-*-
 
@@ -1081,7 +1081,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PCA3.natural.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'Flamm.PCA3.natural.ignitions.png'), height = 7, width = 9)
 ```
 
 #### 1.2. PCA Table
@@ -1096,7 +1096,7 @@ tab_pca(pcobj, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Flamm.PC.Table3.natural.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoARCDEN', 'Flamm.PC.Table3.natural.ignitions.html')) 
 ```
 
 #### Adding PC Scores to Data
@@ -1239,7 +1239,7 @@ ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
   coord_equal()
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PCA3.natural.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'Traits.PCA3.natural.ignitions.png'), height = 7, width = 9)
 ```
 
 #### 2.2. PCA Table
@@ -1253,7 +1253,7 @@ tab_pca(pcobj2, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'noHETARBnoMANDEN', 'Traits.PC.Table3.natural.ignitions.html')) 
+  file = here('figures', 'PCA', 'noHETARBnoARCDEN', 'Traits.PC.Table3.natural.ignitions.html')) 
 ```
 
 #### Adding PC Scores to Data
@@ -1302,5 +1302,5 @@ pca_df_main %>%
     theme(axis.title = element_text(size = 16, face = 'bold'),
           axis.text = element_text(size = 13),
           strip.text = element_text(size = 13, face = 'bold'))
-ggsave(here('figures', 'PCA', 'noHETARBnoMANDEN', 'PC.Regressions3.natural.ignitions.png'), height = 7, width = 9)
+ggsave(here('figures', 'PCA', 'noHETARBnoARCDEN', 'PC.Regressions3.natural.ignitions.png'), height = 7, width = 9)
 ```

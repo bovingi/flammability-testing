@@ -22,6 +22,7 @@ rename = dplyr::rename
 here = here::here
 summarise = dplyr::summarise
 group_by = dplyr::group_by
+select = dplyr::select
 ```
 
 # Initial Data Cleaning
@@ -40,7 +41,7 @@ glimpse(leaf_data)
 # load in data
 leaf_area <- read_csv(here('data', 'raw-data', 'plant-traits', 'leaf_area_flamm.csv')) %>% 
   clean_names() %>% 
-  select(-x_1)
+  select(-x1, -x_1)
 
 # view column names and data types
 glimpse(leaf_area)
@@ -343,7 +344,8 @@ main_traits_df <- main_traits_df %>%
 # Filtering out EUCGLO and QUEAGR; not including these species in this analysis
 main_traits_df <- main_traits_df %>% 
   filter(species != 'EUCGLO',
-         species != 'QUEAGR')
+         species != 'QUEAGR') %>% 
+  mutate(species = ifelse(species == 'MANDEN', 'ARCDEN', species))
 ```
 
 # Combining with Flam. Dataset
@@ -417,7 +419,6 @@ For SALAPI P8 R2, we have NAs for branch dimensions, sample weight, branching an
 main_df <- main_df %>% 
   drop_na(branch_height)
 ```
-
 
 # Writing csv
 ```{r}

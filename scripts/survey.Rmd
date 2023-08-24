@@ -15,6 +15,7 @@ library(HH)
 library(devtools)
 library(likert)
 library(cowplot)
+here = here::here
 
 ggplot <- function(...) { ggplot2::ggplot(...) + 
     theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
@@ -184,8 +185,8 @@ maintainance <- merge(totals_by_id, maintainance_1, by = "response_id")
 ```{r}
 maintainance %>% 
   #filter(category == "cultural") %>% 
-  group_by(time1, item) %>% 
-  mutate(mean_score_item_time1 = mean(score_item)) %>% 
+  dplyr::group_by(item, time1) %>% 
+  summarise(mean_score_item_time1 = mean(score_item), time1 = time1, item = item, category = category) %>% 
   ggplot(aes(y = mean_score_item_time1, x = time1, fill = item)) +
   geom_col(position = "dodge") +
   facet_wrap(~category, nrow = 3) +
@@ -262,14 +263,33 @@ plants %>%
 
 # Plant species
 ```{r}
-species_list_data <- data %>% 
-  dplyr::select(plant1, plant2, plant3, plant4, plant5) %>% 
-  pivot_longer(cols = c(plant1, plant2, plant3, plant4, plant5)) %>% 
-  dplyr::select(-name) %>% 
-  na.omit()
-write.csv(species_list_data, here('data', 'species_list_data.csv'))
-```
+species_list_data <- read.csv(here('data', 'processed-data', 'species_list_data.csv'))[1:145,]
 
+species_list_data <- species_list_data %>% 
+  mutate(selected = ifelse(
+    species.name %in% c('Artemesia californica', 'Ceanothus sp.', 'Erigeron karvinskianus', 'Heteromeles arbutifolia', 'Iris sp.', 'Arctostaphylos sp.', 'Salvia sp.'), 'Yes', 'No'))
+
+species_list_summary <- species_list_data %>% 
+  drop_na(species.name) %>% 
+  group_by(species.name, selected) %>% 
+  tally() %>% 
+  mutate(species.name = as.factor(species.name)) %>% 
+  arrange(n)
+
+species_list_summary$species.name <- factor(species_list_summary$species.name, levels = species_list_summary$species.name[order(species_list_summary$n)])
+species_list_summary$selected <- factor(species_list_summary$selected, levels = c('Yes', 'No'))
+
+species_list_summary %>% 
+ggplot(aes(x = n, y = species.name, color = selected)) +
+  geom_point() +
+  geom_segment(aes(x=0, xend=n, y=species.name, yend=species.name)) +
+  scale_color_manual(values = c('black', scales::alpha('gray70', 0.7))) +
+  labs(color = 'Tested?') +
+  theme(axis.title = element_blank(),
+        legend.title = element_text(face = 'bold', size = 13),
+        legend.text = element_text(size = 12),
+        axis.text.y = element_text(face = 'italic'))
+```
 
 -----------------------------------------------------------------
 ```{r}

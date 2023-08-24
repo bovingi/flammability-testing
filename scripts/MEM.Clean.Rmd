@@ -71,6 +71,7 @@ We have a plethora of variables that could be used as predictors and also a lot 
 *Sample morphology*:
 - Branching
 - Sample density
+- Branch height
 - Stem to leaf ratio
 - Sample weight* (note: this could also be considered a covariate)
 
@@ -91,19 +92,19 @@ Looking at the above variables to see how they're situated in the dataset
 # Grouping by plant_id; to check to see which traits do not have any variation per plant_id
 trait.summary.plant_id <- flamm.df %>%  
   unite('plant_id', c(species, plant), sep = '_', remove = F) %>% 
-  select(fh, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, sample_density, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height, plant_id) %>% 
+  select(fh, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, branch_height, sample_density, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height, plant_id) %>% 
   mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
          dw_flam_sample = scale(dw_flam_sample), LMA = scale(LMA), thickness = scale(thickness),
          leaf_area = scale(leaf_area), branching = scale(branching),
          leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
          start_temp = scale(start_temp), branch_volume = scale(branch_volume),
-         sample_density = scale(sample_density)) %>%  # scaling traits we want to look at so that standard deviations are comparable
+         sample_density = scale(sample_density), branch_height = scale(branch_height)) %>%  # scaling traits we want to look at so that standard deviations are comparable
   group_by(plant_id) %>% 
   dplyr::summarise(sd_lfm = sd(lfm), sd_mpa = sd(mpa), sd_ww = sd(ww_flam_sample), sd_dw = sd(dw_flam_sample),
                    sd_lma = sd(LMA), sd_thickness = sd(thickness), sd_leafarea = sd(leaf_area),
                    sd_branching = sd(branching), sd_leafratio = sd(leaf_mass_ratio), sd_sw = sd(sample_wt),
                    sd_st = sd(start_temp), sd_volume = sd(branch_volume),
-                   sd_density = sd(sample_density))
+                   sd_density = sd(sample_density), sd_bh = sd(branch_height))
 trait.summary.plant_id %>% 
   mutate(sd_lfm = ifelse(is.na(sd_lfm), 0, sd_lfm),
          sd_mpa = ifelse(is.na(sd_mpa), 0, sd_mpa),
@@ -117,7 +118,8 @@ trait.summary.plant_id %>%
          sd_sw = ifelse(is.na(sd_sw), 0, sd_sw),
          sd_st = ifelse(is.na(sd_st), 0, sd_st), 
          sd_volume = ifelse(is.na(sd_volume), 0, sd_volume),
-         sd_density = ifelse(is.na(sd_density), 0, sd_density)) %>% 
+         sd_density = ifelse(is.na(sd_density), 0, sd_density),
+         sd_bh = ifelse(is.na(sd_bh), 0, sd_bh)) %>% 
   summary()
 
 # Grouping by species; to check to see which traits do not have any intraspecific variation
@@ -165,13 +167,13 @@ flamm.df <- flamm.df %>%
   drop_na(fh, fd, pfg, temp_change, heat_flux_change) # dropping any NA's for flam. metrics
 
 flamm.df %>% 
-  select(fh, fd, pfg, temp_change, heat_flux_change, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, sample_density, ambient_humidity, ambient_temp, thermocoupler_height, hotplate_height) %>% 
+  select(fh, fd, pfg, temp_change, heat_flux_change, species, lfm, leaf_lfm, stem_lfm, mpa, ww_flam_sample, dw_flam_sample, LMA, SLA, thickness, leaf_area, branching, stem_mass_ratio, leaf_mass_ratio, sample_wt, start_temp, branch_volume, sample_density, ambient_humidity, ambient_temp, branch_height, thermocoupler_height, hotplate_height) %>% 
   ggcorr(label = T)
 ```
 
 From the above correlation matrix, there are some initial 'problem areas':
 - Sample weight and dw_flam_sample and ww_flam_sample: makes sense since sample weight was used in the calculation of these variables
-- Branch volume and sample weight, dw_flam_sample, ww_flam_sample: all describe bulkiness, size of sample in some way
+- Branch volume/branch height and sample weight, dw_flam_sample, ww_flam_sample: all describe bulkiness, size of sample in some way
 - LMA and SLA: duh
 - Leaf mass ratio and stem mass ratio: also, duh
 - Stem LFM and LFM
@@ -211,7 +213,7 @@ For main dataset (mem.df):
 - Select all potentially 'interesting' variables
 - Scale and center them all
 - Remove NA's
-- Remove MANDEN and HETARB from the analysis; after removing the above, each of these species had very few datapoints (n = 2 for HETARB, n = 8 for MANDEN) and the random effects had only 1 datapoint in each category (plant_id) for both plants of HETARB and for 3/4 plants for MANDEN
+- Remove ARCDEN and HETARB from the analysis; after removing the above, each of these species had very few datapoints (n = 2 for HETARB, n = 8 for ARCDEN) and the random effects had only 1 datapoint in each category (plant_id) for both plants of HETARB and for 3/4 plants for ARCDEN
 
 For predictors dataset:
 - Use wrangled dataset, mem.df
@@ -219,11 +221,12 @@ For predictors dataset:
 ```{r}
 mem.df <- flamm.df %>% 
   filter(ignition != '0') %>% 
-  filter(species != 'MANDEN', species != 'HETARB') %>% 
+  filter(species != 'ARCDEN', species != 'HETARB') %>% 
   unite('plant_id', c(species, plant), sep = '_', remove = F) %>% 
   select(species, thickness, lfm, leaf_area, LMA, sample_wt, leaf_mass_ratio, branching, mpa,
          ignition, fh, fd, tti, pfg, temp_change, heat_flux_change, prop_ig, dw_flam_sample,
-         ww_flam_sample, sample_density, branch_volume, start_temp, leaf_area, plant_id) %>% 
+         ww_flam_sample, sample_density, branch_volume, start_temp, leaf_area, branch_height,
+         plant_id) %>% 
   mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
          dw_flam_sample = scale(dw_flam_sample), sample_density = scale(sample_density),
          LMA = scale(LMA), thickness = scale(thickness),
@@ -232,11 +235,11 @@ mem.df <- flamm.df %>%
          start_temp = scale(start_temp), branch_volume = scale(branch_volume),
          fh = scale(fh), fd = scale(fd), tti = scale(tti), pfg = scale(pfg),
          temp_change = scale(temp_change), heat_flux_change = scale(heat_flux_change),
-         leaf_area = scale(leaf_area)) %>% 
+         leaf_area = scale(leaf_area), branch_height = scale(branch_height)) %>% 
   na.omit()
 
 mem.predictors.df <- mem.df %>% 
-  select(thickness, lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, sample_density, start_temp, leaf_area, species) # eleven predictors (note: no ww or dw)
+  select(thickness, lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, branch_height, start_temp, leaf_area, species) # eleven predictors (note: no ww or dw)
 
 woo <- mem.df %>% 
   mutate(n = 1) %>% 
