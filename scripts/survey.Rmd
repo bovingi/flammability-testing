@@ -15,6 +15,7 @@ library(HH)
 library(devtools)
 library(likert)
 library(cowplot)
+library(hrbrthemes)
 here = here::here
 
 ggplot <- function(...) { ggplot2::ggplot(...) + 
@@ -240,25 +241,62 @@ plants <- data %>%
  mutate(trait_names = case_when(
     trait == "Produces food or edibles" ~ "Edible", 
     trait == "Fragrant (smells good)" ~ "Fragrant", 
-    trait == "Requires little watering to stay healthy" ~ "Drought tolerant", 
+    trait == "Requires little watering to stay healthy" ~ "Drought Tolerant", 
     trait  == "Flowers" ~ "Flowers", 
-    writein_trait %in% c("wildlife value and screening", "wildlife habitat", "all of the above, especially wildlife food", "good for honey bees & Humming birds", "Hosts birds, provides shade","Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.") ~ "Wildlife habitat", 
+    writein_trait %in% c("wildlife value and screening", "wildlife habitat", "all of the above, especially wildlife food", "good for honey bees & Humming birds", "Hosts birds, provides shade","Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.") ~ "Wildlife Habitat", 
     writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Flowers", 
-    writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Drought tolerant"
+    writein_trait %in% c("Natives that are food or shelter to native insects. Plants that require a small amount of water. I also like flowering plants that smell nice.", "all of the above") ~ "Drought Tolerant"
   )) %>% 
   drop_na(trait_names)
 ```
 
 ```{r}
-plants %>% 
+traits.survey.plot <- plants %>% 
   ggplot(aes(x = trait_names, fill = trait_names)) +
   geom_bar() +
   labs(y = "Count", 
        x = "Trait",
        fill = "Trait") +
-  scale_fill_brewer(palette = "PuBuGn", 
-                    ) +
-  theme_bw()
+  scale_fill_brewer(palette = "PuBuGn") +
+  theme_bw() +
+  theme(legend.position = 'none',
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 13, face = 'bold'))
+traits.survey.plot
+```
+
+Setting up dataframe showing how our selected speccies fit into the categories described in the above barplot
+```{r}
+species <- c('ARCDEN', 'ARTCAL', 'CEAGRI', 'ERIKAR', 'HETARB', 'IRIDOU', 'MALLAU', 'SALAPI', 'SALLEU')
+`Drought Tolerant` <- c(1, 1, 1, 0.75, 1, 0.5, 1, 1, 1)
+Edible <- c(0.5, 0.5, 0.5, 1, 0.5, 0, 0.5, 1, 1)
+`Wildlife Habitat` <- c(1, 1, 1, 0.5, 1, 0.5, 1, 1, 1)
+Flowers <- c(1, 0.5, 1, 1, 1, 1, 0.5, 1, 1)
+Fragrant <- c(0, 1, 1, 0, 0.5, 0, 1, 1, 1)
+species_traits <- data.frame(species, `Drought Tolerant`, Edible, `Wildlife Habitat`, Flowers, Fragrant) %>% 
+  pivot_longer(cols = !c(species), names_to = 'trait', values_to = 'rep')
+
+repr.plot <- ggplot(species_traits, aes(x = trait, y = species, fill= rep)) + 
+  geom_tile() +
+  scale_fill_gradient(low="#ADB6B6B2", high="#ED0000B2") +
+  labs(fill = 'Representative?') +
+  theme(panel.background = element_rect(fill='white', colour='black'),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title = element_blank(),
+          axis.text = element_text(size = 12, face = 'bold'),
+          legend.title = element_text(size = 12, face = 'bold'),
+          legend.position = 'top')
+repr.plot
+```
+
+## Arranged
+```{r}
+ggarrange(repr.plot, traits.survey.plot,
+          labels = c('A', 'B'),
+          font.label = list(size = 28),
+          ncol = 1)
+ggsave(here('figures', 'main_figures', 'desirable.traits.survey.png'), height = 12, width = 10)
 ```
 
 # Plant species
@@ -276,19 +314,28 @@ species_list_summary <- species_list_data %>%
   mutate(species.name = as.factor(species.name)) %>% 
   arrange(n)
 
+# adding in malosma laurina with # of responses = 0 to summary
+mallau_add <- data.frame(species.name = 'Malosma laurina', selected = 'Yes', n = 0)
+species_list_summary <- rbind(species_list_summary, mallau_add)
+
 species_list_summary$species.name <- factor(species_list_summary$species.name, levels = species_list_summary$species.name[order(species_list_summary$n)])
 species_list_summary$selected <- factor(species_list_summary$selected, levels = c('Yes', 'No'))
 
+
 species_list_summary %>% 
 ggplot(aes(x = n, y = species.name, color = selected)) +
-  geom_point() +
-  geom_segment(aes(x=0, xend=n, y=species.name, yend=species.name)) +
+  geom_point(size = 4) +
+  geom_segment(aes(x=0, xend=n, y=species.name, yend=species.name), size = 1) +
   scale_color_manual(values = c('black', scales::alpha('gray70', 0.7))) +
-  labs(color = 'Tested?') +
-  theme(axis.title = element_blank(),
-        legend.title = element_text(face = 'bold', size = 13),
+  labs(color = 'Tested?', x = '# of Responses') +
+  theme(legend.position = c(0.65, 0.1),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(face = 'bold', size = 16),
+        legend.title = element_text(face = 'bold', size = 14),
         legend.text = element_text(size = 12),
-        axis.text.y = element_text(face = 'italic'))
+        axis.text.y = element_text(face = 'italic', size = 14),
+        axis.text.x = element_text(size = 14))
+ggsave(here('figures', 'main_figures', 'species.tested.vs.survey.png'), height = 15, width = 7)
 ```
 
 -----------------------------------------------------------------
