@@ -48,6 +48,7 @@ ggplot(traits.df.long, aes(x = species, y = value, color = species)) +
   geom_boxplot() +
   labs(x = "Species", y = "Trait Value") +
   facet_wrap(~trait, ncol = 3, scales = 'free_y') +
+  scale_color_manual(values = c('#ADB6B6B2', '#1B1919B2', '#42B540B2', '#ED0000B2', '#AD002AB2', '#0099B4B2', '#925E9FB2', '#925E9FB2', '#FDAF91B2', '#00468BB2')) +
   theme_bw() +
   theme(legend.position = 'none',
         axis.title = element_text(face = 'bold', size = 20),
@@ -55,7 +56,7 @@ ggplot(traits.df.long, aes(x = species, y = value, color = species)) +
         strip.text = element_text(face = 'bold', size = 20),
         axis.text.x = element_text(angle = 18))
 
-ggsave(here('figures', 'plant.traits.exploratory.boxplot.jpg'), height = 20, width = 26)
+ggsave(here('figures', 'EDA', 'plant.traits.boxplot.jpg'), height = 20, width = 26)
 ```
 
 ## Flammability Metrics
@@ -86,6 +87,7 @@ ggplot(aes(x = species, y = value, color = species)) +
   geom_boxplot() +
   labs(x = "Species", y = "Trait Value") +
   facet_wrap(~trait, ncol = 3, scales = 'free_y', labeller = labeller(trait = flam_labels)) +
+  scale_color_manual(values = c('#ADB6B6B2', '#1B1919B2', '#42B540B2', '#ED0000B2', '#AD002AB2', '#0099B4B2', '#925E9FB2', '#925E9FB2', '#FDAF91B2', '#00468BB2')) +
   theme_bw() +
   theme(legend.position = 'none',
         axis.title = element_text(face = 'bold', size = 16),
@@ -93,7 +95,7 @@ ggplot(aes(x = species, y = value, color = species)) +
         strip.text = element_text(face = 'bold', size = 16),
         axis.text.x = element_text(angle = 20, size = 12))
 
-ggsave(here('figures', 'flamm.metrics.exploratory.boxplot.jpg'), height = 12, width = 20)
+ggsave(here('figures', 'EDA', 'flamm.metrics.boxplot.jpg'), height = 12, width = 20)
 ```
 
 ## Normalized Flamm. Metrics
@@ -118,6 +120,7 @@ ggplot(aes(x = species, y = norm_value, color = species)) +
   geom_boxplot() +
   labs(x = "Species", y = "Normalized Trait Value") +
   facet_wrap(~trait, ncol = 4, scales = 'free_y') +
+  scale_color_manual(values = c('#ADB6B6B2', '#1B1919B2', '#42B540B2', '#ED0000B2', '#AD002AB2', '#0099B4B2', '#925E9FB2', '#925E9FB2', '#FDAF91B2', '#00468BB2')) +
   theme_bw() +
   theme(legend.position = 'none',
         axis.title = element_text(face = 'bold', size = 16),
@@ -125,7 +128,7 @@ ggplot(aes(x = species, y = norm_value, color = species)) +
         strip.text = element_text(face = 'bold', size = 16),
         axis.text.x = element_text(angle = 20, size = 12))
 
-ggsave(here('figures', 'normalized.flamm.metrics.exploratory.boxplot.jpg'), height = 12, width = 20)
+ggsave(here('figures', 'EDA', 'normalized.flamm.metrics.boxplot.jpg'), height = 12, width = 20)
 ```
 
 
@@ -142,6 +145,7 @@ flamm.df.long.scatter %>%
   geom_smooth(method = 'lm', linewidth = 1, alpha = 0.8, se = F) +
   labs(x = x.lab, y = 'Flamm. Metric Value', color = 'Species')  +
   facet_wrap(~trait, ncol = 3, scales = 'free_y', labeller = labeller(trait = flam_labels )) +
+  scale_color_manual(values = c('#ADB6B6B2', '#1B1919B2', '#42B540B2', '#ED0000B2', '#AD002AB2', '#0099B4B2', '#925E9FB2', '#925E9FB2', '#FDAF91B2', '#00468BB2')) +
   theme_bw() +
   theme(axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 14),
@@ -157,7 +161,7 @@ Water Potential
 ```{r}
 exploratory_scatterplot(flamm.df.long.scatter$mpa, 'Water Potential (MPa)')
 
-ggsave(here('figures', 'flamm.metrics.vs.mpa.exploratory.jpg'), height = 12, width = 20)
+ggsave(here('figures', 'EDA', 'flamm.metrics.vs.mpa.jpg'), height = 12, width = 20)
 ```
 
 LFM
@@ -165,20 +169,20 @@ LFM
 exploratory_scatterplot(flamm.df.long.scatter$leaf_lfm, 'Leaf Live Fuel Moisture (%)')
 exploratory_scatterplot(flamm.df.long.scatter$stem_lfm, 'Stem Live Fuel Moisture (%)')
 exploratory_scatterplot(flamm.df.long.scatter$lfm, 'Live Fuel Moisture (%)')
-ggsave(here('figures', 'flamm.metrics.vs.lfm.exploratory.jpg'), height = 12, width = 20)
+ggsave(here('figures', 'EDA', 'flamm.metrics.vs.lfm.jpg'), height = 12, width = 20)
 ```
 
 ## Vs. Sample Weight
 and DW, WW
 ```{r}
 exploratory_scatterplot(flamm.df.long.scatter$sample_wt, 'Sample Weight (g)')
-ggsave(here('figures', 'flamm.metrics.vs.sample.wt.exploratory.jpg'), height = 12, width = 20)
+ggsave(here('figures', 'EDA', 'flamm.metrics.vs.sample.wt.jpg'), height = 12, width = 20)
 
 exploratory_scatterplot(flamm.df.long.scatter$dw_flam_sample, 'Dry Weight (g)')
-ggsave(here('figures', 'flamm.metrics.vs.dw.exploratory.jpg'), height = 12, width = 20)
+ggsave(here('figures', 'EDA', 'flamm.metrics.vs.dw.jpg'), height = 12, width = 20)
 
 exploratory_scatterplot(flamm.df.long.scatter$ww_flam_sample, 'Wet Weight (g)')
-ggsave(here('figures', 'flamm.metrics.vs.ww.exploratory.jpg'), height = 12, width = 20)
+ggsave(here('figures', 'EDA', 'flamm.metrics.vs.ww.jpg'), height = 12, width = 20)
 ```
 
 ## Vs. Leaf Metrics
@@ -197,10 +201,15 @@ flamm.df %>%
   ggplot(aes(x = species, y = prop_ig, color = species)) +
     scale_y_continuous(limits = c(0,1)) +
     geom_point(size = 10) +
-    geom_text(aes(label = n, x = species, y = prop_ig + 0.1)) +
+    scale_color_manual(values = c('#ADB6B6B2', '#1B1919B2', '#42B540B2', '#ED0000B2', '#AD002AB2', '#0099B4B2', '#925E9FB2', '#925E9FB2', '#FDAF91B2', '#00468BB2')) +
+    geom_text(aes(label = paste0('N = ', n), x = species, y = prop_ig + 0.1)) +
     labs(x = ' ', y = 'Proportion Ignited') +
     theme_bw() + 
-    theme(legend.position = 'none')
+    theme(legend.position = 'none',
+          axis.title.y = element_text(face = 'bold', size = 15),
+          axis.text.y = element_text(size = 14),
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(size = 12, angle = 15))
 
 ggsave(here('figures', 'main_figures', 'proportion.ignited.jpg'), height = 6, width = 8)
 ```
@@ -234,7 +243,7 @@ print(flamm_pca) # PC1: flame height, flame duration, max temp and max heat flux
 ggbiplot(flamm_pca,
          groups = flamm_pca_df$species,
          ellipse = TRUE, varname.size = 5, alpha = 0.5) +
-  scale_color_manual(values = c('black', 'gray50', 'goldenrod', 'skyblue', 'red', 'darkblue', 'deeppink', 'brown', 'yellowgreen')) +
+  scale_color_lancet() +
   theme_bw()
 
 # eigenvalue table
@@ -268,7 +277,7 @@ print(traits_pca) # PC1: stem LFM, LFM, leaf mass ratio, PC2: SLA, lfm, leaf LFM
 ggbiplot(traits_pca,
          groups = traits_pca_df$species,
          ellipse = TRUE, varname.size = 5, alpha = 0.5) +
-  scale_color_manual(values = c('black', 'gray50', 'goldenrod', 'skyblue', 'red', 'darkblue', 'deeppink', 'brown', 'yellowgreen')) +
+  scale_color_lancet() +
   theme_bw()
 
 # eigenvalue table
@@ -500,10 +509,10 @@ rm(flamm.df.hp.ht.prop.ig1, flamm.df.hp.ht.prop.ig2) # Decluttering environment 
 
 flamm.df.hp.ht.prop.ig %>% 
   filter(n > 5) %>% 
-  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) %>% 
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) %>% 
   ggplot(aes(x = hotplate_height, y = prop_ig, color = species)) +
     scale_y_continuous(limits = c(0,1)) +
-    scale_color_manual(values = c('black', 'gray50', 'goldenrod', 'skyblue', 'red', 'darkblue', 'deeppink', 'brown', 'yellowgreen', 'darkgreen')) +
+    scale_color_manual(values = c('#ADB6B6B2', '#1B1919B2', '#42B540B2', '#ED0000B2', '#AD002AB2', '#0099B4B2', '#925E9FB2', '#925E9FB2', '#FDAF91B2', '#00468BB2')) +
     geom_jitter(aes(size = n), width = 0.1, height = 0) +
     #geom_text(aes(label = n, x = hotplate_height, y = prop_ig + 0.1)) +
     labs(x = 'Hot Plate Height (cm)', y = 'Proportion Ignited') +
