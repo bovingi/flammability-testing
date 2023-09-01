@@ -17,6 +17,8 @@ library(likert)
 library(cowplot)
 library(hrbrthemes)
 here = here::here
+summarise = dplyr::summarise
+rename = dplyr::rename
 
 ggplot <- function(...) { ggplot2::ggplot(...) + 
     theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
@@ -278,7 +280,7 @@ species_traits <- data.frame(species, `Drought Tolerant`, Edible, `Wildlife Habi
 
 repr.plot <- ggplot(species_traits, aes(x = trait, y = species, fill= rep)) + 
   geom_tile() +
-  scale_fill_gradient(low="#ADB6B6B2", high="#ED0000B2") +
+  scale_fill_gradient(low="gray90", high="gray30") +
   labs(fill = 'Representative?') +
   theme(panel.background = element_rect(fill='white', colour='black'),
           panel.grid.major = element_blank(),
@@ -286,14 +288,14 @@ repr.plot <- ggplot(species_traits, aes(x = trait, y = species, fill= rep)) +
           axis.title = element_blank(),
           axis.text = element_text(size = 12, face = 'bold'),
           legend.title = element_text(size = 12, face = 'bold'),
-          legend.position = 'top')
+          legend.position = 'bottom')
 repr.plot
 ```
 
 ## Arranged
 ```{r}
-ggarrange(repr.plot, traits.survey.plot,
-          labels = c('A', 'B'),
+ggarrange(traits.survey.plot, repr.plot,
+          labels = c('B', 'C'),
           font.label = list(size = 28),
           ncol = 1)
 ggsave(here('figures', 'main_figures', 'desirable.traits.survey.png'), height = 12, width = 10)
@@ -322,7 +324,7 @@ species_list_summary$species.name <- factor(species_list_summary$species.name, l
 species_list_summary$selected <- factor(species_list_summary$selected, levels = c('Yes', 'No'))
 
 
-species_list_summary %>% 
+species_list <- species_list_summary %>% 
 ggplot(aes(x = n, y = species.name, color = selected)) +
   geom_point(size = 4) +
   geom_segment(aes(x=0, xend=n, y=species.name, yend=species.name), size = 1) +
@@ -335,6 +337,12 @@ ggplot(aes(x = n, y = species.name, color = selected)) +
         legend.text = element_text(size = 12),
         axis.text.y = element_text(face = 'italic', size = 14),
         axis.text.x = element_text(size = 14))
+
+ggarrange(species_list,
+          labels = c('A'),
+          font.label = list(size = 28),
+          ncol = 1)
+
 ggsave(here('figures', 'main_figures', 'species.tested.vs.survey.png'), height = 15, width = 7)
 ```
 

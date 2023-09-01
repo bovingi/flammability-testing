@@ -197,11 +197,11 @@ exploratory_scatterplot(flamm.df.long.scatter$thickness, 'Leaf Thickness')
 flamm.df %>% 
   group_by(species) %>%
   dplyr::summarise(n = n(), prop_ig = prop_ig) %>% 
-  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) %>% 
+  mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'MALLAU', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) %>% 
   ggplot(aes(x = species, y = prop_ig, color = species)) +
     scale_y_continuous(limits = c(0,1)) +
     geom_point(size = 10) +
-    scale_color_manual(values = c('#ADB6B6B2', '#1B1919B2', '#42B540B2', '#ED0000B2', '#AD002AB2', '#0099B4B2', '#925E9FB2', '#925E9FB2', '#FDAF91B2', '#00468BB2')) +
+    scale_color_manual(values = c('#ADB6B6B2', '#1B1919B2', '#42B540B2', '#ED0000B2', '#AD002AB2', '#0099B4B2', '#925E9FB2', '#FDAF91B2', '#00468BB2')) +
     geom_text(aes(label = paste0('N = ', n), x = species, y = prop_ig + 0.1)) +
     labs(x = ' ', y = 'Proportion Ignited') +
     theme_bw() + 
