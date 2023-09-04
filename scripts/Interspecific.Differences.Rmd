@@ -662,6 +662,10 @@ ggsave(here('figures', 'main_figures', 'traits.flam.k.means.cluster.no2.png'), w
 #add cluster assigment to original data
 kmeans_df2 <- cbind(kmeans_df2, cluster = km$cluster)
 
+kmeans_df2 %>% 
+  dplyr::group_by(species, cluster) %>% 
+  tally()
+
 #visualizing how cluster assignment tracks species
 kmeans_df2 %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
