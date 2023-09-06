@@ -318,6 +318,7 @@ main_traits_df <- main_traits_df %>%
   mutate(norm_auc_voc = ifelse(norm_auc_voc == 999999, NA, norm_auc_voc)) %>% 
   mutate(norm_avg_voc = ifelse(norm_avg_voc == 999999, NA, norm_avg_voc)) %>% 
   mutate(stem_dmc = ifelse(stem_dmc == 999999, NA, stem_dmc)) %>% 
+  mutate(stem_sav = ifelse(stem_dmc == 999999, NA, stem_sav)) %>% 
   mutate(leaf_sav = ifelse(leaf_sav == 999999, NA, leaf_sav))
 ```
 
