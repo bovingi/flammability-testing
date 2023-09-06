@@ -59,7 +59,7 @@ fh.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
-          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 fh.boxplot
 ```
@@ -86,7 +86,7 @@ fd.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
-          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 fd.boxplot
 ```
@@ -114,7 +114,7 @@ tc.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
-          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 tc.boxplot
 ```
@@ -136,12 +136,13 @@ hf.boxplot <- flamm.df %>%
     geom_jitter(aes(x = species, y = heat_flux_change, color = species), width = 0.2, alpha = 0.2) +
     geom_text(aes(x = species, y = 0.217 + adj, label = letters), fontface = 'bold',
               data = hf.spp.tukey.labels, size = 6) +
+    scale_y_continuous(breaks = c(0.05, 0.1, 0.15, 0.20)) +
     labs(x = 'Species', y = 'Heat Flux Change') +
     scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#FDAF91B2', '#0099B4B2')) +
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
-          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 hf.boxplot
 ```
@@ -171,7 +172,7 @@ sw.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
-          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 sw.boxplot
 ```
@@ -197,7 +198,7 @@ mpa.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
-          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 mpa.boxplot
 ```
@@ -225,7 +226,7 @@ branching.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
-          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 branching.boxplot
 ```
@@ -255,7 +256,7 @@ flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
-          axis.text.x = element_text(size = 13, angle = 20),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 ```
 
@@ -273,7 +274,7 @@ flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none', 
           axis.title = element_text(face = 'bold', size = 17),
-          axis.text.x = element_text(size = 13, angle = 10),
+          axis.text.x = element_text(size = 12, angle = 10, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 ggsave(here('figures', 'spp.voc.png'), height = 5, width = 9)
 ```
@@ -662,7 +663,8 @@ ggsave(here('figures', 'main_figures', 'traits.flam.k.means.cluster.no2.png'), w
 #add cluster assigment to original data
 kmeans_df2 <- cbind(kmeans_df2, cluster = km$cluster)
 
-kmeans_df2 %>% 
+# number of points per species, per cluster
+number_pts_per_cluster <- kmeans_df2 %>% 
   dplyr::group_by(species, cluster) %>% 
   tally()
 
@@ -672,6 +674,14 @@ kmeans_df2 %>%
                                                  'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
   ggplot(aes(x = species, y = cluster, color = as.factor(cluster))) +
     geom_jitter(width = 0.1, height = 0.1) +
+    geom_text(aes(x = species, y = cluster + 0.25, color = as.factor(cluster), label = n),
+                  data = number_pts_per_cluster, fontface = 'bold') +
+    annotate('text', x = 0.55, y = 1.1, label = 'High Flam.', angle = 90, fontface = 'bold',
+             size = 3.5, color = "#00468BB2") +
+    annotate('text', x = 0.55, y = 2, label = 'Intermediate Flam.', angle = 90, fontface = 'bold',
+             size = 3.5, color = "#ED0000B2") +
+    annotate('text', x = 0.55, y = 3, label = 'Low Flam.', angle = 90, fontface = 'bold',
+             size = 3.5, color = "#42B540B2") +
     scale_y_continuous(breaks = c(1:max(traits_kmeans_df$cluster))) +
     labs(x = 'Species', y = 'K-Means Cluster', color = 'Cluster #') +
     theme_bw() +
@@ -679,7 +689,7 @@ kmeans_df2 %>%
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
           axis.text.y = element_text(size = 16), 
-          axis.text.x = element_text(size = 14, angle = 20))
+          axis.text.x = element_text(size = 14, angle = 20, vjust = 0.9, hjust=0.75))
 ggsave(here('figures', 'main_figures', 'spp.vs.k.means.cluster.no2.png'), height = 4.5, width = 9)
 
 plot.labels.df <- data.frame(var = c('branching', 'fd', 'fh', 'heat_flux_change', 'leaf_mass_ratio', 'lfm', 'mpa', 'sample_wt'), label = c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'))

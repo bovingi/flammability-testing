@@ -758,6 +758,25 @@ for(i in 1:nrow(flamm.df)){
 }
 ```
 
+HETARB outlier
+```{r}
+df <- thermocoupler.df %>% 
+    filter(date == '2022-08-31')
+df <- df[5233:8000,]
+
+plot <- ggplot(data = df, aes(x = time, y = CH1)) +
+    geom_point(size = 1) +
+    theme_bw() +
+    labs(x = "Time", y = "Temperature (C)") +
+    theme(axis.title = element_text(face = 'bold', size = 14),
+          axis.text.y = element_text(size = 12),
+          axis.text.x = element_blank(),
+          legend.title = element_text(face = 'bold', size = 14),
+          legend.text = element_text(size = 12))
+plot
+```
+
+
 HETARB shows very low temperatures for 4/6 thermocouples. What is going on?
 ```{r}
 thermocoupler.df.long %>% 

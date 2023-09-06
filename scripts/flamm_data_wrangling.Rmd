@@ -189,10 +189,12 @@ flam.df <- flam.df %>%
   mutate(temp_change = max_temp - start_temp) # calculating temp. change!
 
 rm(df, df.st) # Decluttering environment by removing temporary dataframe from above for loop
+
+shoe <- flam.df
 ```
 
 #### Full Test Average Temp (Top Vent, CH3)
-Because we have reason to believe that certain tests were conducted with one of the hotplates or one of the burners malfunctioning or off (based on exploratory analyses of the temperature data), we decided that it was necessary to use a temperature threshold to remove some of the samples that may have been burned in strange conditions. For this threshold, CH3 (thermocoupler near the top vent) was identified as the 'best' thermocoupler to use based on the distribution of average temperatures and because, conceptually, it makes sense that this locaiton would be the least variable from test-to-test unless the temperature of the chamber itself was different (which is what we're trying to figure out)
+Because we have reason to believe that certain tests were conducted with one of the hotplates or one of the burners malfunctioning or off (based on exploratory analyses of the temperature data), we decided that it was necessary to use a temperature threshold to remove some of the samples that may have been burned in strange conditions. For this threshold, CH3 (thermocoupler near the top vent) was identified as the 'best' thermocoupler to use based on the distribution of average temperatures and because, conceptually, it makes sense that this location would be the least variable from test-to-test unless the temperature of the chamber itself was different (which is what we're trying to figure out)
 ```{r}
 flam.df <- flam.df %>% 
   mutate(avg_temp_ch3 = NA)
@@ -463,7 +465,8 @@ flam.df <- flam.df %>%
   mutate(branch_width = as.numeric(branch_width)) %>% 
   dplyr::rename(sample_wt = total_branch_mass) %>% 
   select(-X, -input_by, -potted, -Species) %>%  # removing unneccessary columns
-  mutate(species = ifelse(species == 'MANDEN', 'ARCDEN', species))
+  mutate(species = ifelse(species == 'MANDEN', 'ARCDEN', species)) %>% 
+  filter(heat_flux_change < 0.42 | is.na(heat_flux_change)) # removing outlier in heat flux change
 ```
 
 # Saving .csv

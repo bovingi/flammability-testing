@@ -1180,56 +1180,31 @@ ggsave(here('figures', 'main_figures', 'remef.scatterplots.png'), height = 8, wi
 ```
 
 # Testing for Interactions
-Not working...
+Using ChatGPT generated code, integrated with my previously made function
 ```{r}
-predictors <- mem.df %>% 
-  select(thickness, lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, branch_height, start_temp, leaf_area, species) # eleven predictors (note: no ww or dw)
+# Defining predictors we're interested in as a character vector
+predictors <- c('thickness', 'lfm', 'LMA', 'sample_wt', 'leaf_mass_ratio', 'branching', 'mpa', 'branch_height', 'start_temp', 'leaf_area', 'species')
 
-
-########
-
-mod.list <- list()
-call.vec <- c()
-
-int <- colnames(predictors)
-for(i in 1:length(int)){
-  int2[i]<-paste0(int[i], ":", "species")
-}
-
-for(i in 2:ncol(predictors)){
-    call <- colnames(predictors) %>%
-      combinations(n = ncol(predictors), r = i, repeats.allowed = F) %>% 
-      apply(1, paste0, collapse = ' + ') # all possible combinations of models from 2 - # of predictors we're interested in (note: cannot include only 1 predictor, as this breaks multicollinearity for loop below; also, we're probably not interested in a model with only one explanatory variable)
-    
-    for(j in (1+length(call.vec)):(length(call)+length(call.vec))){ # adding linear mixed effects model to mod.list
-      for(k in 1:length(int2)){
-      mod.list[[j]] <- lmer(as.formula(paste('fh', '~', call[j-length(call.vec)], '+', int2[k], '+', '(1|plant_id)', sep = '')), data = mem.df)
-      }
-    }
-    call.vec <- append(call.vec, call) # to index where to put model into model list
-}
-
-mod.list
-```
-
-```{r}
 # NOTE: y.var and rem.str must be a character vector, predictors must be a dataframe
-mem.selection <- function(y.var, predictors, df, rem.str = '(1|plant_id)'){
-  # FIRST: List models
-  # empty list
-  mod.list <- list()
-  call.vec <- c()
+mem.int.selection <- function(y.var, predictors, df, rem.str = '(1|plant_id)'){
+# FIRST: List models
+# Generate all possible combinations of two predictors for interaction
+interaction_combinations <- combn(predictors, 2, simplify = FALSE)
+
+# Create an empty list to store model results
+mod.list <- list()
+
+# Loop through the interaction combinations
+for (combo in interaction_combinations) {
+  # Create the formula for the model (e.g., outcome ~ predictor1 * predictor2)
+  formula <- as.formula(paste(y.var, "~", paste(combo, collapse = "*"), "+", rem.str))
   
-  # setting up a nested for loop to list all possible models including those predictors
-  for(i in 2:ncol(predictors)){
-    call <- colnames(predictors) %>%
-      combinations(n = ncol(predictors), r = i, repeats.allowed = F) %>% 
-      apply(1, paste0, collapse = ' + ') # all possible combinations of models from 2 - # of predictors we're interested in (note: cannot include only 1 predictor, as this breaks multicollinearity for loop below; also, we're probably not interested in a model with only one explanatory variable)
-    for(j in (1+length(call.vec)):(length(call)+length(call.vec))){ # adding linear mixed effects model to mod.list
-      mod.list[[j]] <- lmer(as.formula(paste(y.var, '~', call[j-length(call.vec)], '+', rem.str, sep = '')), data = df)
-    }
-    call.vec <- append(call.vec, call) # to index where to put model into model list
-  }
+  # Fit the mixed-effects model
+  model <- lmer(formula, data = mem.df)
+  
+  # Store the model result in the list
+  mod.list[[paste(combo, collapse = "_")]] <- model
+}
   
   # CREATE DATAFRAME
   model.df <- data.frame(model.id = c(1:length(mod.list)),
@@ -1267,3 +1242,98 @@ mem.selection <- function(y.var, predictors, df, rem.str = '(1|plant_id)'){
 }
 ```
 
+## Flame Height
+```{r}
+fh.mem.int.selection <- mem.int.selection('fh', predictors, mem.df)
+fh.int.model.df <- fh.mem.int.selection[[1]]
+fh.int.mod.list <- fh.mem.int.selection[[2]]
+
+# top performing interaction terms: LFM*sample_wt (AIC = 336.8), branching*sample_wt (AIC = 337.3), mpa*sample_wt (AIC = 340.7), leaf_mass_ratio*sample_wt (AIC = 344.1); all sig. worse than top-performing models w/o interactions
+
+# testing models w/ interaction terms
+fh.int.mod.list[[56]] <- lmer(fh ~ lfm*sample_wt + species + (1|plant_id), data = mem.df)
+AIC(fh.int.mod.list[[56]])
+fh.int.mod.list[[57]] <- lmer(fh ~ branching*sample_wt + species + (1|plant_id), data = mem.df)
+AIC(fh.int.mod.list[[57]])
+fh.int.mod.list[[58]] <- lmer(fh ~ branching*sample_wt + lfm + (1|plant_id), data = mem.df)
+AIC(fh.int.mod.list[[58]])
+fh.int.mod.list[[59]] <- lmer(fh ~ lfm*sample_wt + branching + (1|plant_id), data = mem.df)
+AIC(fh.int.mod.list[[59]]) # significantly better than any model w/o interactions!!!
+fh.int.mod.list[[60]] <- lmer(fh ~ lfm*sample_wt + branching + species + (1|plant_id), data = mem.df)
+AIC(fh.int.mod.list[[60]])
+```
+
+## Flame Duration
+```{r}
+fd.mem.int.selection <- mem.int.selection('fd', predictors, mem.df)
+fd.int.model.df <- fd.mem.int.selection[[1]]
+fd.int.mod.list <- fd.mem.int.selection[[2]]
+
+# top performing interaction terms: LFM*sample_wt (AIC = 437.1, not sig. worse than top-performing model w/o interactions), branching*sample_wt (AIC = 442.4), LMA*sample_wt (AIC = 443.5)
+
+# testing models w/ interaction terms
+fd.int.mod.list[[56]] <- lmer(fd ~ lfm*sample_wt + species + (1|plant_id), data = mem.df)
+BIC(fd.int.mod.list[[56]]) # not sig. worse than top-performing model
+fd.int.mod.list[[57]] <- lmer(fd ~ branching*sample_wt + species + (1|plant_id), data = mem.df)
+AIC(fd.int.mod.list[[57]])
+fd.int.mod.list[[58]] <- lmer(fd ~ branching*sample_wt + lfm + (1|plant_id), data = mem.df)
+AIC(fd.int.mod.list[[58]])
+fd.int.mod.list[[59]] <- lmer(fd ~ lfm*sample_wt + branching + (1|plant_id), data = mem.df)
+AIC(fd.int.mod.list[[59]]) # not sig. worse than top-performing model
+fd.int.mod.list[[60]] <- lmer(fd ~ lfm*sample_wt + branching + species + (1|plant_id), data = mem.df)
+AIC(fd.int.mod.list[[60]])
+```
+
+## Temp. Change
+```{r}
+temp.mem.int.selection <- mem.int.selection('temp_change', predictors, mem.df)
+temp.int.model.df <- temp.mem.int.selection[[1]]
+temp.int.mod.list <- temp.mem.int.selection[[2]]
+
+# top-performing interaction terms: sample_wt*start_temp (AIC = 386.6; better than top-performing model w/o interactions!!), lfm*start_temp (AIC = 389.5), branch_height*start_temp (AIC = 391.6)
+
+# testing models w/ interaction terms
+temp.int.mod.list[[56]] <- lmer(temp_change ~ start_temp*sample_wt + species + (1|plant_id), data = mem.df)
+AIC(temp.int.mod.list[[56]]) # not sig. worse than top-performing model
+temp.int.mod.list[[57]] <- lmer(temp_change ~ lfm*start_temp + species + (1|plant_id), data = mem.df)
+AIC(temp.int.mod.list[[57]])
+temp.int.mod.list[[58]] <- lmer(temp_change ~ branch_height*start_temp + species + (1|plant_id), data = mem.df)
+AIC(temp.int.mod.list[[58]])
+temp.int.mod.list[[59]] <- lmer(temp_change ~ start_temp*sample_wt + lfm + (1|plant_id), data = mem.df)
+AIC(temp.int.mod.list[[59]]) # sig. better than top performing model! AIC = 380.7
+temp.int.mod.list[[60]] <- lmer(temp_change ~ lfm*start_temp + sample_wt + (1|plant_id), data = mem.df)
+AIC(temp.int.mod.list[[60]])
+temp.int.mod.list[[61]] <- lmer(temp_change ~ branch_height*start_temp + sample_wt + (1|plant_id), data = mem.df)
+AIC(temp.int.mod.list[[61]])
+temp.int.mod.list[[62]] <- lmer(temp_change ~ start_temp*sample_wt + branching + (1|plant_id), data = mem.df)
+AIC(temp.int.mod.list[[62]]) # sig. better than top performing model! AIC = 376.71
+```
+
+## Heat Flux Change
+```{r}
+hf.mem.int.selection <- mem.int.selection('heat_flux_change', predictors, mem.df)
+hf.int.model.df <- hf.mem.int.selection[[1]]
+hf.int.mod.list <- hf.mem.int.selection[[2]]
+
+# top performing interaction terms: leaf_mass_ratio*sample_wt (AIC = 375.8, sig. better than top-performing model w/o interactions!), LFM*sample_wt (AIC = 383.2), start_temp*sample_wt (AIC = 383.5)
+
+# testing models w/ interaction terms
+hf.int.mod.list[[56]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + species + (1|plant_id), data = mem.df)
+BIC(hf.int.mod.list[[56]]) # AIC = 365.1, sig. best model
+hf.int.mod.list[[57]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + lfm + (1|plant_id), data = mem.df)
+AIC(hf.int.mod.list[[57]]) # AIC = 379.9
+hf.int.mod.list[[58]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + start_temp + (1|plant_id), data = mem.df)
+BIC(hf.int.mod.list[[58]]) # AIC = 380.48
+hf.int.mod.list[[59]] <- lmer(heat_flux_change ~ lfm*sample_wt + leaf_mass_ratio + (1|plant_id), data = mem.df)
+AIC(hf.int.mod.list[[59]])
+hf.int.mod.list[[60]] <- lmer(heat_flux_change ~ lfm*sample_wt + species + (1|plant_id), data = mem.df)
+AIC(hf.int.mod.list[[60]]) 
+hf.int.mod.list[[61]] <- lmer(heat_flux_change ~ lfm*sample_wt + start_temp + (1|plant_id), data = mem.df)
+AIC(hf.int.mod.list[[61]])
+hf.int.mod.list[[62]] <- lmer(heat_flux_change ~ start_temp*sample_wt + leaf_mass_ratio + (1|plant_id), data = mem.df)
+AIC(hf.int.mod.list[[62]])
+hf.int.mod.list[[63]] <- lmer(heat_flux_change ~ start_temp*sample_wt + species + (1|plant_id), data = mem.df)
+AIC(hf.int.mod.list[[63]]) # AIC = 379.55
+hf.int.mod.list[[64]] <- lmer(heat_flux_change ~ start_temp*sample_wt + lfm + (1|plant_id), data = mem.df)
+AIC(hf.int.mod.list[[64]])
+```

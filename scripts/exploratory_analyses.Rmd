@@ -209,7 +209,7 @@ flamm.df %>%
           axis.title.y = element_text(face = 'bold', size = 15),
           axis.text.y = element_text(size = 14),
           axis.title.x = element_blank(),
-          axis.text.x = element_text(size = 12, angle = 15))
+          axis.text.x = element_text(size = 12, angle = 15, vjust = 0.9, hjust=0.75))
 
 ggsave(here('figures', 'main_figures', 'proportion.ignited.jpg'), height = 6, width = 8)
 ```
