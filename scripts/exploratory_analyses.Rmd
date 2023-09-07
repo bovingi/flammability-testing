@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # packages
 library(tidyverse)
 library(here)
+library(ggsci) # for scale_color_lancet color pallete
 library(lubridate)
 library(ggfortify)
 library(ggpubr)
@@ -65,21 +66,9 @@ flam_labels <- c('Flame Height', 'Flame Duration', 'Temperature Change', 'Heat F
 names(flam_labels) <- c('fh', 'fd', 'temp_change', 'heat_flux_change', 'pfg', 'prop_ig')
 
 flamm.df.long <- flamm.df %>% 
-  select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, temp_change, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample, branch_volume, heat_flux_change) %>%  # took out  gd, gti, ttfg for now
-  pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample, branch_volume), names_to = 'trait', values_to = 'value') %>% 
+  select(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, fh, fd, tti, pfg, max_temp, temp_change, max_heat_flux_loessCH7, max_heat_flux_loessCH8, dw_flam_sample, ww_flam_sample, branch_volume, heat_flux_change, stem_sav, leaf_sav, dmc, leaf_dmc, stem_dmc, dw_sppdev) %>%  # took out  gd, gti, ttfg for now
+  pivot_longer(!c(date, species, plant, rep, mpa, branching, branch_height, branch_length, branch_width, leaf_lfm, stem_lfm, lfm, LMA, SLA, thickness, sample_wt, dw_flam_sample, ww_flam_sample, branch_volume, stem_sav, leaf_sav, dmc, leaf_dmc, stem_dmc, dw_sppdev), names_to = 'trait', values_to = 'value') %>% 
   mutate(species = factor(species, levels = c('SALAPI', 'SALLEU', 'CEAGRI', 'ARTCAL', 'QUEAGR', 'MALLAU', 'EUCGLO', 'ERIKAR', 'HETARB', 'IRIDOU', 'ARCDEN'))) #note that EUGL needs to change to EUCGLO
-
-flamm.df.long %>% 
-ggplot(aes(x = species, y = value, color = species)) +
-  geom_boxplot() +
-  labs(x = "Species", y = "Trait Value") +
-  facet_wrap(~trait, ncol = 4, scales = 'free_y', labeller = labeller(trait = flam_labels)) +
-  theme_bw() +
-  theme(legend.position = 'none',
-        axis.title = element_text(face = 'bold', size = 16),
-        axis.text = element_text(size = 14),
-        strip.text = element_text(face = 'bold', size = 16),
-        axis.text.x = element_text(angle = 20, size = 12))
 
 flamm.df.long %>% 
   filter(trait %in% c('fd', 'fh', 'pfg', 'heat_flux_change', 'temp_change')) %>% 
@@ -183,6 +172,8 @@ ggsave(here('figures', 'EDA', 'flamm.metrics.vs.dw.jpg'), height = 12, width = 2
 
 exploratory_scatterplot(flamm.df.long.scatter$ww_flam_sample, 'Wet Weight (g)')
 ggsave(here('figures', 'EDA', 'flamm.metrics.vs.ww.jpg'), height = 12, width = 20)
+
+exploratory_scatterplot(flamm.df.long.scatter$dw_sppdev, 'Dry Weight (Dev. from Sp. Mean)')
 ```
 
 ## Vs. Leaf Metrics
@@ -190,6 +181,15 @@ ggsave(here('figures', 'EDA', 'flamm.metrics.vs.ww.jpg'), height = 12, width = 2
 exploratory_scatterplot(flamm.df.long.scatter$LMA, 'Leaf Mass per Area')
 exploratory_scatterplot(flamm.df.long.scatter$SLA, 'Specific Leaf Area')
 exploratory_scatterplot(flamm.df.long.scatter$thickness, 'Leaf Thickness')
+exploratory_scatterplot(flamm.df.long.scatter$leaf_dmc, 'Leaf Dry Matter Content')
+exploratory_scatterplot(flamm.df.long.scatter$leaf_sav, 'Leaf SA:V')
+```
+
+## Vs. Stem Metrics
+```{r}
+exploratory_scatterplot(flamm.df.long.scatter$stem_dmc, 'Stem Dry Matter Content')
+exploratory_scatterplot(flamm.df.long.scatter$stem_sav, 'Stem SA:V')
+exploratory_scatterplot(flamm.df.long.scatter$dmc, 'Dry Matter Content')
 ```
 
 # Proportion Ignited
@@ -245,7 +245,6 @@ ggbiplot(flamm_pca,
          ellipse = TRUE, varname.size = 5, alpha = 0.5) +
   scale_color_lancet() +
   theme_bw()
-
 # eigenvalue table
 tab_pca(flamm_pca, rotation = 'varimax')
 ```
@@ -254,7 +253,7 @@ tab_pca(flamm_pca, rotation = 'varimax')
 ```{r}
 # selecting metrics of interest
 traits_pca_df <- flamm.df %>% 
-  select(leaf_mass_ratio, leaf_lfm, stem_lfm, lfm, thickness, mpa, SLA, dw_flam_sample, ww_flam_sample, branch_volume, species, ignition)
+  select(leaf_mass_ratio, leaf_lfm, stem_lfm, lfm, thickness, mpa, SLA, dw_sppdev, leaf_sav, leaf_dmc, dmc, stem_dmc, stem_sav, branch_volume, species, ignition)
 
 # looking at correlation and distribution
 pairs.panels(traits_pca_df) # from psych package
@@ -1374,6 +1373,11 @@ ggplot(flamm.df, aes(x = mpa, y = fd)) +
   theme(axis.title = element_text(face = 'bold', size = 16),
         axis.text = element_text(size = 14),
         axis.text.x = element_text(size = 12))
+```
+
+## Dry Matter Content
+```{r}
+
 ```
 
 

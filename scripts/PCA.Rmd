@@ -39,6 +39,7 @@ flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 flamm.df <- flamm.df %>% 
   filter(species %in% c('CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'IRIDOU', 'ARCDEN', 'HETARB')) %>% 
   filter(ignition != '0') %>% 
+  filter(temp_change < 100) %>%  # removing outlier, as it makes things funky
   unite('id', c(species, plant, rep), sep = '_', remove = F)
 ```
 
@@ -203,11 +204,11 @@ Plot setup:
 ```{r warning=FALSE}
 traits.df_pca <- flamm.df %>% 
   filter(ignition != 0) %>% # No non-ignitions
-   select(id, species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, branch_volume) %>% 
-   drop_na(species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, branch_volume)
+   select(id, species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, leaf_sav, stem_sav, dmc) %>% 
+   drop_na(species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, leaf_sav, stem_sav, dmc)
 
-figure_pca_quant2 <- (traits.df_pca[, c('species','lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'branch_volume')]) %>%  
- transmute("LFM" = lfm, #using spaces to shift labels over instead of \t since \t is leading to little blank squares popping up on the plot
+figure_pca_quant2 <- (traits.df_pca[, c('species','lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'leaf_sav', 'stem_sav', 'dmc')]) %>%  
+ transmute("LFM" = lfm,
            "Water Potential" = mpa,
            "Sample Density" = sample_density,
            "LMA" = LMA,
@@ -215,10 +216,12 @@ figure_pca_quant2 <- (traits.df_pca[, c('species','lfm', 'mpa', 'sample_density'
            "Branching" = branching,
            "Leaf Ratio" = leaf_mass_ratio,
            "Sample Weight" = sample_wt,
-           "Sample Volume" = branch_volume) %>% 
+           "Dry Matter Content" = dmc,
+           "Leaf SA:V" = leaf_sav,
+           "Stem SA:V" = stem_sav) %>% 
   na.omit()
 
-figure_pca_cat2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'branch_volume')]) %>% 
+figure_pca_cat2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'leaf_sav', 'stem_sav', 'dmc')]) %>% 
   na.omit() %>% 
   select(species) %>% 
   transmute("Species" = species)
@@ -228,7 +231,7 @@ figure_prcomp2 <- prcomp(na.omit(figure_pca_quant2),
                           scale = TRUE, 
                           retx=TRUE)
   
-figure_pca2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'branch_volume')]) %>%  
+figure_pca2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'leaf_sav', 'stem_sav', 'dmc')]) %>%  
   na.omit() 
 ```
 
@@ -282,11 +285,10 @@ circle <- data.frame(PC1 = r * cos(theta), PC2 = r * sin(theta))
 
 #Group by flam. metric: 
 PCA_metrics2 <- df.v %>% 
-  filter(Variables %in% c("LFM", "Water Potential", 
-                          "Sample Density", "LMA",
-                          "Thickness", "Branching",
-                          "Leaf Ratio", "Sample Weight",
-                          "Sample Volume"))
+  filter(Variables %in% c("LFM", "Water Potential", "Sample Density",
+           "LMA", "Thickness", "Branching", "Leaf Ratio",
+           "Sample Weight", "Dry Matter Content", "Leaf SA:V",
+           "Stem SA:V"))
     
 # Calculate the angles and the label offset
 df.v$Angle = ((180/pi) * atan(df.v$PC2/df.v$PC1))
@@ -326,10 +328,9 @@ traits.pca <- ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
           axis.title = element_text(face = 'bold', size = 15)) +
     scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   #scale_color_lancet() + # no ARTCAL, so manually defining color palette
-  geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
-  ylab(u.axis.labs[2]) #+
-  coord_equal() #remove hash if you want to make coordinates equal; for arranging figure, looks best if they're not
+  ylab(u.axis.labs[2])# +
+  #coord_equal() #remove hash if you want to make coordinates equal; for arranging figure, looks best if they're not
 traits.pca
 #ggsave(here('figures', 'PCA', 'Traits.PCA.png'), height = 7, width = 9)
 ```
@@ -345,7 +346,7 @@ tab_pca(pcobj2, rotation = 'varimax',
         show.var = TRUE,
   string.pov = "Proportion of Variance",
   string.cpov = "Cumulative Proportion",
-  file = here('figures', 'PCA', 'Traits.PC.Table.html')) 
+  file = here('figures', 'PCA', 'Traits.PC.Table.html'))
 ```
 
 ## Adding PC Scores to Data
@@ -379,7 +380,7 @@ pca_df_main <- merge(pca_df, pca_df2, by = 'id')
 ## Scatterplots
 ### Stand-alone
 ```{r}
-pc_labels <- c('PC1 (Heat Flux)', 'PC2 (-FD)', 'PC3 (Temp. Change)', 'PC4 (FH)', 'PC1 (Sample Size)', 'PC2 (-Branching, -MPa, LMA)', 'PC3 (-LFM, Thickness)', 'PC4 (-Density, -Leaf Ratio)')
+pc_labels <- c('PC1 (-FH)', 'PC2 (-Temp. Change)', 'PC3 (FD)', 'PC4 (-HF Change)', 'PC1 (DMC, -LFM, -LMR)', 'PC2 (-Branching, -MPa)', 'PC3 (Leaf SA:V, -Thickness)', 'PC4 (-Sample Weight, -LMA)')
 names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC4_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits', 'PC4_traits')
 
 pca_df_main %>% 
@@ -405,7 +406,7 @@ ggsave(here('figures', 'PCA', 'PC.Regressions.png'), height = 8, width = 12)
 
 ### For Arranged Main Figure
 ```{r}
-pc_labels <- c('PC1 (Heat Flux)', 'PC2 (-FD)', 'PC3 (Temp. Change)', 'PC1 (Sample Size)', 'PC2 (-Branching, -MPa, LMA)', 'PC3 (-LFM, Thickness)')
+pc_labels <- c('PC1 (-FH)', 'PC2 (-Temp. Change)', 'PC3 (FD)', 'PC1 (DMC, -LFM, -LMR)', 'PC2 (-Branching, -MPa)', 'PC3 (Leaf SA:V, -Thickness)')
 names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits')
 
 pc.scatterplot <- pca_df_main %>% 
