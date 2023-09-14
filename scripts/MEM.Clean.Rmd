@@ -710,14 +710,16 @@ mem.df$r_fh <- remef(fh_mod, fix = c('sample_wt', 'lfm', 'lfm:sample_wt'), ran =
 
 # With REMEF
 fh.branching.remef <- ggplot(mem.df, aes(x = branching, y = r_fh))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 0.9)+ 
   stat_regline_equation(label.y = 1.2) +
-  labs(x = 'Branching (scaled)', y = 'Flame Height') +
+  labs(x = 'Branching (scaled)', y = 'Flame Height', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 fh.branching.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.fh.png'), width = 8, height = 5.5)
 
@@ -744,14 +746,16 @@ mem.df$r_fh <- remef(fh_mod, fix = c('branching', 'lfm'), ran = "all", keep.inte
 
 # With REMEF
 ggplot(mem.df, aes(x = sample_wt, y = r_fh))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 0.9)+ 
   stat_regline_equation(label.y = 1.2) +
-  labs(x = 'Sample Weight (scaled)', y = 'Flame Height (effects removed, scaled)') +
+  labs(x = 'Sample Weight (scaled)', y = 'Flame Height (effects removed, scaled)', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 ggsave(here('figures', 'MEM', 'REMEF', 'sw.vs.fh.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -777,14 +781,16 @@ mem.df$r_fh <- remef(fh_mod, fix = c('sample_wt', 'branching'), ran = "all", kee
 
 # With REMEF
 ggplot(mem.df, aes(x = lfm, y = r_fh))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 0.9)+ 
   stat_regline_equation(label.y = 1.2) +
-  labs(x = 'Live Fuel Moisture (scaled)', y = 'Flame Height (effects removed, scaled)') +
+  labs(x = 'Live Fuel Moisture (scaled)', y = 'Flame Height (effects removed, scaled)', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.fh.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -810,14 +816,16 @@ mem.df$r_fh <- remef(fh_mod, fix = c('sample_wt', 'branching'), ran = "all", kee
 
 # With REMEF
 ggplot(mem.df, aes(x = stem_sav, y = r_fh))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 0.9)+ 
   stat_regline_equation(label.y = 1.2) +
-  labs(x = 'Stem SA:V (scaled)', y = 'Flame Height (effects removed, scaled)') +
+  labs(x = 'Stem SA:V (scaled)', y = 'Flame Height (effects removed, scaled)', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 ggsave(here('figures', 'MEM', 'REMEF', 'stem_sav.vs.fh.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -845,14 +853,16 @@ mem.df$r_fd <- remef(fd_mod, ran = "all", keep.intercept = FALSE) # w/ remef, we
 
 # With REMEF
 fd.dw.remef <- ggplot(mem.df, aes(x = dw_sppdev, y = r_fd))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
-  stat_cor(label.y = 1.9)+ 
-  stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Dry Weight Deviation (scaled)', y = 'Flame Duration') +
+  stat_cor(label.y = 3.95)+ 
+  stat_regline_equation(label.y = 4.55) +
+  labs(x = 'Dry Weight Deviation (scaled)', y = 'Flame Duration', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 fd.dw.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'dw.vs.fd.png'), width = 8, height = 5.5)
 
@@ -872,12 +882,14 @@ ggsave(here('figures', 'MEM', 'REMEF', 'dw.vs.fd.spp.png'), width = 8, height = 
 
 # Interaction with species visualized
 fd.dwint.remef <- ggplot(mem.df, aes(x = dw_sppdev, y = r_fd, color = species))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm') +
   labs(x = 'Dry Weight Deviation (scaled)', y = 'Flame Duration', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 fd.dwint.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'dwxspp.vs.fd.png'), width = 8, height = 5.5)
 ```
@@ -892,14 +904,16 @@ mem.df$r_fd <- remef(fd_mod, fix = c('dw_sppdev'), ran = "all", keep.intercept =
 
 # With REMEF
 ggplot(mem.df, aes(x = sample_wt, y = r_fd))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 3.7)+ 
   stat_regline_equation(label.y = 4.2) +
-  labs(x = 'Sample Weight (scaled)', y = 'Flame Duration (effects removed, scaled)') +
+  labs(x = 'Sample Weight (scaled)', y = 'Flame Duration (effects removed, scaled)', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 ggsave(here('figures', 'MEM', 'REMEF', 'sw.vs.fd.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -927,14 +941,16 @@ mem.df$r_hf <- remef(hf_mod, fix = c('sample_wt'), ran = "all", keep.intercept =
 
 # With REMEF
 hf.lmr.remef <- ggplot(mem.df, aes(x = leaf_mass_ratio, y = r_hf))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
-  stat_cor(label.y = 1.9)+ 
-  stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change') +
+  stat_cor(label.y = 1.96)+ 
+  stat_regline_equation(label.y = 2.65) +
+  labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 hf.lmr.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.png'), width = 8, height = 5.5)
 
@@ -961,14 +977,16 @@ mem.df$r_hf <- remef(hf_mod, ran = "all", keep.intercept = FALSE) # w/ remef, we
 
 # With REMEF
 ggplot(mem.df, aes(x = mpa, y = r_hf))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
-  stat_cor(label.y = 1.9)+ 
-  stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Sample Weight (scaled)', y = 'Heat Flux Change (effects removed, scaled)') +
+  stat_cor(label.y = 1.93)+ 
+  stat_regline_equation(label.y = 2.4) +
+  labs(x = 'Sample Weight (scaled)', y = 'Heat Flux Change (effects removed, scaled)', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 ggsave(here('figures', 'MEM', 'REMEF', 'sw.vs.heatflux.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -994,16 +1012,19 @@ mem.df$r_hf <- remef(hf_mod, fix = c('sample_wt'), ran = "all", keep.intercept =
 
 # With REMEF
 hf.lma.remef <- ggplot(mem.df, aes(x = LMA, y = r_hf))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
-  stat_cor(label.y = 1.9)+ 
-  stat_regline_equation(label.y = 2.3) +
-  labs(x = 'LMA (scaled)', y = 'Heat Flux Change') +
+  stat_cor(label.y = 1.98)+ 
+  stat_regline_equation(label.y = 2.67) +
+  labs(x = 'LMA (scaled)', y = 'Heat Flux Change', color = 'Species') +
   theme_bw() +
+  scale_y_continuous(breaks = c(-2, -1, 0, 1, 2, 3)) +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 hf.lma.remef
-#ggsave(here('figures', 'MEM', 'REMEF', 'lma.vs.heatflux.png'), width = 8, height = 5.5)
+ggsave(here('figures', 'MEM', 'REMEF', 'lma.vs.heatflux.png'), width = 8, height = 5.5)
 
 # Split by Species
 mem.df %>%  filter(species != 'HETARB') %>% 
@@ -1030,13 +1051,16 @@ mem.df$r_temp <- remef(temp_mod, fix = c('start_temp', 'sample_wt', 'start_temp:
 
 # With REMEF
 temp.branching.remef <- ggplot(mem.df, aes(x = branching, y = r_temp))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 1.9)+ 
-  stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Branching (scaled)', y = 'Temp. Change') +
+  stat_regline_equation(label.y = 2.4) +
+  labs(x = 'Branching (scaled)', y = 'Temp. Change', color = 'Species') +
   theme_bw() +
-  theme(axis.title = element_text(face = 'bold', size = 15),
+  scale_y_continuous(breaks = c(-1, 0, 1, 2)) +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
+  theme(legend.title = element_text(face = 'bold', size = 15),
+        axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
 temp.branching.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.temp.png'), width = 8, height = 5.5)
@@ -1064,14 +1088,16 @@ mem.df$r_temp <- remef(temp_mod, fix = c('start_temp', 'branching'), ran = "all"
 
 # With REMEF
 ggplot(mem.df, aes(x = sample_wt, y = r_temp))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 3.6)+ 
   stat_regline_equation(label.y = 4) +
-  labs(x = 'Sample Weight (scaled)', y = 'Temp. Change (effects removed, scaled)') +
+  labs(x = 'Sample Weight (scaled)', y = 'Temp. Change (effects removed, scaled)', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 ggsave(here('figures', 'MEM', 'REMEF', 'sw.vs.temp.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -1095,14 +1121,16 @@ mem.df$r_temp <- remef(temp_mod, fix = c('sample_wt', 'branching'), ran = "all",
 
 # With REMEF
 ggplot(mem.df, aes(x = start_temp, y = r_temp))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 2.95)+ 
   stat_regline_equation(label.y = 3.4) +
-  labs(x = 'Starting Temp. (scaled)', y = 'Temp. Change (effects removed, scaled)') +
+  labs(x = 'Starting Temp. (scaled)', y = 'Temp. Change (effects removed, scaled)', color = 'Species') +
   theme_bw() +
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
 ggsave(here('figures', 'MEM', 'REMEF', 'starttemp.vs.temp.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -1128,13 +1156,15 @@ mem.df$r_temp <- remef(temp_mod, fix = c('start_temp', 'sample_wt', 'start_temp:
 
 # With REMEF
 ggplot(mem.df, aes(x = lfm, y = r_temp))  +
-  geom_point(alpha = 0.8, color = 'gray20') +
+  geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 1.9)+ 
   stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Live Fuel Moisture (scaled)', y = 'Temp. Change (effects removed, scaled)') +
+  labs(x = 'Live Fuel Moisture (scaled)', y = 'Temp. Change (effects removed, scaled)', color = 'Species') +
   theme_bw() +
-  theme(axis.title = element_text(face = 'bold', size = 15),
+  scale_color_manual(values = c("#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
+  theme(legend.title = element_text(face = 'bold', size = 15),
+        axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
 ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.temp.png'), width = 8, height = 5.5)
 
@@ -1158,7 +1188,8 @@ ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.temp.spp.png'), width = 8, height
 ggarrange(fh.branching.remef, fd.dw.remef, temp.branching.remef, hf.lma.remef,
           labels = c('A', 'B', 'C', 'D'), 
           font.label = list(size = 28),
-          ncol = 2, nrow = 2)
+          ncol = 2, nrow = 2,
+          common.legend = T)
 ggsave(here('figures', 'main_figures', 'remef.scatterplots.png'), height = 8, width = 10)
 ```
 
