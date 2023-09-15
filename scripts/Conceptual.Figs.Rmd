@@ -1,0 +1,120 @@
+---
+title: "Conceptual Figures"
+author: "Joe Celebrezze"
+date: "2023-09-15"
+output: html_document
+---
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+here = here::here
+library(tidyverse)
+library(ggsci) #for scale_color_lancet
+library(Ternary)
+
+flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
+```
+
+# Survey-Traits-Flammability
+First, to present idea to KF and MAM, going to just use subjective numbers (except for prop. ig.)
+Ignitability
+```{r}
+prop_ig_df <- flamm.df %>%
+  group_by(species) %>%
+  summarise(prop_ig = mean(prop_ig)) %>% 
+  mutate(prop_ig = prop_ig*2.25) # so maximum = 1
+```
+
+Dataframe
+```{r}
+spp <- c('ARTCAL', 'ARCDEN', 'CEAGRI', 'ERIKAR', 'HETARB', 'IRIDOU', 'MALLAU', 'SALAPI', 'SALLEU')
+# flam.
+comb <- c(0.3, 0.5, 0.7, 0.1, 1, 0, 0.9, 0.6, 0.5)
+ign <- c(0.321, 0, 0.375, 0.09, 0, 0, 0.112, 1, 0.844)
+# survey
+drought <- c(1, 1, 1, 0.5, 1, 0, 1, 1, 1)
+others <- c(0.5, 0.3, 0.6, 0.3, 0.5, 0.2, 0.5, 0.8, 0.8)
+# traits
+morph <- c(1, 0.3, 0.9, 0.9, 0.4, 0, 0.75, 0.6, 0.6)
+hyd <- c(0.5, 0.2, 0.8, 0, 0.8, 0, 0.7, 0.6, 1)
+
+triangle.df <- data.frame(spp, comb, ign, drought, others, morph, hyd) %>% 
+  mutate(flam = sqrt(comb^2 + ign^2)/1.1661904 + 0.1) %>% 
+  mutate(survey = sqrt(drought^2 + others^2)/1.2806248 + 0.1) %>% 
+  mutate(traits = sqrt(morph^2 + hyd^2)/1.2041595 + 0.1)
+```
+
+Plots
+```{r}
+par(mfrow = c(3, 3), mar = c(0.01, 0.01, 1, 0.01))
+for(i in 1:nrow(triangle.df)){
+TernaryPlot("Flammability", "Desirable Traits (Survey)", "Flam-Related Traits",
+            grid.lines = 0,
+            grid.minor.lines = 0)
+
+title(triangle.df[i,1], cex.main = 1.5)
+
+# Add an arrow
+TernaryArrows(c(50, 50, 50), c(triangle.df[i,8], 0.1, 0.1), length = 0.05, col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, triangle.df[i,9], 0.1), length = 0.05, col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle.df[i,10]), length = 0.05, col = "black")}
+```
+
+# Combustibility-Ignitability-Survey/Traits
+Dataframe (making minimum = 0.1, maximum = 1.1 forr combustibility, ignitability)
+```{r}
+triangle2.df <- triangle.df %>% 
+  mutate(comb = comb + 0.1) %>% 
+  mutate(ign = ign + 0.1)
+```
+
+Survey Plot:
+```{r}
+par(mfrow = c(3, 3), mar = c(0.01, 0.01, 1, 0.01))
+for(i in 1:nrow(triangle2.df)){
+TernaryPlot("Combustibility", "Desirable Traits (Survey)", "Ignitability",
+            grid.lines = 0,
+            grid.minor.lines = 0)
+
+title(triangle2.df[i,1], cex.main = 1.5)
+
+# Add an arrow
+TernaryArrows(c(50, 50, 50), c(triangle2.df[i,2], 0.1, 0.1), length = 0.05, col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, triangle2.df[i,9], 0.1), length = 0.05, col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle2.df[i,3]), length = 0.05, col = "black")}
+```
+
+Traits Plot:
+```{r}
+par(mfrow = c(3, 3), mar = c(0.01, 0.01, 1, 0.01))
+for(i in 1:nrow(triangle2.df)){
+TernaryPlot("Combustibility", "Flam-Related Traits", "Ignitability",
+            grid.lines = 0,
+            grid.minor.lines = 0)
+
+title(triangle2.df[i,1], cex.main = 1.5)
+
+# Add an arrow
+TernaryArrows(c(50, 50, 50), c(triangle2.df[i,2], 0.1, 0.1), length = 0.05, col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, triangle2.df[i,10], 0.1), length = 0.05, col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle2.df[i,3]), length = 0.05, col = "black")}
+```
+
+# Combustibility vs. Ignitability
+```{r}
+ggplot(triangle.df, aes(x = comb, y = ign, color = spp)) +
+  geom_text(label = spp, size = 8, fontface = 'bold') +
+  labs(x = 'Combustibility', y = 'Ignitablity') +
+  theme_classic() +
+  coord_equal() +
+  scale_color_lancet() +
+  theme(legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 30),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+ggsave(here('figures', 'main_figures', 'conceptual.ig.vs.comb.png'), height = 16, width = 16)
+```
+
+

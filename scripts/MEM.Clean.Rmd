@@ -36,6 +36,10 @@ source(here('scripts', 'mem.selection.function.R')) #this is where mem.selection
 
 # reading in data
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
+
+ya <- flamm.df %>% 
+  group_by(species) %>% 
+  summarise(thickness = mean(thickness), branching = mean(branching), leaf_sav = mean(leaf_sav), SLA = mean(SLA))
 ```
 
 # Data Structure
