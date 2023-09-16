@@ -298,7 +298,7 @@ df.v$Offset <- ((-2 * sign(df.v$PC1))/2)
 #labels: 
 u.axis.labs <- paste("PC", choices, sep = "")
 u.axis.labs <- paste(u.axis.labs, sprintf("(%0.1f%% explained var.)", 
-                                            100 * pcobj$sdev[choices]^2/sum(pcobj$sdev^2)))
+                                            100 * pcobj2$sdev[choices]^2/sum(pcobj2$sdev^2)))
 ```
 
 Plot:

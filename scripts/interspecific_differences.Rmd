@@ -1,5 +1,5 @@
 ---
-title: "Species Differences: Looking at Species-Specific Variables, Average Values
+title: "Species Differences, Looking at Species-Specific Variables, Average Values
   for Species"
 author: "Joe Celebrezze"
 date: "2023-07-17"
@@ -59,6 +59,7 @@ fh.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 fh.boxplot
@@ -86,6 +87,7 @@ fd.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 fd.boxplot
@@ -114,6 +116,7 @@ tc.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 tc.boxplot
@@ -142,6 +145,7 @@ hf.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 hf.boxplot
@@ -172,6 +176,7 @@ sw.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 sw.boxplot
@@ -198,6 +203,7 @@ mpa.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 mpa.boxplot
@@ -226,6 +232,7 @@ branching.boxplot <- flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 branching.boxplot
@@ -256,6 +263,7 @@ flamm.df %>%
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))
 ```
@@ -642,8 +650,8 @@ fviz_nbclust(kmeans_scaled_df2, kmeans, method = "silhouette") #k = 2
 # run k-means clustering
 #perform k-means clustering with k = 2 clusters
 km <- kmeans(kmeans_scaled_df2, centers = 3)
-km$cluster <- case_when(km$cluster == 1 ~ 1,
-                         km$cluster == 2 ~ 2,
+km$cluster <- case_when(km$cluster == 1 ~ 2,
+                         km$cluster == 2 ~ 1,
                          km$cluster == 3 ~ 3)
 
 #plot results of final k-means model
@@ -713,3 +721,101 @@ kmeans_df2 %>%
           strip.text = element_text(face = 'bold', size = 15))
 ggsave(here('figures', 'main_figures', 'traits.flam.k.means.boxplot.no2.png'), width = 17, height = 9)
 ```
+
+Alternative boxplot and reworking above figures to arrange:
+```{r}
+km_boxplotV2 <- kmeans_df2 %>% 
+  filter(heat_flux_change < 0.3) %>% 
+  mutate(fh = scale(fh), fd = scale(fd), heat_flux_change = scale(heat_flux_change),
+         lfm = scale(lfm), mpa = scale(mpa), sample_wt = scale(sample_wt),
+         leaf_mass_ratio = scale(leaf_mass_ratio), branching = scale(branching)) %>% 
+  pivot_longer(cols = c(fh, fd, heat_flux_change, lfm, mpa, sample_wt, leaf_mass_ratio, branching),
+               names_to = 'var', values_to = 'val') %>% 
+  mutate(var = case_when(
+    var == 'fh' ~ 'Flame Height',
+    var == 'fd' ~ 'Flame Duration',
+    var == 'heat_flux_change' ~ 'Heat Flux Change',
+    var == 'lfm' ~ 'Live Fuel Moisture',
+    var == 'mpa' ~ 'Water Potential',
+    var == 'sample_wt' ~ 'Sample Weight',
+    var == 'leaf_mass_ratio' ~ 'Leaf Mass Ratio',
+    var == 'branching' ~ 'Branching')) %>%
+  ggplot(aes(x = var, y = val, color = as.factor(cluster))) +
+    geom_boxplot(alpha= 0.8) +
+    scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2")) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.text.x = element_text(face = 'bold', size = 15),
+          axis.title = element_blank(),
+          axis.text.y = element_text(size = 15))
+km_boxplotV2
+ggsave(here('figures', 'main_figures', 'traits.flam.k.means.boxplotV2.no2.png'), width = 16, height = 8)
+
+spp_vs_km <- kmeans_df2 %>% 
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  ggplot(aes(x = species, y = cluster, color = as.factor(cluster))) +
+    geom_jitter(width = 0.1, height = 0.1) +
+    geom_text(aes(x = species, y = cluster + 0.25, color = as.factor(cluster), label = n),
+                  data = number_pts_per_cluster, fontface = 'bold', size = 5.5) +
+    annotate('text', x = 0.55, y = 1, label = 'High', angle = 90, fontface = 'bold',
+             size = 5.5, color = "#00468BB2") +
+    annotate('text', x = 0.8, y = 2, label = 'Flammability', angle = 90, fontface = 'bold',
+             size = 5.5, color = "black") +
+    annotate('text', x = 0.55, y = 3, label = 'Low', angle = 90, fontface = 'bold',
+             size = 5.5, color = "#42B540B2") +
+    geom_segment(aes(x = 0.55, y = 1.6, xend = 0.55, yend = 1.2),
+                  arrow = arrow(length = unit(0.2, "cm")), color = "#00468BB2") +
+    geom_segment(aes(x = 0.55, y = 1.6, xend = 0.55, yend = 2.4), color = "#ED0000B2") +
+    geom_segment(aes(x = 0.55, y = 2.4, xend = 0.55, yend = 2.8),
+                  arrow = arrow(length = unit(0.2, "cm")), color = "#42B540B2") +
+    scale_y_continuous(breaks = c(1:max(traits_kmeans_df$cluster))) +
+    theme_bw() +
+    scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2")) +
+    theme(legend.position = 'none',
+          axis.title = element_blank(),
+          axis.text.y = element_blank(), 
+          axis.ticks.y = element_blank(),
+          axis.text.x = element_text(face = 'bold', size = 16, angle = 20, vjust = 0.9, hjust=0.75),
+          panel.grid.minor = element_blank())
+spp_vs_km   
+                
+km_clust_plot <- fviz_cluster(km, data = kmeans_scaled_df2, geom = 'point', pointsize = 1.75, show.clust.cent = F, ellipse.type = 'norm') +
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2")) +
+  scale_fill_manual(values = c(alpha("#00468BB2", 0.5), alpha('#ED0000B2', 0.5), alpha('#42B540B2', 0.5))) +
+  theme_bw() +
+  labs(x = 'Dimension 1 (42.5%)', y = 'Dimension 2 (17.9%)', color = 'K-Means Cluster', shape = 'K-Means Cluster', fill = 'K-Means Cluster') +
+  theme(plot.title = element_blank(),
+        legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 17),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),  # Hide gridlines
+        panel.grid.minor = element_blank())
+km_clust_plot
+```
+
+### Arranging/Legend
+```{r}
+# For legend
+km_leg_plot <- kmeans_df2 %>% 
+  ggplot(aes(x = cluster, y = lfm, color = as.factor(cluster))) +
+  geom_point(shape = 'square', size = 5) +
+  labs(color = 'K-Means Cluster') +
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2")) +
+  theme_bw() +
+  theme(legend.position = 'top',
+        legend.title = element_text(face = 'bold', size = 25),
+        legend.text = element_text(size = 20))
+km_leg_plot
+km_legend <- cowplot::get_legend(km_leg_plot)
+
+mid <- cowplot::plot_grid(km_clust_plot, spp_vs_km, rel_widths = c(1, 2.5), labels = c('A', 'B'), label_size = 24)
+mid
+
+arranged <- cowplot::plot_grid(km_legend, mid, km_boxplotV2, rel_heights = c(1, 5, 5), ncol = 1, labels = c(' ', ' ', 'C'), label_size = 24)
+arranged
+
+ggsave(here('figures', 'main_figures', 'kmeans_cluster_arranged_figure.png'), height = 10, width = 16)
+```
+

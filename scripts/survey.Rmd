@@ -461,13 +461,23 @@ es_likert_cat <- merge(es_likert_counts, es_likert_df) %>%
 melted <- reshape::melt(es_likert_df) %>% 
   mutate(item_title = str_replace_all(Item, "_", " ")) %>% 
   mutate(item_title = str_to_title(item_title)) %>% 
+  mutate(item_title = str_replace_all(item_title, " Or ", "/")) %>% 
+  mutate(item_title = str_replace_all(item_title, "Private Recreation Physical Activity", "Private Recreation")) %>% 
+  mutate(item_title = str_replace_all(item_title, "Of", "of"),
+         item_title = str_replace_all(item_title, "For", "for"),
+         item_title = str_replace_all(item_title, "The", "the"),
+         item_title = str_replace_all(item_title, "My", "my"),
+         item_title = str_replace_all(item_title, "From", "from"),) %>% 
   mutate(cat_num = case_when(
     category %in% "provisioning" ~ 1, 
     category %in% "regulating" ~ 2, 
     category %in% "cultural" ~ 3, 
   ), 
-  cat_num = as.numeric(cat_num)) 
+  cat_num = as.numeric(cat_num))
 melted
+
+
+?str_to_title
 
 max_value_very_high <- melted %>% 
   filter(variable %in% c("Very High Importance")) %>% 
@@ -482,11 +492,12 @@ leg <-  melted %>%
   ggplot()+
   geom_bar(aes(x = reorder(item_title,cat_num), y=value, fill=variable), position="stack", stat="identity")+
   coord_flip() + 
-  #ggtitle("At my child's school my child is safe")+
   ylab("Percentage")+
   xlab("")+
-  scale_fill_brewer(palette="BrBG", guide = guide_legend(reverse = TRUE))+
+  scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B"), guide = guide_legend(reverse = TRUE)) +
+  #scale_fill_brewer(palette="BrBG", guide = guide_legend(reverse = TRUE))+
   theme(legend.position="bottom", 
+        legend.text = element_text(face = 'bold', size = 14),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         plot.margin = unit(c(0, 0, 0, 0), "cm"),
@@ -496,20 +507,21 @@ leg
 
 cultural <-  melted %>% 
   filter(cat_num == 3) %>% 
- # mutate(item_title = reorder(item_title, very))
   ggplot()+
   geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
   coord_flip() + 
-  #ggtitle("At my child's school my child is safe")+
-  ylab("Percentage")+
-  xlab("")+
-  scale_fill_brewer(palette="BrBG")+
+  labs(y = "Percentage", title = "Cultural") +
+  scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
+  #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
         axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        plot.title = element_text(face = 'bold', size = 16),
         plot.margin = unit(c(.25, 0, .25, 0), "cm")
-        ) +
-  ggtitle("Cultural")
+        )
 cultural
 
 reg <-  melted %>% 
@@ -517,35 +529,38 @@ reg <-  melted %>%
   ggplot()+
   geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
   coord_flip() + 
-  #ggtitle("At my child's school my child is safe")+
-  ylab("Percentage")+
-  xlab("")+
-  scale_fill_brewer(palette="BrBG")+
+  labs(y = "Percentage", title = "Regulating") +
+  scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
+  #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
         axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        plot.title = element_text(face = 'bold', size = 16),
         plot.margin = unit(c(0, 0, .25, 0), "cm")
-        )+
-  ggtitle("Regulating")
+        )
 reg
 
 prov <-  melted %>% 
   filter(cat_num == 1) %>% 
   ggplot()+
   geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
+  scale_y_continuous(limits = c(0,100)) +
   coord_flip() + 
-  #ggtitle("At my child's school my child is safe")+
-  ylab("Percentage")+
-  xlab("")+
-  scale_fill_brewer(palette="BrBG")+
+  labs(y = "Percentage", title = "Provisioning") +
+  scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
+  #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        #axis.title.x = element_blank(),
-       # axis.text.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.y = element_text(size = 12),
+        axis.text.x = element_text(size = 14),
+        axis.title.x = element_text(face = 'bold', size = 16),
+        plot.title = element_text(face = 'bold', size = 16),
         plot.margin = unit(c(0, 0, .25, 0), "cm")
-        )+
-  ggtitle("Provisioning") 
+        )
 prov
-  
 
 legend <- cowplot::get_legend(leg)
 #scale_x_discrete(limits=c("StronglyAgree", "Agree", "DontKnow","Disagree","StronglyDisagree"))
