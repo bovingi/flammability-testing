@@ -303,11 +303,11 @@ ggsave(here('figures', 'main_figures', 'spp.boxplots.png'), height = 9, width = 
 NOTE: Ignition method has significant effect on clustering
 ```{r}
 id <- c(1:nrow(flamm.df))
-flamm.df <- cbind(flamm.df, id) %>% 
-  unite('species_id', c(species, id), remove = F)
+#flamm.df <- cbind(flamm.df, id) %>% 
+#  unite('species_id', c(species, id), remove = F)
 
 # so it's replicable
-set.seed(16)
+set.seed(12)
 
 # labels
 flam_labels <- c('Flame Height', 'Flame Duration', 'Temperature Change', 'Heat Flux Change', '% Ignited')
@@ -316,7 +316,8 @@ names(flam_labels) <- c('fh', 'fd', 'temp_change', 'heat_flux_change', 'prop_ig'
 # prepping dataset
 flamm_kmeans_df <- flamm.df %>% 
   filter(ignition != 0) %>% 
-  select(species_id, species, ignition, fh, fd, temp_change, heat_flux_change) %>% 
+  filter(temp_change < 100) %>% 
+  select(species_id, species, ignition, fh, fd, temp_change, heat_flux_change, prop_ig) %>% 
   na.omit()
 
 rownames(flamm_kmeans_df) <- flamm_kmeans_df$species_id
@@ -329,17 +330,22 @@ flamm_kmeans_scaled_df <- flamm_kmeans_df %>%
 # optimal number of clusters
 # 2 ways to determine optimal cluster 
 # 1. optimal cluster at the elbow
-fviz_nbclust(flamm_kmeans_scaled_df, kmeans, method = "wss") #k = 2 or k = 3
+fviz_nbclust(flamm_kmeans_scaled_df, kmeans, method = "wss") # k = 3 or k = 4
 # 2. silhouette method
 fviz_nbclust(flamm_kmeans_scaled_df, kmeans, method = "silhouette") #k = 2
 
 # run k-means clustering
-#perform k-means clustering with k = 2 clusters
-km <- kmeans(flamm_kmeans_scaled_df, centers = 2)
+#perform k-means clustering with k = 3 clusters
+km <- kmeans(flamm_kmeans_scaled_df, centers = 3)
+km$cluster <- case_when(km$cluster == 1 ~ 2,
+                         km$cluster == 2 ~ 1,
+                         km$cluster == 3 ~ 3)
 #plot results of final k-means model
 fviz_cluster(km, data = flamm_kmeans_scaled_df)
 #add cluster assigment to original data
 flamm_kmeans_df <- cbind(flamm_kmeans_df, cluster = km$cluster)
+#merging with dataseet w/ plant traits (flamm.df) to visualize how clusters track plant traits
+comp_kmeans_df <- merge(flamm_kmeans_df, flamm.df, by = 'species_id')
 
 #visualizing how cluster assignment tracks species
 flamm_kmeans_df %>% 
@@ -356,13 +362,13 @@ flamm_kmeans_df %>%
     labs(x = 'Cluster #', fill = 'Species', y = 'Count', title = 'K-Means Clustering: Flam. Metrics')
 
 flamm_kmeans_df %>% 
-  pivot_longer(cols = c(fd, fh, heat_flux_change, temp_change), names_to = 'var', values_to = 'val') %>% 
+  pivot_longer(cols = c(fd, fh, heat_flux_change, temp_change, prop_ig), names_to = 'var', values_to = 'val') %>% 
   ggplot(aes(x = as.factor(cluster), y = val, color = as.factor(cluster))) +
     geom_boxplot(outlier.shape = NA, alpha= 0.8) +
     geom_jitter(width = 0.2, alpha = 0.2) +
     facet_wrap(~var, scales = 'free', labeller = labeller(var = flam_labels)) +
     labs(x = 'K-Means Cluster', y = 'Flamm. Metric Value') +
-    scale_color_manual(values = c("#00468BB2", "#42B540B2")) +
+    scale_color_manual(values = c("#00468BB2", 'black', "#42B540B2")) +
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(face = 'bold', size = 17),
@@ -394,6 +400,128 @@ flamm_kmeans_df %>%
 ignition.vs.cluster <- lm(cluster ~ ignition, data = flamm_kmeans_df)
 anova(ignition.vs.cluster)
 summary(ignition.vs.cluster)
+
+# how do plant traits relate to flam. clusters?
+comp_kmeans_df %>% 
+  pivot_longer(cols = c(lfm, mpa, dmc, sample_wt), names_to = 'var', values_to = 'val') %>% 
+  ggplot(aes(x = as.factor(cluster), y = val, color = as.factor(cluster))) +
+    geom_boxplot(outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(width = 0.2, alpha = 0.2) +
+    facet_wrap(~var, scales = 'free') +
+    labs(x = 'K-Means Cluster', y = 'Predictor Value') +
+    scale_color_manual(values = c("#00468BB2", 'black', "#42B540B2")) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 17),
+          axis.text = element_text(size = 15),
+          strip.text = element_text(face = 'bold', size = 15))
+```
+
+### Nice Figures
+Alternative boxplot and reworking above figures to arrange:
+```{r}
+km_boxplot_flam <- comp_kmeans_df %>% 
+  mutate(fh = scale(fh.x), fd = scale(fd.x), temp_change = scale(temp_change.x), heat_flux_change = scale(heat_flux_change.x), prop_ig = scale(prop_ig.x), lfm = scale(lfm), branching = scale(branching), leaf_sav = scale(leaf_sav), dmc = scale(dmc), sample_wt = scale(sample_wt)) %>% 
+  pivot_longer(cols = c(fh, fd, temp_change, heat_flux_change, prop_ig, lfm, branching, leaf_sav, dmc, sample_wt), names_to = 'var', values_to = 'val') %>% 
+  mutate(var = case_when(
+    var == 'fh' ~ 'Flame Height',
+    var == 'fd' ~ 'Flame Duration',
+    var == 'heat_flux_change' ~ 'Heat Flux Change',
+    var == 'temp_change' ~ 'Temp. Change',
+    var == 'prop_ig' ~ 'Proportion Ignited',
+    var == 'lfm' ~ 'Live Fuel Moisture',
+    var == 'sample_wt' ~ 'Sample Weight',
+    var == 'dmc' ~ 'Dry Mass Content',
+    var == 'branching' ~ 'Branching',
+    var == 'leaf_sav' ~ 'Leaf SA:Volume')) %>%
+    mutate(var = fct_relevel(var, levels = c('Flame Height', 'Flame Duration', 'Heat Flux Change',
+                                                   'Temp. Change', 'Proportion Ignited', 'Live Fuel Moisture',
+                                                   'Sample Weight', 'Dry Mass Content', 'Branching',
+                                                   'Leaf Surface Area:Volume'))) %>% 
+  ggplot(aes(x = var, y = val, color = as.factor(cluster))) +
+    geom_boxplot(alpha= 0.8) +
+    scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2")) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.text.x = element_text(face = 'bold', size = 15, angle = 20, vjust = 0.9, hjust=0.75),
+          axis.title = element_blank(),
+          axis.text.y = element_text(size = 15))
+km_boxplot_flam
+
+# Species vs. clusters
+number_pts_per_cluster <- comp_kmeans_df %>% 
+  dplyr::group_by(species.x, cluster) %>% 
+  tally()
+
+spp_vs_flamkm <- comp_kmeans_df %>% 
+  mutate(species = fct_relevel(species.x, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                                 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'))) %>% 
+  ggplot(aes(x = species, y = cluster, color = as.factor(cluster))) +
+    geom_jitter(width = 0.1, height = 0.1) +
+    geom_text(aes(x = species.x, y = cluster + 0.25, color = as.factor(cluster), label = n),
+                  data = number_pts_per_cluster, fontface = 'bold', size = 5.5) +
+    annotate('text', x = 0.55, y = 1, label = 'High', angle = 90, fontface = 'bold',
+             size = 5.5, color = "#00468BB2") +
+    annotate('text', x = 0.95, y = 2, label = 'Combustibility/\nSustainability', angle = 90, fontface = 'bold',
+             size = 5.5, color = "#ED0000B2") +
+    annotate('text', x = 0.55, y = 3, label = 'Low', angle = 90, fontface = 'bold',
+             size = 5.5, color = "#42B540B2") +
+    annotate('text', x = 9, y = 2, label = 'Most Ignitable', angle = 270, fontface = 'bold',
+             size = 5.5, color = "#ED0000B2") +
+    geom_segment(aes(x = 0.55, y = 1.6, xend = 0.55, yend = 1.2),
+                  arrow = arrow(length = unit(0.2, "cm")), color = "#00468BB2") +
+    geom_segment(aes(x = 0.55, y = 1.6, xend = 0.55, yend = 2.4), color = "#ED0000B2") +
+    geom_segment(aes(x = 0.55, y = 2.4, xend = 0.55, yend = 2.8),
+                  arrow = arrow(length = unit(0.2, "cm")), color = "#42B540B2") +
+    scale_y_continuous(breaks = c(1:max(comp_kmeans_df$cluster))) +
+    theme_bw() +
+    scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2")) +
+    theme(legend.position = 'none',
+          axis.title = element_blank(),
+          axis.text.y = element_blank(), 
+          axis.ticks.y = element_blank(),
+          axis.text.x = element_text(face = 'bold', size = 16, angle = 20, vjust = 0.9, hjust=0.75),
+          panel.grid.minor = element_blank())
+spp_vs_flamkm    
+      
+# Cluster plot          
+km_clustflam_plot <- fviz_cluster(km, data = flamm_kmeans_scaled_df, geom = 'point', pointsize = 1.75, show.clust.cent = F, ellipse.type = 'norm') +
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2")) +
+  scale_fill_manual(values = c(alpha("#00468BB2", 0.5), alpha('#ED0000B2', 0.5), alpha('#42B540B2', 0.5))) +
+  theme_bw() +
+  labs(color = 'K-Means Cluster', shape = 'K-Means Cluster', fill = 'K-Means Cluster') +
+  theme(plot.title = element_blank(),
+        legend.position = 'none',
+        axis.title = element_text(face = 'bold', size = 17),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        panel.grid.major = element_blank(),  # Hide gridlines
+        panel.grid.minor = element_blank())
+km_clustflam_plot
+```
+
+### Arranging/Legend
+```{r}
+# For legend
+km_leg_plot <- comp_kmeans_df %>% 
+  ggplot(aes(x = cluster, y = lfm, color = as.factor(cluster))) +
+  geom_point(shape = 'square', size = 5) +
+  labs(color = 'K-Means Cluster') +
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2")) +
+  theme_bw() +
+  theme(legend.position = 'top',
+        legend.title = element_text(face = 'bold', size = 25),
+        legend.text = element_text(size = 20))
+km_leg_plot
+km_legend <- cowplot::get_legend(km_leg_plot)
+
+mid <- cowplot::plot_grid(km_clustflam_plot, spp_vs_flamkm, rel_widths = c(1, 2.5), labels = c('A', 'B'), label_size = 24)
+mid
+
+arranged <- cowplot::plot_grid(km_legend, mid, km_boxplot_flam, rel_heights = c(1, 5, 5), ncol = 1, labels = c(' ', ' ', 'C'), label_size = 24)
+arranged
+
+ggsave(here('figures', 'main_figures', 'flam_kmeans_cluster_arranged_figure.png'), height = 10, width = 18)
 ```
 
 ## Leaf Traits
@@ -624,8 +752,8 @@ woohoo <- flamm.df %>%
 ```{r}
 set.seed(2)
 # labels
-kmeans_labels <- c('Flame Height', 'Flame Duration', 'Heat Flux Change', 'Live Fuel Moisture (%)', 'Water Potential (-MPa)', 'Sample Weight (g)', 'Leaf Mass Ratio', 'Branching')
-names(kmeans_labels) <- c('fh', 'fd', 'heat_flux_change', 'lfm', 'mpa', 'sample_wt', 'leaf_mass_ratio', 'branching')
+kmeans_labels <- c('Flame Height', 'Flame Duration', 'Heat Flux Change', 'Live Fuel Moisture (%)', 'Dry Matter Content', 'Sample Weight (g)', 'Leaf Mass Ratio', 'Branching')
+names(kmeans_labels) <- c('fh', 'fd', 'heat_flux_change', 'lfm', 'dmc', 'sample_wt', 'leaf_mass_ratio', 'branching')
 
 # prepping dataset
 kmeans_df2 <- flamm.df %>% 

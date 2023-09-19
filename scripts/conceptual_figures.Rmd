@@ -39,8 +39,10 @@ others <- c(0.5, 0.3, 0.6, 0.3, 0.5, 0.2, 0.5, 0.8, 0.8)
 # traits
 morph <- c(1, 0.3, 0.9, 0.9, 0.4, 0, 0.75, 0.6, 0.6)
 hyd <- c(0.5, 0.2, 0.8, 0, 0.8, 0, 0.7, 0.6, 1)
+# colors
+color <- c('#ED0000B2', '#00468BB2', '#42B540B2', '#0099B4B2', '#925E9FB2', '#FDAF91B2', '#AD002AB2', '#ADB6B6B2', '#1B1919B2')
 
-triangle.df <- data.frame(spp, comb, ign, drought, others, morph, hyd) %>% 
+triangle.df <- data.frame(spp, comb, ign, drought, others, morph, hyd, color) %>% 
   mutate(flam = sqrt(comb^2 + ign^2)/1.1661904 + 0.1) %>% 
   mutate(survey = sqrt(drought^2 + others^2)/1.2806248 + 0.1) %>% 
   mutate(traits = sqrt(morph^2 + hyd^2)/1.2041595 + 0.1)
@@ -52,18 +54,20 @@ par(mfrow = c(3, 3), mar = c(0.01, 0.01, 1, 0.01))
 for(i in 1:nrow(triangle.df)){
 TernaryPlot("Flammability", "Desirable Traits (Survey)", "Flam-Related Traits",
             grid.lines = 0,
-            grid.minor.lines = 0)
+            grid.minor.lines = 0,
+            col = triangle.df$color[i])
 
 title(triangle.df[i,1], cex.main = 1.5)
 
 # Add an arrow
-TernaryArrows(c(50, 50, 50), c(triangle.df[i,8], 0.1, 0.1), length = 0.05, col = "black")
-TernaryArrows(c(50, 50, 50), c(0.1, triangle.df[i,9], 0.1), length = 0.05, col = "black")
-TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle.df[i,10]), length = 0.05, col = "black")
+TernaryArrows(c(50, 50, 50), c(triangle.df[i,9], 0.1, 0.1), length = 0.14*triangle.df[i,9], lwd = 3*triangle.df[i,9], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, triangle.df[i,10], 0.1), length = 0.14*triangle.df[i,10], lwd = 3*triangle.df[i,10], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle.df[i,11]), length = 0.14*triangle.df[i,11], lwd = 3*triangle.df[i,11], col = "black")
 
 # Color background
-cols <- TernaryPointValues(rgb, resolution = 100)
-ColourTernary(cols, spectrum = NULL)}
+#cols <- TernaryPointValues(rgb, resolution = 100)
+#ColourTernary(cols, spectrum = NULL)
+}
 ```
 
 # Combustibility-Ignitability-Survey/Traits
@@ -80,14 +84,15 @@ par(mfrow = c(3, 3), mar = c(0.01, 0.01, 1, 0.01))
 for(i in 1:nrow(triangle2.df)){
 TernaryPlot("Combustibility", "Desirable Traits (Survey)", "Ignitability",
             grid.lines = 0,
-            grid.minor.lines = 0)
+            grid.minor.lines = 0,
+            col = triangle2.df$color[i])
 
 title(triangle2.df[i,1], cex.main = 1.5)
 
 # Add an arrow
-TernaryArrows(c(50, 50, 50), c(triangle2.df[i,2], 0.1, 0.1), length = 0.05, lwd = 3*triangle2.df[i,2], col = "black")
-TernaryArrows(c(50, 50, 50), c(0.1, triangle2.df[i,9], 0.1), length = 0.05,lwd = 3*triangle2.df[i,9], col = "black")
-TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle2.df[i,3]), length = 0.05, lwd = 3*triangle2.df[i,3], col = "black")}
+TernaryArrows(c(50, 50, 50), c(triangle2.df[i,2], 0.1, 0.1), length = 0.14*triangle2.df[i,2], lwd = 3*triangle2.df[i,2], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, triangle2.df[i,9], 0.1), length = 0.14*triangle2.df[i,10],lwd = 3*triangle2.df[i,10], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle2.df[i,3]), length = 0.14*triangle2.df[i,3], lwd = 3*triangle2.df[i,3], col = "black")}
 ```
 
 Traits Plot:
@@ -96,14 +101,15 @@ par(mfrow = c(3, 3), mar = c(0.01, 0.01, 1, 0.01))
 for(i in 1:nrow(triangle2.df)){
 TernaryPlot("Combustibility", "Flam-Related Traits", "Ignitability",
             grid.lines = 0,
-            grid.minor.lines = 0)
+            grid.minor.lines = 0,
+            col = triangle2.df$color[i])
 
 title(triangle2.df[i,1], cex.main = 1.5)
 
 # Add an arrow
-TernaryArrows(c(50, 50, 50), c(triangle2.df[i,2], 0.1, 0.1), length = 0.05, col = "black")
-TernaryArrows(c(50, 50, 50), c(0.1, triangle2.df[i,10], 0.1), length = 0.05, col = "black")
-TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle2.df[i,3]), length = 0.05, col = "black")}
+TernaryArrows(c(50, 50, 50), c(triangle2.df[i,2], 0.1, 0.1), length = 0.14*triangle2.df[i,2], lwd = 3*triangle2.df[i,2], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, triangle2.df[i,10], 0.1), length = 0.14*triangle2.df[i,11], lwd = 3*triangle2.df[i,11], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, 0.1, triangle2.df[i,3]), length = 0.14*triangle2.df[i,3], lwd = 3*triangle2.df[i,3], col = "black")}
 ```
 
 # Combustibility vs. Ignitability
@@ -122,4 +128,50 @@ ggsave(here('figures', 'main_figures', 'conceptual.ig.vs.comb.png'), height = 16
 ```
 
 # Fire Triangles
-Sustainability, Combustibility, Ignitability
+Creating indices for each of the three axes (ignitability, combustibility, sustainablity)
+```{r}
+flamm.means <- flamm.df %>% 
+  drop_na(fh, fd, prop_ig, temp_change, heat_flux_change) %>% 
+  summarise(fh_mean = mean(fh), fh_sd = sd(fh),
+            fd_mean = mean(fd), fd_sd = sd(fd),
+            prop_ig_mean = mean(prop_ig), prop_ig_sd = sd(prop_ig),
+            temp_change_mean = mean(temp_change), temp_change_sd = sd(temp_change),
+            heat_flux_change_mean = mean(heat_flux_change), heat_flux_change_sd = sd(heat_flux_change))
+flamm.index <- flamm.df %>% 
+  drop_na(fh, fd, prop_ig, temp_change, heat_flux_change) %>% 
+  mutate(fh_scale = (fh - flamm.means$fh_mean[1])/flamm.means$fh_sd[1],
+         heat_flux_change_scale = (heat_flux_change - flamm.means$heat_flux_change_mean[1])/flamm.means$heat_flux_change_sd[1],
+         temp_change_scale = (temp_change - flamm.means$temp_change_mean[1])/flamm.means$temp_change_sd[1],
+         fd_scale = (fd - flamm.means$fd_mean[1])/flamm.means$fd_sd[1],
+         prop_ig_scale = (prop_ig - flamm.means$prop_ig_mean[1])/flamm.means$prop_ig_sd[1]) %>% 
+  group_by(species) %>% 
+  summarise(fh = mean(fh_scale), fd = mean(fd_scale), prop_ig = mean(prop_ig_scale),
+            temp_change = mean(temp_change_scale), heat_flux_change = mean(heat_flux_change_scale)) %>% 
+  mutate(ignitability = (prop_ig + 1.1154)/2.83, combustibility = (((fh + heat_flux_change + temp_change)/3) + 0.8667)/2.42, sustainability = (fd + 0.76)/1.606) %>% 
+  dplyr::select(species, ignitability, combustibility, sustainability) %>% 
+  ungroup()
+
+# color
+flamm.index$color <- c('#00468BB2', '#ED0000B2', '#42B540B2', '#0099B4B2', '#925E9FB2', '#FDAF91B2', '#AD002AB2', '#ADB6B6B2', '#1B1919B2')
+```
+
+Plotting
+```{r}
+par(mfrow = c(3, 3), mar = c(0.01, 0.01, 1.3, 0.01))
+for(i in 1:nrow(flamm.index)){
+TernaryPlot("Ignitability", "Combustibility", "Sustainabilty",
+            grid.lines = 0,
+            grid.minor.lines = 0,
+            lab.cex = 2,
+            col = flamm.index$color[i])
+
+title(flamm.index[i,1], cex.main = 2)
+
+# Add an arrow
+TernaryArrows(c(50, 50, 50), c(flamm.index$ignitability[i], 0.03, 0.03), length = 0.2*flamm.index$ignitability[i], lwd = 5*flamm.index$ignitability[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.03, flamm.index$combustibility[i], 0.03), length = 0.2*flamm.index$combustibility[i], lwd = 5*flamm.index$combustibility[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.03, 0.03, flamm.index$sustainability[i]), length = 0.2*flamm.index$sustainability[i], lwd = 5*flamm.index$sustainability[i], col = "black")
+}
+```
+
+

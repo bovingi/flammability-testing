@@ -257,21 +257,28 @@ plants <- data %>%
 plants %>% 
   group_by(response_id) %>% 
   tally()
+plants_text <- data.frame(trait_names = c('Wildlife Habitat', 'Fragrant', 'Flowers', 'Edible', 'Drought Tolerant'),
+                          y.lab = c(11, 5, 7, 14.5, 25),
+                          lab.color = c(rep('black', 4), 'white'))
 
 traits.survey.plot <- plants %>% 
   ggplot(aes(x = trait_names)) +
   geom_bar(fill = 'gray30') +
+  geom_text(data = plants_text, aes(x = trait_names, label = trait_names, y = y.lab, color = lab.color),
+            fontface = 'bold', size = 6) +
   labs(y = '# of Responses', 
        x = "Trait",
        fill = "Trait") +
-  scale_y_continuous(position = 'right') +
-  scale_fill_brewer(palette = "PuBuGn") +
-  theme_bw() +
+  coord_flip() +
+  scale_x_discrete(position = 'top') +
   theme(legend.position = 'none',
-        axis.title.x = element_blank(),
-        axis.title.y.right = element_text(size = 17, face = 'bold'),
-        axis.text.y.right = element_text(size = 14),
-        axis.text.x = element_text(size = 14, face = 'bold'))
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size = 18, face = 'bold'),
+        axis.text.x = element_text(size = 16),
+        #axis.text.y = element_text(size = 14, face = 'bold'),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        plot.margin = unit(c(.25, .15, 1.1, .15), "cm"))
 traits.survey.plot
 ```
 
@@ -307,7 +314,7 @@ ggarrange(traits.survey.plot, repr.plot,
           labels = c('B', 'C'),
           font.label = list(size = 28),
           ncol = 1)
-ggsave(here('figures', 'main_figures', 'desirable.traits.survey.png'), height = 12, width = 10)
+#ggsave(here('figures', 'main_figures', 'desirable.traits.survey.png'), height = 12, width = 10)
 ```
 
 # Plant species
@@ -348,7 +355,6 @@ ggplot(aes(x = n, y = species.name, color = selected)) +
         axis.text.x = element_text(size = 14))
 
 ggarrange(species_list,
-          labels = c('A'),
           font.label = list(size = 28),
           ncol = 1)
 
@@ -507,7 +513,7 @@ leg <-  melted %>%
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B"), guide = guide_legend(reverse = TRUE)) +
   #scale_fill_brewer(palette="BrBG", guide = guide_legend(reverse = TRUE))+
   theme(legend.position="bottom", 
-        legend.text = element_text(face = 'bold', size = 12),
+        legend.text = element_text(face = 'bold', size = 13),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         plot.margin = unit(c(0, 0, 0, 0), "cm"),
@@ -520,17 +526,17 @@ cultural <-  melted %>%
   ggplot()+
   geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
   coord_flip() + 
-  labs(y = "Percentage", title = "Cultural") +
+  labs(x = "Cultural") + # change to title = 'cultural' to revert to previous aesthetic (same goes for below)
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
   #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        axis.title.y = element_blank(),
-        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(face = 'bold', size = 18, vjust = 4, hjust = 0.3),
+        axis.text.y = element_text(size = 14),
         axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         axis.ticks.x = element_blank(),
-        plot.title = element_text(face = 'bold', size = 16),
-        plot.margin = unit(c(.25, 0, .25, 0), "cm")
+        #plot.title = element_text(face = 'bold', size = 16),
+        plot.margin = unit(c(.25, 0, .1, 0.2), "cm")
         )
 cultural
 
@@ -539,17 +545,17 @@ reg <-  melted %>%
   ggplot()+
   geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
   coord_flip() + 
-  labs(y = "Percentage", title = "Regulating") +
+  labs(x = "Regulating") +
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
   #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        axis.title.y = element_blank(),
-        axis.text.y = element_text(size = 12),
+        axis.title.y = element_text(face = 'bold', size = 18, vjust = 1),
+        axis.text.y = element_text(size = 14),
         axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         axis.ticks.x = element_blank(),
-        plot.title = element_text(face = 'bold', size = 16),
-        plot.margin = unit(c(0, 0, .25, 0), "cm")
+        #plot.title = element_text(face = 'bold', size = 16),
+        plot.margin = unit(c(0, 0, .1, .2), "cm")
         )
 reg
 
@@ -559,16 +565,16 @@ prov <-  melted %>%
   geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
   scale_y_continuous(limits = c(0,100)) +
   coord_flip() + 
-  labs(y = "Percentage", title = "Provisioning") +
+  labs(x = "Provisioning", y = "Percentage") +
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
   #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        axis.title.y = element_blank(),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_text(size = 14),
-        axis.title.x = element_text(face = 'bold', size = 16),
-        plot.title = element_text(face = 'bold', size = 16),
-        plot.margin = unit(c(0, 0, .25, 0), "cm")
+        axis.title.y = element_text(face = 'bold', size = 18, vjust = 2.8),
+        axis.text.y = element_text(size = 14),
+        axis.text.x = element_text(size = 16),
+        axis.title.x = element_text(face = 'bold', size = 18),
+        #plot.title = element_text(face = 'bold', size = 16),
+        plot.margin = unit(c(0, 0, .1, 0.2), "cm")
         )
 prov
 
@@ -578,14 +584,14 @@ legend <- cowplot::get_legend(leg)
 survey_likert <- cowplot::plot_grid(cultural, reg, prov, legend, nrow = 4, align = "hv", axis = "lr", rel_heights = c(1, 1.2, 1.25, .25))
 survey_likert
 
-ggsave(here("figures", 'main_figures', 'survey_likert.jpg'), height = 8, width = 12) 
+#ggsave(here("figures", 'main_figures', 'survey_likert.jpg'), height = 8, width = 12) 
 ```
 
 ## Arranged w/ Desired Traits
 ```{r}
 plot_grid(survey_likert, traits.survey.plot,
-          ncol = 2, nrow = 1, rel_widths = c(1, 0.7))
-ggsave(here("figures", 'main_figures', 'arranged_survey_figure.jpg'), height = 8, width = 18)
+          ncol = 2, nrow = 1, rel_widths = c(1, 0.7), labels = c('A', 'B'), label_size = 25)
+ggsave(here("figures", 'main_figures', 'arranged_survey_figure.jpg'), height = 6, width = 17)
 ```
 
 

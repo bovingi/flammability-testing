@@ -1368,17 +1368,36 @@ AIC(hf.int.mod.list[[68]])
 # Nice Model Selection Results Table
 ```{r}
 predictors <- rep(colnames(mem.predictors.df), 4)
-flam_metrics <- c(rep('fh', ncol(mem.predictors.df)), rep('fd', ncol(mem.predictors.df)),
-                  rep('temp_change', ncol(mem.predictors.df)),
-                  rep('heat_flux_change', ncol(mem.predictors.df)))
-coef <- c(NA, NA, 0.51, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA, NA,
-          NA, NA, 0.8, NA, NA, NA, -1.1, NA, NA, NA, NA, NA, NA, NA,
-          -0.8, NA, 0.12, NA, NA, NA, NA, 1.2, NA, NA, NA, NA, NA, NA,
-          NA, NA, 0.3, NA, NA, 0.2, NA, NA, 1.3, NA, NA, NA, NA, NA)
-woo <- data.frame(predictors, flam_metrics, coef)
+flam_metrics <- c(rep('Flame Height', ncol(mem.predictors.df)),
+                  rep('Flame Duration', ncol(mem.predictors.df)),
+                  rep('Temp. Change', ncol(mem.predictors.df)),
+                  rep('Heat Flux Change', ncol(mem.predictors.df)))
+coef <- c(NA, NA, 0.445, NA, 0.165, NA, NA, NA, NA, NA, NA, NA, NA, 1,
+          NA, NA, NA, NA, NA, NA, NA, 0.311, NA, NA, NA, NA, 0.347, 1,
+          NA, NA, 0.21, NA, 0.253, NA, -0.579, NA, NA, NA, NA, NA, NA, NA,
+          NA, NA, 0.806, 0.244, NA, NA, NA, NA, NA, NA, NA, NA, NA, 1)
+p.val <- c(NA, NA, '***', NA, '*', NA, NA, NA, NA, NA, NA, NA, NA, '*',
+          NA, NA, NA, NA, NA, NA, NA, '*', NA, NA, NA, NA, '***', '***',
+          NA, NA, '**', NA, '***', NA, '***', NA, NA, NA, NA, NA, NA, NA,
+          NA, NA, '***', 'n.s.', NA, NA, NA, NA, NA, NA, NA, NA, NA, '*')
+woo <- data.frame(predictors, flam_metrics, coef, p.val) %>% 
+  filter(predictors != c('leaf_dmc', 'stem_dmc')) %>% 
+  mutate(predictors = case_when(
+    predictors == 'lfm' ~ 'Live Fuel Moisture',
+    predictors == 'LMA' ~ 'Leaf Mass per Area',
+    predictors == 'sample_wt' ~ 'Sample Weight',
+    predictors == 'leaf_mass_ratio' ~ 'Leaf Mass Ratio',
+    predictors == 'branching' ~ 'Branching',
+    predictors == 'mpa' ~ 'Water Potential',
+    predictors == 'start_temp' ~ 'Starting Temp.',
+    predictors == 'dmc' ~ 'Dry Matter Content',
+    predictors == 'leaf_sav' ~ 'Leaf Surface Area:Volume',
+    predictors == 'stem_sav' ~ 'Stem Surface Area:Volume',
+    predictors == 'dw_sppdev' ~ 'Dry Wt. (Species Deviation)',
+    predictors == 'species' ~ 'Species'
+  ))
 
-
-woo %>% 
+woo %>%
   na.omit() %>% 
 ggplot(aes(y = predictors, x = flam_metrics, color = coef)) +
   geom_point(size = 20, shape = 15) +
@@ -1389,13 +1408,18 @@ ggplot(aes(y = predictors, x = flam_metrics, color = coef)) +
         legend.title = element_text(face = 'bold', size = 15))
 
 woo %>% 
-ggplot(aes(y = predictors, x = flam_metrics, fill = coef)) +
-  geom_tile() +
-  labs(y = 'Predictors', x = 'Flam. Metrics', fill = 'Coefficient') +
-  scale_fill_continuous(na.value = 'white') +
+ggplot(aes(x = predictors, y = flam_metrics, fill = coef)) +
+  geom_tile(aes(x = predictors, y = flam_metrics, fill = coef)) +
+  geom_text(aes(x = predictors, y = flam_metrics, label = p.val), color = 'white', fontface = 'bold') +
+  labs(x = 'Predictors', y = 'Flam. Metrics', fill = 'Coefficient') +
+  scale_fill_gradient2(low = '#0099B4B2', mid = "black", high = '#42B540B2', midpoint = 0, na.value = 'white') +
   theme_bw() +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12),
+  theme(legend.position = 'top',
+        legend.key.width = unit(1.5, 'cm'), 
+        axis.title = element_blank(),
+        axis.text.x = element_text(size = 14, face = 'bold', angle = 90, hjust = 1, vjust = 0.2),
+        axis.text.y = element_text(size = 14, face = 'bold'),
         legend.title = element_text(face = 'bold', size = 15))
+ggsave(here('figures', 'MEM', 'example.mem.results.png'), height = 6.5, width = 9)
 ```
 
