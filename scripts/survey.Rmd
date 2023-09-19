@@ -16,6 +16,7 @@ library(devtools)
 library(likert)
 library(cowplot)
 library(hrbrthemes)
+library(ggpubr)
 here = here::here
 summarise = dplyr::summarise
 rename = dplyr::rename
@@ -253,17 +254,24 @@ plants <- data %>%
 ```
 
 ```{r}
+plants %>% 
+  group_by(response_id) %>% 
+  tally()
+
 traits.survey.plot <- plants %>% 
-  ggplot(aes(x = trait_names, fill = trait_names)) +
-  geom_bar() +
-  labs(y = "Count", 
+  ggplot(aes(x = trait_names)) +
+  geom_bar(fill = 'gray30') +
+  labs(y = '# of Responses', 
        x = "Trait",
        fill = "Trait") +
+  scale_y_continuous(position = 'right') +
   scale_fill_brewer(palette = "PuBuGn") +
   theme_bw() +
   theme(legend.position = 'none',
-        axis.title = element_blank(),
-        axis.text.x = element_text(size = 13, face = 'bold'))
+        axis.title.x = element_blank(),
+        axis.title.y.right = element_text(size = 17, face = 'bold'),
+        axis.text.y.right = element_text(size = 14),
+        axis.text.x = element_text(size = 14, face = 'bold'))
 traits.survey.plot
 ```
 
@@ -456,18 +464,23 @@ es_likert_cat <- merge(es_likert_counts, es_likert_df) %>%
 ```
 
 #MAIN FIGURE: 
-
 ```{r}
 melted <- reshape::melt(es_likert_df) %>% 
   mutate(item_title = str_replace_all(Item, "_", " ")) %>% 
   mutate(item_title = str_to_title(item_title)) %>% 
   mutate(item_title = str_replace_all(item_title, " Or ", "/")) %>% 
-  mutate(item_title = str_replace_all(item_title, "Private Recreation Physical Activity", "Private Recreation")) %>% 
-  mutate(item_title = str_replace_all(item_title, "Of", "of"),
+  mutate(item_title = str_replace_all(item_title, "Private Recreation Physical Activity", "Private Recreation"),
+         item_title = str_replace_all(item_title, "Of", "of"),
          item_title = str_replace_all(item_title, "For", "for"),
          item_title = str_replace_all(item_title, "The", "the"),
          item_title = str_replace_all(item_title, "My", "my"),
-         item_title = str_replace_all(item_title, "From", "from"),) %>% 
+         item_title = str_replace_all(item_title, "From", "from"),
+         item_title = str_replace_all(item_title, "Food/Home Garden", "Home Garden"),
+         item_title = str_replace_all(item_title, "Cooling Provides Shade",
+                                      "Cooling/Provides Shade"),
+         item_title = str_replace_all(item_title, "Protect/Shield my Home from Wildfire",
+                                      "Protect my Home from Wildfire")) %>%  # fixing some of the item titles
+  filter(Item %in% c('commercial_agriculture', 'cooling_provides_shade', 'edible_wild_plants', 'erosion_control', 'food_or_habitat_for_wild_animals', 'food_or_home_garden', 'observing_the_natural_world', 'privacy', 'place_for_socialization', 'pollination', 'protect_or_shield_my_home_from_wildfire', 'religious_or_spiritual', 'soil_fertility_control')) %>% # selecting certain categories to include in figure
   mutate(cat_num = case_when(
     category %in% "provisioning" ~ 1, 
     category %in% "regulating" ~ 2, 
@@ -475,9 +488,6 @@ melted <- reshape::melt(es_likert_df) %>%
   ), 
   cat_num = as.numeric(cat_num))
 melted
-
-
-?str_to_title
 
 max_value_very_high <- melted %>% 
   filter(variable %in% c("Very High Importance")) %>% 
@@ -497,7 +507,7 @@ leg <-  melted %>%
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B"), guide = guide_legend(reverse = TRUE)) +
   #scale_fill_brewer(palette="BrBG", guide = guide_legend(reverse = TRUE))+
   theme(legend.position="bottom", 
-        legend.text = element_text(face = 'bold', size = 14),
+        legend.text = element_text(face = 'bold', size = 12),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         plot.margin = unit(c(0, 0, 0, 0), "cm"),
@@ -565,13 +575,18 @@ prov
 legend <- cowplot::get_legend(leg)
 #scale_x_discrete(limits=c("StronglyAgree", "Agree", "DontKnow","Disagree","StronglyDisagree"))
 
-survey_likert <- cowplot::plot_grid(cultural, reg, prov, legend, nrow = 4, align = "hv", axis = "lr", rel_heights = c(1, .7, .9, .2))
+survey_likert <- cowplot::plot_grid(cultural, reg, prov, legend, nrow = 4, align = "hv", axis = "lr", rel_heights = c(1, 1.2, 1.25, .25))
 survey_likert
 
 ggsave(here("figures", 'main_figures', 'survey_likert.jpg'), height = 8, width = 12) 
 ```
 
-
+## Arranged w/ Desired Traits
+```{r}
+plot_grid(survey_likert, traits.survey.plot,
+          ncol = 2, nrow = 1, rel_widths = c(1, 0.7))
+ggsave(here("figures", 'main_figures', 'arranged_survey_figure.jpg'), height = 8, width = 18)
+```
 
 
 ```{r}
