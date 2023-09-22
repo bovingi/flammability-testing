@@ -17,6 +17,21 @@ library(Ternary)
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 ```
 
+```{r}
+flamm.df %>% 
+  dplyr::filter(ignition != 0) %>% 
+  drop_na(temp_change) %>% 
+  dplyr::group_by(species) %>% 
+  dplyr::select(species, fh, fd, temp_change, heat_flux_change, prop_ig, ignition) %>% 
+  dplyr::summarise(fh = mean(fh), fd = mean(fd), temp_change = mean(temp_change),
+            hfc = mean(heat_flux_change), prop_ig = mean(prop_ig))
+
+flamm.df %>% 
+  dplyr::group_by(species, ignition) %>% 
+  tally()
+```
+
+
 # Survey-Traits-Flammability
 First, to present idea to KF and MAM, going to just use subjective numbers (except for prop. ig.)
 Ignitability
@@ -174,4 +189,38 @@ TernaryArrows(c(50, 50, 50), c(0.03, 0.03, flamm.index$sustainability[i]), lengt
 }
 ```
 
+## REMEF Version
+```{r}
+conceptual_flam_remef <- read.csv(here('data', 'processed-data', 'conceptual_flam_remef.csv'))
 
+r.flamm.index <- conceptual_flam_remef %>% 
+  drop_na(r_fh, r_fd, prop_ig, r_temp_change, r_heat_flux_change) %>% 
+  group_by(species) %>% 
+  summarise(fh = mean(r_fh), fd = mean(r_fd), prop_ig = mean(prop_ig),
+            temp_change = mean(r_temp_change), heat_flux_change = mean(r_heat_flux_change)) %>% 
+  mutate(ignitability = (prop_ig + 1.1154)/2.83, combustibility = (((fh + heat_flux_change + temp_change)/3) + 0.8667)/2.42, sustainability = (fd + 0.76)/1.606) %>% 
+  dplyr::select(species, ignitability, combustibility, sustainability) %>% 
+  ungroup()
+
+# color
+r.flamm.index$color <- c('#00468BB2', '#ED0000B2', '#42B540B2', '#0099B4B2', '#925E9FB2', '#AD002AB2', '#ADB6B6B2', '#1B1919B2')
+```
+
+Plotting
+```{r}
+par(mfrow = c(3, 3), mar = c(0.01, 0.01, 1.3, 0.01))
+for(i in 1:nrow(r.flamm.index)){
+TernaryPlot("Ignitability", "Combustibility", "Sustainabilty",
+            grid.lines = 0,
+            grid.minor.lines = 0,
+            lab.cex = 2,
+            col = r.flamm.index$color[i])
+
+title(r.flamm.index[i,1], cex.main = 2)
+
+# Add an arrow
+TernaryArrows(c(50, 50, 50), c(r.flamm.index$ignitability[i], 0.1, 0.1), length = 0.3*r.flamm.index$ignitability[i], lwd = 5*r.flamm.index$ignitability[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, r.flamm.index$combustibility[i], 0.1), length = 0.2*r.flamm.index$combustibility[i], lwd = 5*r.flamm.index$combustibility[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.1, 0.1, r.flamm.index$sustainability[i]), length = 0.2*r.flamm.index$sustainability[i], lwd = 5*r.flamm.index$sustainability[i], col = "black")
+}
+```
