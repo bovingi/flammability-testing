@@ -227,7 +227,7 @@ mem.df <- flamm.df %>%
   filter(species != 'ARCDEN', species != 'HETARB') %>% 
   unite('plant_id', c(species, plant), sep = '_', remove = F) %>% 
   select(species, thickness, lfm, leaf_area, LMA, sample_wt, leaf_mass_ratio, branching, mpa,
-         ignition, fh, fd, tti, pfg, temp_change, heat_flux_change, prop_ig, dw_flam_sample,
+         ignition, fh, fd, temp_change, heat_flux_change, prop_ig, dw_flam_sample,
          ww_flam_sample, sample_density, branch_volume, start_temp, leaf_area, branch_height,
          stem_dmc, leaf_dmc, dmc, stem_sav, leaf_sav, dw_sppdev, plant_id) %>% 
   mutate(lfm = scale(lfm), mpa = scale(mpa), ww_flam_sample = scale(ww_flam_sample),
@@ -236,7 +236,7 @@ mem.df <- flamm.df %>%
          leaf_area = scale(leaf_area), branching = scale(branching),
          leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
          start_temp = scale(start_temp), branch_volume = scale(branch_volume),
-         fh = scale(fh), fd = scale(fd), tti = scale(tti), pfg = scale(pfg),
+         fh = scale(fh), fd = scale(fd),
          temp_change = scale(temp_change), heat_flux_change = scale(heat_flux_change),
          leaf_area = scale(leaf_area), branch_height = scale(branch_height),
          stem_dmc = scale(stem_dmc), leaf_dmc = scale(leaf_dmc), dmc = scale(dmc),
@@ -1410,16 +1410,65 @@ ggplot(aes(y = predictors, x = flam_metrics, color = coef)) +
 woo %>% 
 ggplot(aes(x = predictors, y = flam_metrics, fill = coef)) +
   geom_tile(aes(x = predictors, y = flam_metrics, fill = coef)) +
-  geom_text(aes(x = predictors, y = flam_metrics, label = p.val), color = 'white', fontface = 'bold') +
+  geom_text(aes(x = predictors, y = flam_metrics, label = p.val), color = 'white', fontface = 'bold', size = 6) +
   labs(x = 'Predictors', y = 'Flam. Metrics', fill = 'Coefficient') +
   scale_fill_gradient2(low = '#0099B4B2', mid = "black", high = '#42B540B2', midpoint = 0, na.value = 'white') +
-  theme_bw() +
+  #theme_bw() +
   theme(legend.position = 'top',
         legend.key.width = unit(1.5, 'cm'), 
+        axis.ticks = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_text(size = 14, face = 'bold', angle = 90, hjust = 1, vjust = 0.2),
         axis.text.y = element_text(size = 14, face = 'bold'),
-        legend.title = element_text(face = 'bold', size = 15))
+        legend.title = element_text(face = 'bold', size = 15),
+        panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
+        panel.grid.major = element_blank(),  # Hide major gridlines
+        panel.grid.minor = element_blank())
 ggsave(here('figures', 'MEM', 'example.mem.results.png'), height = 6.5, width = 9)
+```
+
+# REMEF for Conceptual Figures
+```{r}
+concept.remef.df <- flamm.df %>% 
+  filter(ignition != '0') %>% 
+  unite('plant_id', c(species, plant), sep = '_', remove = F) %>% 
+  select(species, thickness, lfm, sample_wt, leaf_mass_ratio, branching, mpa,
+         ignition, fh, fd, temp_change, heat_flux_change, prop_ig, start_temp,
+         stem_dmc, leaf_dmc, dmc, stem_sav, leaf_sav, dw_sppdev, plant_id) %>% 
+  mutate(lfm = scale(lfm), mpa = scale(mpa), branching = scale(branching),
+         leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
+         start_temp = scale(start_temp), fh = scale(fh), fd = scale(fd), 
+         temp_change = scale(temp_change), heat_flux_change = scale(heat_flux_change),
+         stem_dmc = scale(stem_dmc), leaf_dmc = scale(leaf_dmc),
+         dmc = scale(dmc), stem_sav = scale(stem_sav), leaf_sav= scale(leaf_sav),
+         dw_sppdev= scale(dw_sppdev)) %>% 
+  na.omit()
+
+# mixed effects models
+fh_c_mod <- lmer(fh ~ branching + sample_wt + lfm + leaf_mass_ratio + species + start_temp + leaf_sav + (1|plant_id), data = concept.remef.df, REML = F) # remef is also sensitive to NAs
+fd_c_mod <- lmer(fd ~ branching + sample_wt + lfm + leaf_mass_ratio + species + start_temp + leaf_sav + (1|plant_id), data = concept.remef.df, REML = F) # remef is also sensitive to NAs
+temp_c_mod <- lmer(temp_change ~ branching + sample_wt + lfm + leaf_mass_ratio + species + start_temp + leaf_sav + (1|plant_id), data = concept.remef.df, REML = F) # remef is also sensitive to NAs
+hf_c_mod <- lmer(heat_flux_change ~ branching + sample_wt + lfm + leaf_mass_ratio + species + start_temp + leaf_sav + (1|plant_id), data = concept.remef.df, REML = F) # remef is also sensitive to NAs
+
+# remef
+concept.remef.df$r_fh <- remef(fh_c_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE)
+concept.remef.df$r_fd <- remef(fd_c_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE)
+concept.remef.df$r_temp_change <- remef(temp_c_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE)
+concept.remef.df$r_heat_flux_change <- remef(hf_c_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE)
+
+# dataframe
+concept.df <- concept.remef.df %>% 
+  select(species, ignition, prop_ig, fh, fd, temp_change, heat_flux_change, r_fh, r_fd, r_temp_change, r_heat_flux_change)
+write.csv(concept.df, here('data', 'processed-data', 'conceptual_flam_remef.csv'))
+
+# plots
+ggplot(aes(x = fh, y = r_fh), data = concept.remef.df) +
+  geom_point()
+ggplot(aes(x = sample_wt, y = fh), data = concept.remef.df) +
+  geom_point()
+ggplot(aes(x = sample_wt, y = r_fh), data = concept.remef.df) +
+  geom_point()
+ggplot(aes(x = r_fh, y = fh/(1 + sample_wt)), data = concept.remef.df) +
+  geom_point()
 ```
 

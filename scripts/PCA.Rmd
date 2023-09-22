@@ -142,7 +142,7 @@ u.axis.labs <- paste(u.axis.labs, sprintf("(%0.1f%% explained var.)",
 Plot:
 ```{r}
 flam.pca <- ggplot(data = PCAvalues, aes(x = PC1, y = PC2)) +
-  ylim(-4, 3) +
+  ylim(-3.5, 3.5) +
   geom_point(size = 1.75, alpha = .9, aes(color = Species), data = PCAvalues) +
   stat_ellipse(aes(color = Species)) +
   guides(color = guide_legend(override.aes = list(size = 3))) +
@@ -152,9 +152,9 @@ flam.pca <- ggplot(data = PCAvalues, aes(x = PC1, y = PC2)) +
     linewidth = .9, alpha = 0.9,
      color = "black") +
   annotate("text", 
-          x = (PCA_metrics$PC1 * 1.3), 
-          y = (PCA_metrics$PC2 * 1.1),
-          label = PCA_metrics$Variables, size = 3.5,
+          x = (PCA_metrics$PC1 * 1.9), 
+          y = (PCA_metrics$PC2 * 1.2),
+          label = PCA_metrics$Variables, size = 6,
           fontface = 'bold') +
   theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
           panel.grid.major = element_blank(),  # Hide major gridlines
@@ -163,7 +163,8 @@ flam.pca <- ggplot(data = PCAvalues, aes(x = PC1, y = PC2)) +
           legend.position = 'none', # change to 'right' if you want figure alone, change to 'none' if you want to arrange figures
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
-          axis.title = element_text(face = 'bold', size = 15)) +
+          axis.title = element_text(face = 'bold', size = 15),
+          axis.text = element_text(size = 13)) +
   scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   #scale_color_lancet() + # no ARTCAL, so manually defining color palette # no ARTCAL, so manually defining color palette
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
@@ -208,17 +209,17 @@ traits.df_pca <- flamm.df %>%
    drop_na(species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, leaf_sav, stem_sav, dmc)
 
 figure_pca_quant2 <- (traits.df_pca[, c('species','lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'leaf_sav', 'stem_sav', 'dmc')]) %>%  
- transmute("LFM" = lfm,
+ transmute("      LFM" = lfm,  # added spaces to adjust label position
            "Water Potential" = mpa,
-           "Sample Density" = sample_density,
+           "Sample Density\n" = sample_density,
            "LMA" = LMA,
            "Thickness" = thickness,
            "Branching" = branching,
-           "Leaf Ratio" = leaf_mass_ratio,
-           "Sample Weight" = sample_wt,
-           "Dry Matter Content" = dmc,
+           "\nLeaf Ratio" = leaf_mass_ratio,
+           "Sample Weight\n" = sample_wt,
+           "                Dry Matter Content" = dmc, # added spaces to adjust label position
            "Leaf SA:V" = leaf_sav,
-           "Stem SA:V" = stem_sav) %>% 
+           "Stem SA:V\n" = stem_sav) %>% 
   na.omit()
 
 figure_pca_cat2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'leaf_sav', 'stem_sav', 'dmc')]) %>% 
@@ -285,10 +286,10 @@ circle <- data.frame(PC1 = r * cos(theta), PC2 = r * sin(theta))
 
 #Group by flam. metric: 
 PCA_metrics2 <- df.v %>% 
-  filter(Variables %in% c("LFM", "Water Potential", "Sample Density",
-           "LMA", "Thickness", "Branching", "Leaf Ratio",
-           "Sample Weight", "Dry Matter Content", "Leaf SA:V",
-           "Stem SA:V"))
+  filter(Variables %in% c("      LFM", "Water Potential", "Sample Density\n",
+           "LMA", "Thickness", "Branching", "\nLeaf Ratio",
+           "Sample Weight\n", "                Dry Matter Content", "Leaf SA:V",
+           "Stem SA:V\n"))
     
 # Calculate the angles and the label offset
 df.v$Angle = ((180/pi) * atan(df.v$PC2/df.v$PC1))
@@ -304,7 +305,7 @@ u.axis.labs <- paste(u.axis.labs, sprintf("(%0.1f%% explained var.)",
 Plot:
 ```{r}
 traits.pca <- ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
-  ylim(-4, 3) +
+  ylim(-3.4, 2.9) +
   geom_point(size = 1.75, alpha = .9, aes(color = Species), data = PCAvalues2) +
   stat_ellipse(aes(color = Species)) +
   guides(color = guide_legend(override.aes = list(size = 3))) +
@@ -314,9 +315,9 @@ traits.pca <- ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
     linewidth = .9, alpha = 0.9,
      color = "black") +
   annotate("text", 
-          x = (PCA_metrics2$PC1 * 1.3), 
-          y = (PCA_metrics2$PC2 * 1.1),
-          label = PCA_metrics2$Variables, size = 3.5,
+          x = (PCA_metrics2$PC1 * 1.35), 
+          y = (PCA_metrics2$PC2 * 1.25),
+          label = PCA_metrics2$Variables, size = 6,
           fontface = 'bold') +
   theme(panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
           panel.grid.major = element_blank(),  # Hide major gridlines
@@ -325,7 +326,8 @@ traits.pca <- ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
           legend.position = 'none', # change to 'right' if you want figure alone, change to 'none' if you want to arrange figures
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
-          axis.title = element_text(face = 'bold', size = 15)) +
+          axis.title = element_text(face = 'bold', size = 15),
+          axis.text = element_text(size = 13)) +
     scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   #scale_color_lancet() + # no ARTCAL, so manually defining color palette
   xlab(u.axis.labs[1]) + 
@@ -389,7 +391,7 @@ pca_df_main %>%
   ggplot(aes(x = traits_pc_score, y = flamm_pc_score)) +
     geom_point(alpha = 0.5, aes(color = species)) +
     geom_smooth(method = 'lm', color = 'black', alpha = 0.75) +
-    stat_cor(label.y.npc = 'top', label.x.npc = 'left', size = 2.5)+ 
+    stat_cor(label.y.npc = 'bottom', label.x.npc = 'left', size = 2.5)+ 
     #stat_regline_equation(label.y.npc = 'bottom', label.x.npc = 'left', size = 3) +
     facet_grid(flamm_pc ~ traits_pc, scales = 'free', labeller = labeller(flamm_pc = pc_labels, traits_pc = pc_labels)) +
     labs(y = 'Flamm. PC Score', x = 'Traits PC Score', color = 'Species') +
@@ -406,7 +408,7 @@ ggsave(here('figures', 'PCA', 'PC.Regressions.png'), height = 8, width = 12)
 
 ### For Arranged Main Figure
 ```{r}
-pc_labels <- c('PC1 (-FH)', 'PC2 (-Temp. Change)', 'PC3 (FD)', 'PC1 (DMC, -LFM, -LMR)', 'PC2 (-Branching, -MPa)', 'PC3 (Leaf SA:V, -Thickness)')
+pc_labels <- c('PC1 (-FH)', 'PC2 (-\U0394Temp)', 'PC3 (FD)', 'PC1 (DMC, -LFM,)', 'PC2 (-Br., -MPa)', 'PC3 (L. SA:V, -Thick.)')
 names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits')
 
 pc.scatterplot <- pca_df_main %>% 
@@ -415,7 +417,7 @@ pc.scatterplot <- pca_df_main %>%
   ggplot(aes(x = traits_pc_score, y = flamm_pc_score)) +
     geom_point(alpha = 0.5, aes(color = species)) +
     geom_smooth(method = 'lm', color = 'black', alpha = 0.75) +
-    stat_cor(label.y.npc = 'top', label.x.npc = 'left', size = 3)+ 
+    stat_cor(label.y.npc = 'bottom', label.x.npc = 'left', size = 5, fontface = 'bold')+ 
     #stat_regline_equation(label.y.npc = 'bottom', label.x.npc = 'left', size = 3) +
     facet_grid(flamm_pc ~ traits_pc, scales = 'free', labeller = labeller(flamm_pc = pc_labels, traits_pc = pc_labels)) +
     labs(y = 'Flamm. PC Score', x = 'Traits PC Score') +
@@ -423,9 +425,9 @@ pc.scatterplot <- pca_df_main %>%
     #scale_color_lancet() + # no ARTCAL, so manually defining color palette
     theme_bw() +
     theme(legend.position = 'none',
-          axis.title = element_text(size = 16, face = 'bold'),
-          axis.text = element_text(size = 13),
-          strip.text = element_text(size = 11.5, face = 'bold'))
+          axis.title = element_text(size = 18, face = 'bold'),
+          axis.text = element_text(size = 14),
+          strip.text = element_text(size = 14, face = 'bold'))
 pc.scatterplot
 ```
 
@@ -648,7 +650,7 @@ blank <- ggplot(data = flamm.df, aes(x = species, y = mpa)) +
 # arranging
 ggarrange(traits.pca, blank, pc.scatterplot, flam.pca, legend, blank,
           labels = c('A', ' ', 'C', 'B'),
-          font.label = list(size = 28),
+          font.label = list(size = 34),
           ncol = 2, nrow = 3,
           heights = c(2, 2, 0.5), widths = c(5, 4))
 ggsave(here('figures', 'main_figures', 'pca.and.scatterplots.png'), height = 14, width = 16)
