@@ -241,10 +241,10 @@ mem.df <- flamm.df %>%
          leaf_area = scale(leaf_area), branch_height = scale(branch_height),
          stem_dmc = scale(stem_dmc), leaf_dmc = scale(leaf_dmc), dmc = scale(dmc),
          stem_sav = scale(stem_sav), leaf_sav= scale(leaf_sav), dw_sppdev= scale(dw_sppdev)) %>% 
-  na.omit()
+  drop_na(lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, start_temp, dmc, leaf_dmc, branch_volume, leaf_area, leaf_sav, dw_sppdev, species)
 
 mem.predictors.df <- mem.df %>% 
-  select(lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, start_temp, dmc, leaf_dmc, stem_dmc, leaf_sav, stem_sav, dw_sppdev, species) # fourteen predictors (note: no ww or dw); removed  thickness, leaf_area, sample_density, branch_volume, and branch_height from initial consideration as more than 14 predictors starts to make the model selection process take a really long time or cause the R session to abort
+  select(lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, start_temp, dmc, leaf_dmc, branch_volume, leaf_area, leaf_sav, dw_sppdev, species) # fourteen predictors (note: no ww or dw); removed  thickness, leaf_area, sample_density, branch_volume, and branch_height from initial consideration as more than 14 predictors starts to make the model selection process take a really long time or cause the R session to abort
 
 mem.df %>% 
   dplyr::group_by(plant_id) %>%
@@ -1372,14 +1372,14 @@ flam_metrics <- c(rep('Flame Height', ncol(mem.predictors.df)),
                   rep('Flame Duration', ncol(mem.predictors.df)),
                   rep('Temp. Change', ncol(mem.predictors.df)),
                   rep('Heat Flux Change', ncol(mem.predictors.df)))
-coef <- c(NA, NA, 0.445, NA, 0.165, NA, NA, NA, NA, NA, NA, NA, NA, 1,
-          NA, NA, NA, NA, NA, NA, NA, 0.311, NA, NA, NA, NA, 0.347, 1,
+coef <- c(NA, NA, 0.445, NA, 0.165, NA, NA, NA, NA, NA, NA, NA, NA, 0,
+          NA, NA, NA, NA, NA, NA, NA, 0.311, NA, NA, NA, NA, 0.347, 0,
           NA, NA, 0.21, NA, 0.253, NA, -0.579, NA, NA, NA, NA, NA, NA, NA,
-          NA, NA, 0.806, 0.244, NA, NA, NA, NA, NA, NA, NA, NA, NA, 1)
+          NA, NA, 0.806, 0.244, NA, NA, NA, NA, NA, NA, NA, NA, NA, 0)
 p.val <- c(NA, NA, '***', NA, '*', NA, NA, NA, NA, NA, NA, NA, NA, '*',
           NA, NA, NA, NA, NA, NA, NA, '*', NA, NA, NA, NA, '***', '***',
           NA, NA, '**', NA, '***', NA, '***', NA, NA, NA, NA, NA, NA, NA,
-          NA, NA, '***', 'n.s.', NA, NA, NA, NA, NA, NA, NA, NA, NA, '*')
+          NA, NA, '***', ' ', NA, NA, NA, NA, NA, NA, NA, NA, NA, '*')
 woo <- data.frame(predictors, flam_metrics, coef, p.val) %>% 
   filter(predictors != c('leaf_dmc', 'stem_dmc')) %>% 
   mutate(predictors = case_when(
@@ -1412,7 +1412,7 @@ ggplot(aes(x = predictors, y = flam_metrics, fill = coef)) +
   geom_tile(aes(x = predictors, y = flam_metrics, fill = coef)) +
   geom_text(aes(x = predictors, y = flam_metrics, label = p.val), color = 'white', fontface = 'bold', size = 6) +
   labs(x = 'Predictors', y = 'Flam. Metrics', fill = 'Coefficient') +
-  scale_fill_gradient2(low = '#0099B4B2', mid = "black", high = '#42B540B2', midpoint = 0, na.value = 'white') +
+  scale_fill_gradient2(low = 'darkred', mid = "gray80", high = 'darkblue', midpoint = 0, na.value = 'white') +
   #theme_bw() +
   theme(legend.position = 'top',
         legend.key.width = unit(1.5, 'cm'), 
@@ -1442,7 +1442,7 @@ concept.remef.df <- flamm.df %>%
          stem_dmc = scale(stem_dmc), leaf_dmc = scale(leaf_dmc),
          dmc = scale(dmc), stem_sav = scale(stem_sav), leaf_sav= scale(leaf_sav),
          dw_sppdev= scale(dw_sppdev)) %>% 
-  na.omit()
+  drop_na(lfm, sample_wt, leaf_mass_ratio, branching, mpa, start_temp, dmc, leaf_dmc, leaf_sav, dw_sppdev, species)
 
 # mixed effects models
 fh_c_mod <- lmer(fh ~ branching + sample_wt + lfm + leaf_mass_ratio + species + start_temp + leaf_sav + (1|plant_id), data = concept.remef.df, REML = F) # remef is also sensitive to NAs

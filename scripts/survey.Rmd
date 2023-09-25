@@ -254,19 +254,23 @@ plants <- data %>%
 ```
 
 ```{r}
-plants %>% 
-  group_by(response_id) %>% 
-  tally()
+pct_plants <- plants %>% 
+  group_by(trait_names) %>% 
+  tally() %>% 
+  mutate(pct = n/sum(pct_plants$n)*100)
+  
 plants_text <- data.frame(trait_names = c('Wildlife Habitat', 'Fragrant', 'Flowers', 'Edible', 'Drought Tolerant'),
-                          y.lab = c(11, 5, 7, 14.5, 25),
+                          trait_labs = c('Wildlife Habitat (C,R,P)', 'Fragrant (C,R)', 'Flowers (C,R)', 'Edible (P)', 'Drought Tolerant (C,R)'),
+                          y.lab = c(22.5, 11, 15, 27.5, 44),
                           lab.color = c(rep('black', 4), 'white'))
 
-traits.survey.plot <- plants %>% 
-  ggplot(aes(x = trait_names)) +
-  geom_bar(fill = 'gray30') +
-  geom_text(data = plants_text, aes(x = trait_names, label = trait_names, y = y.lab, color = lab.color),
+traits.survey.plot <- pct_plants %>% 
+  ggplot(aes(x = trait_names, y = pct)) +
+  geom_bar(fill = 'gray30', stat = 'identity') +
+  geom_text(data = plants_text, aes(x = trait_names, label = trait_labs, y = y.lab, color = lab.color),
             fontface = 'bold', size = 6) +
-  labs(y = '# of Responses', 
+  scale_color_manual(values = c('black', 'white')) +
+  labs(y = '% of Responses', 
        x = "Trait",
        fill = "Trait") +
   coord_flip() +
@@ -508,7 +512,7 @@ leg <-  melted %>%
   ggplot()+
   geom_bar(aes(x = reorder(item_title,cat_num), y=value, fill=variable), position="stack", stat="identity")+
   coord_flip() + 
-  ylab("Percentage")+
+  ylab("% of Responses")+
   xlab("")+
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B"), guide = guide_legend(reverse = TRUE)) +
   #scale_fill_brewer(palette="BrBG", guide = guide_legend(reverse = TRUE))+
@@ -565,7 +569,7 @@ prov <-  melted %>%
   geom_bar(aes(x = reorder(item_title, very_high_value), y=value, fill=variable), position="stack", stat="identity")+
   scale_y_continuous(limits = c(0,100)) +
   coord_flip() + 
-  labs(x = "Provisioning", y = "Percentage") +
+  labs(x = "Provisioning", y = "% of Responses") +
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
   #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
