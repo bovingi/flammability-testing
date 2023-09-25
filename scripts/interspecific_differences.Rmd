@@ -42,7 +42,7 @@ We are also going to do the k-means cluster analysis here on a full dataset, a d
 ### Flame Height
 ```{r}
 fh.spp <- lmer(fh ~ species + (1|plant_id), data = flamm.df)
-anova(fh.spp)
+anova(fh.spp) # p < 0.00001
 fh.spp.tukey <- emmeans(fh.spp, pairwise ~ species, adjust = 'tukey')
 fh.spp.tukey.df <- summary(fh.spp.tukey$contrasts)
 fh.spp.tukey.labels <- data.frame(species = c('HETARB', 'CEAGRI', 'SALAPI', 'MALLAU', 'ARCDEN', 'SALLEU', 'ARTCAL', 'IRIDOU', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'ab', 'abc', 'bc', 'bc', 'c', 'c'), adj = c(0, 0, 4, 4, 4, 0, 0, 4, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
@@ -68,7 +68,7 @@ fh.boxplot
 ### Flame Duration
 ```{r}
 fd.spp <- lmer(fd ~ species + (1|plant_id), data = flamm.df)
-anova(fd.spp)
+anova(fd.spp) # p < 0.00001
 fd.spp.tukey <- emmeans(fd.spp, pairwise ~ species, adjust = 'tukey')
 fd.spp.tukey.df <- summary(fd.spp.tukey$contrasts)
 fd.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'MALLAU', 'HETARB', 'SALLEU', 'ARCDEN', 'SALAPI', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'a', 'ab', 'abc', 'abcd', 'bcd', 'cd', 'cd', 'd'), adj = c(0, 4, 0, 0, 4, 4, 4, 0, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
@@ -96,7 +96,7 @@ fd.boxplot
 ### Temp. Change
 ```{r}
 tc.spp <- lmer(temp_change ~ species + (1|plant_id), data = flamm.df)
-anova(tc.spp)
+anova(tc.spp) # p < 0.00001
 tc.spp.tukey <- emmeans(tc.spp, pairwise ~ species, adjust = 'tukey')
 tc.spp.tukey.df <- summary(tc.spp.tukey$contrasts)
 tc.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'SALLEU', 'SALAPI', 'CEAGRI', 'ARCDEN', 'ARTCAL', 'IRIDOU', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'ab', 'ab', 'ab', 'b', 'b', 'b'),
@@ -125,7 +125,7 @@ tc.boxplot
 ### Heat Flux Change
 ```{r}
 hf.spp <- lmer(heat_flux_change ~ species + (1|plant_id), data = flamm.df)
-anova(hf.spp)
+anova(hf.spp) # p < 0.00001
 hf.spp.tukey <- emmeans(hf.spp, pairwise ~ species, adjust = 'tukey')
 hf.spp.tukey.df <- summary(hf.spp.tukey$contrasts)
 hf.spp.tukey.labels <- data.frame(species = c('HETARB', 'SALAPI', 'MALLAU', 'CEAGRI', 'SALLEU', 'ARCDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'ab', 'abc', 'abc', 'bc', 'bc', 'bc', 'bc', 'c'), adj = c(0, 0.015, 0.015, 0, 0, 0.015, 0.015, 0, 0)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
@@ -157,7 +157,7 @@ hf.boxplot
 Because all of the 'sample size' metrics are pretty similar, I think looking at only one, at least for now will work. Wet weight has been instrumental in previous analyses, so we will use it below
 ```{r}
 sw.spp <- lmer(sample_wt ~ species + (1|plant_id), data = flamm.df)
-anova(sw.spp)
+anova(sw.spp) # p < 0.00001
 sw.spp.tukey <- emmeans(sw.spp, pairwise ~ species, adjust = 'tukey')
 sw.spp.tukey.df <- summary(sw.spp.tukey$contrasts)
 sw.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'SALAPI', 'CEAGRI', 'SALLEU', 'ARCDEN', 'IRIDOU', 'ARTCAL', 'ERIKAR'), letters = c('a', 'a', 'b', 'bc', 'c', 'c', 'c', 'c', 'c'), 
@@ -185,7 +185,7 @@ sw.boxplot
 ### MPa
 ```{r}
 mpa.spp <- lmer(mpa ~ species + (1|plant_id), data = flamm.df)
-anova(mpa.spp)
+anova(mpa.spp) # p < 0.00001
 mpa.spp.tukey <- emmeans(mpa.spp, pairwise ~ species, adjust = 'tukey')
 mpa.spp.tukey.df <- summary(mpa.spp.tukey$contrasts)
 mpa.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'ARTCAL', 'ERIKAR', 'HETARB', 'MALLAU', 'SALLEU', 'ARCDEN', 'SALAPI', 'IRIDOU'), letters = c('a', 'b', 'bc', 'bc', 'bc', 'bcd', 'bcd', 'cd', 'd'), adj = c(0, 0, 0, 0, 0.025, 0, 0.025, 0.025, 0.025)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
@@ -212,7 +212,7 @@ mpa.boxplot
 ### Branching
 ```{r}
 branching.spp <- lmer(branching ~ species + (1|plant_id), data = flamm.df)
-anova(branching.spp)
+anova(branching.spp) # p < 0.00001
 branching.spp.tukey <- emmeans(branching.spp, pairwise ~ species, adjust = 'tukey')
 branching.spp.tukey.df <- summary(branching.spp.tukey$contrasts)
 branching.spp.tukey.labels <- data.frame(species = c('CEAGRI', 'ARCDEN', 'SALLEU', 'ARTCAL', 'MALLAU', 'HETARB', 'ERIKAR', 'SALAPI', 'IRIDOU'), letters = c('a', 'ab', 'ab', 'ab', 'bc', 'bc', 'c', 'c', 'c'),
@@ -241,7 +241,7 @@ branching.boxplot
 ### Starting Temp
 ```{r}
 st.spp <- lmer(start_temp ~ species + (1|plant_id), data = flamm.df)
-anova(st.spp)
+anova(st.spp) # p < 0.00001
 st.spp.tukey <- emmeans(st.spp, pairwise ~ species, adjust = 'tukey')
 st.spp.tukey.df <- summary(st.spp.tukey$contrasts)
 st.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
