@@ -31,6 +31,10 @@ ggbiplot = ggbiplot::ggbiplot
 # reading in data
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 
+flamm.df %>% 
+ group_by(species) %>% 
+ dplyr::summarise(sw = mean(sample_wt))
+
 # excluding ARCDEN and HETARB
 #flamm.df <- flamm.df %>% 
   #filter(species != 'ARCDEN' & species != 'HETARB')

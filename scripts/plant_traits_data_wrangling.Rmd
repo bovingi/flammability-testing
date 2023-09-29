@@ -343,11 +343,11 @@ main_traits_df <- main_traits_df %>%
 ```
 
 ## Calculating LMA, SLA
-Note that for ERIKAR P4-P10, all ARTCAL, SALLEU P11, SALAPI P12, leaf wet mass was for all of the leaves rather than just the five used in the leaf scans, hence why those values are NA below
+Note that for ERIKAR P4-P10, all ARTCAL, SALLEU P11, SALAPI P12, leaf dry mass was for all of the leaves rather than just the five used in the leaf scans, hence why those values are NA below
 ```{r}
 main_traits_df <- main_traits_df %>% 
-  mutate(LMA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_wet_mass/leaf_area),
-         SLA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_area/leaf_wet_mass))
+  mutate(LMA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_dry_mass/leaf_area),
+         SLA = ifelse(species == 'ARTCAL' | species == 'ERIKAR' & plant %in% c(4:10), NA, leaf_area/leaf_dry_mass))
 ```
 
 Imputing species mean LMAs/SLAs for missing values (for HETARB and ERIKAR)
@@ -385,6 +385,34 @@ mean_ERIKAR_SLA <- main_traits_df %>%
 
 main_traits_df <- main_traits_df %>% 
   mutate(SLA = ifelse(species == 'ERIKAR' & is.na(SLA), mean_ERIKAR_SLA[1,1], SLA))
+```
+
+### ARTCAL
+For ARTCAL, we did not get the correct measurements for any plants, so we had to use a separate potted plant to get a species average and impute that value for the LMA for ARTCAL
+```{r}
+# load in data
+artcal_lma <- read_csv(here('data', 'raw-data', 'plant-traits', 'ARTCAL_LMA.csv')) %>%
+  clean_names() %>% 
+  rename(cup_number = cup_no)
+
+# subtracting cup weights
+artcal_lma <- merge(artcal_lma, cup_weights_data, by = 'cup_number')
+artcal_lma <- artcal_lma %>% 
+  mutate(wet_mass = wet_mass - cup_mass,
+         dry_mass = dry_mass - dry_cup_mass)
+
+# calculating average lma
+artcal_lma_means <- artcal_lma %>% 
+  group_by(id) %>% 
+  summarise(wet_mass = mean(wet_mass), dry_mass = mean(dry_mass), leaf_area = sum(area)) %>% 
+  mutate(LMA = dry_mass/leaf_area, SLA = leaf_area/dry_mass)
+mean_ARTCAL_LMA <- artcal_lma_means %>% 
+  summarise(LMA = mean(LMA), SLA = mean(SLA))
+
+# adding to main dataset
+main_traits_df <- main_traits_df %>% 
+  mutate(SLA = ifelse(species == 'ARTCAL' & is.na(SLA), mean_ARTCAL_LMA$SLA[1], SLA)) %>% 
+  mutate(LMA = ifelse(species == 'ARTCAL' & is.na(LMA), mean_ARTCAL_LMA$LMA[1], LMA))
 ```
 
 ## Small Adjustments

@@ -256,12 +256,13 @@ plants <- data %>%
 ```{r}
 pct_plants <- plants %>% 
   group_by(trait_names) %>% 
-  tally() %>% 
+  tally()
+pct_plants <- pct_plants %>% 
   mutate(pct = n/sum(pct_plants$n)*100)
   
 plants_text <- data.frame(trait_names = c('Wildlife Habitat', 'Fragrant', 'Flowers', 'Edible', 'Drought Tolerant'),
                           trait_labs = c('Wildlife Habitat (C,R,P)', 'Fragrant (C,R)', 'Flowers (C,R)', 'Edible (P)', 'Drought Tolerant (C,R)'),
-                          y.lab = c(22.5, 11, 15, 27.5, 44),
+                          y.lab = c(23, 11, 15, 27.5, 43.5),
                           lab.color = c(rep('black', 4), 'white'))
 
 traits.survey.plot <- pct_plants %>% 
