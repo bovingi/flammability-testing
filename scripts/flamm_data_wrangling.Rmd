@@ -14,6 +14,7 @@ library(here)
 library(lubridate)
 library(ggfortify)
 library(hms)
+library(ggpubr)
 library(caret) # for optimization routine
 
 # defining functions
@@ -163,7 +164,7 @@ flam.df <- flam.df %>%
 rm(df, df.mt) # Decluttering environment by removing temporary dataframes from above for loop
 ```
 
-Starting Temp. and Temp. Change
+Starting Temp.
 ```{r, warning = F}
 flam.df <- flam.df %>% 
   mutate(max_temp = ifelse(max_temp < -9999, NA, max_temp)) %>%  # making all -Inf values for max_temp NA
@@ -184,13 +185,40 @@ for(i in 1:nrow(flam.df)){
     filter(start_temp == 'yes')
   flam.df$start_temp_sensor[i] <- df.st$thermo.id[1]
 }
+```
 
+Avg. Temp (Stable Period; matching heat flux def'n)
+```{r}
+flam.df.ignite <- flam.df %>% 
+  drop_na(primary_ignition) %>% 
+  mutate(primary_ignition = as_hms(primary_ignition)) %>% 
+  mutate(stable_avg_temp = NA)
+
+flam.df.nonignite <- flam.df %>% 
+  filter(is.na(primary_ignition)) %>% 
+  mutate(stable_avg_temp = NA)
+
+for(i in 1:nrow(flam.df.ignite)){
+df <- thermocoupler.df.long %>% 
+    filter(thermo.id == flam.df.ignite$max_temp_sensor[i]) %>% # using the same thermocoupler as was used when finding the max. temp. metric unless there was no max temp (in that case, using CH1, CH2, CH5 or CH6)
+    filter(date == flam.df.ignite$date[i]) %>% 
+    filter(time > as_hms(as.POSIXct(flam.df.ignite$start_time[i])+15) &
+           time < as_hms(as.POSIXct(flam.df.ignite$primary_ignition[i])-10))
+flam.df.ignite$stable_avg_temp[i] <- mean(df$temp)
+}
+
+flam.df <- rbind(flam.df.ignite, flam.df.nonignite) %>% 
+  mutate(stable_avg_temp = ifelse(is.nan(stable_avg_temp), NA, stable_avg_temp)) # making NaN values NA
+
+rm(flam.df.ignite, flam.df.nonignite, df) # Decluttering environment by removing temporary dataframe from above for loop
+```
+
+Temp. Change
+```{r, warning = F}
 flam.df <- flam.df %>% 
-  mutate(temp_change = max_temp - start_temp) # calculating temp. change!
+  mutate(temp_change = max_temp - stable_avg_temp) # calculating temp. change (using stable avg temp!)
 
 rm(df, df.st) # Decluttering environment by removing temporary dataframe from above for loop
-
-shoe <- flam.df
 ```
 
 #### Full Test Average Temp (Top Vent, CH3)
@@ -468,6 +496,52 @@ flam.df <- flam.df %>%
   mutate(species = ifelse(species == 'MANDEN', 'ARCDEN', species)) %>% 
   filter(heat_flux_change < 0.42 | is.na(heat_flux_change)) # removing outlier in heat flux change
 ```
+
+# DELETE LATER
+```{r}
+flam.df %>% 
+  drop_na(max_temp, start_temp, temp_change) %>% 
+  mutate(temp_change_start_temp = max_temp - start_temp) %>% 
+  group_by(species) %>% 
+summarise(temp_change_stable_avg = mean(temp_change), temp_change_stable_avg_sd = sd(temp_change),
+            temp_change_start_temp = mean(temp_change_start_temp), temp_change_start_temp_sd = sd(temp_change_start_temp))
+
+flam.df %>% 
+  drop_na(max_temp, start_temp, temp_change) %>% 
+  mutate(temp_change_start_temp = max_temp - start_temp) %>% 
+summarise(temp_change_stable_avg = mean(temp_change), temp_change_stable_avg_sd = sd(temp_change),
+            temp_change_start_temp = mean(temp_change_start_temp), temp_change_start_temp_sd = sd(temp_change_start_temp))
+
+woo <- flam.df %>% 
+  drop_na(max_temp, start_temp, temp_change) %>% 
+  mutate(temp_change_start_temp = max_temp - start_temp) %>% 
+  filter(temp_change_start_temp < 0)
+
+flam.df %>% 
+  drop_na(max_temp, start_temp, temp_change) %>% 
+  mutate(temp_change_start_temp = max_temp - start_temp) %>% 
+  rename(temp_change_stable_avg = temp_change) %>% 
+  pivot_longer(cols = c(temp_change_stable_avg, temp_change_start_temp), names_to = 'calc', values_to = 'temp_change') %>% 
+  ggplot(aes(x = species, y = temp_change, color = calc)) +
+    geom_boxplot() +
+    theme_bw() +
+    labs(x = 'Species', y = '', color = 'Calculation: Stable Avg. or Start Temp.')
+
+flam.df %>% 
+  drop_na(max_temp, start_temp, temp_change) %>% 
+  mutate(temp_change_start_temp = max_temp - start_temp) %>% 
+  rename(temp_change_stable_avg = temp_change) %>% 
+  pivot_longer(cols = c(temp_change_stable_avg, temp_change_start_temp), names_to = 'calc', values_to = 'temp_change') %>% 
+  pivot_longer(cols = c(heat_flux_change, fh, fd), names_to = 'flam_var', values_to = 'flam_val') %>% 
+  ggplot(aes(x = flam_val, y = temp_change, color = calc)) +
+    geom_point() +
+    geom_smooth(method = 'lm', se = F) +
+    facet_wrap(~flam_var, scales = 'free') +
+    theme_bw() +
+    theme(legend.position = 'top') +
+    labs(x = 'Flammability Metric', y = 'Temp Change', color = 'Calculation: Stable Avg. or Start Temp.')
+```
+
 
 # Saving .csv
 ```{r}
