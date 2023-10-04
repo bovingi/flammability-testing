@@ -37,7 +37,7 @@ flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 # Data Wrangling 
 ```{r}
 flamm.df <- flamm.df %>% 
-  filter(species %in% c('ARTCAL', 'CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'IRIDOU', 'ARCDEN', 'HETARB')) %>% 
+  filter(species %in% c('ARTCAL', 'CEAGRI', 'ERIKAR', 'MALLAU', 'SALAPI', 'SALLEU', 'ARCDEN', 'HETARB')) %>% 
   filter(ignition != '0') %>% 
   filter(temp_change < 100) %>%  # removing outlier, as it makes things funky
   unite('id', c(species, plant, rep), sep = '_', remove = F)
@@ -165,8 +165,7 @@ flam.pca <- ggplot(data = PCAvalues, aes(x = PC1, y = PC2)) +
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15),
           axis.text = element_text(size = 13)) +
-  #scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-  scale_color_lancet() + # if no ARTCAL, manually define color palette 
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
   xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) #+
@@ -205,23 +204,24 @@ Plot setup:
 ```{r warning=FALSE}
 traits.df_pca <- flamm.df %>% 
   filter(ignition != 0) %>% # No non-ignitions
-   select(id, species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, leaf_sav, dmc) %>% 
-   drop_na(species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, leaf_sav, dmc)
+   select(id, species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, leaf_sav, dmc, stem_sav) %>% 
+   drop_na(species, lfm, mpa, sample_density, LMA, thickness, branching, leaf_mass_ratio, sample_wt, leaf_sav, dmc, stem_sav) %>% 
+  select(id, species, lfm, mpa, LMA, thickness, branching, leaf_mass_ratio, leaf_sav, dmc, stem_sav)
 
-figure_pca_quant2 <- (traits.df_pca[, c('species','lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'leaf_sav', 'dmc')]) %>%  
- transmute("\nLFM" = lfm,  # added spaces to adjust label position
+figure_pca_quant2 <- (traits.df_pca[, c('lfm', 'mpa', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'leaf_sav', 'dmc', 'stem_sav')]) %>%  
+ transmute("LFM" = lfm,  # added spaces to adjust label position
            "Water Potential" = mpa,
-           "Sample Density" = sample_density,
-           "\nLMA          " = LMA,
-           "      Thickness\n" = thickness,
+           "LMA" = LMA,
+           "Thickness" = thickness,
            "Branching" = branching,
-           "Leaf Ratio" = leaf_mass_ratio,
-           "              Sample Weight" = sample_wt,
-           "                Dry Matter Content" = dmc, # added spaces to adjust label position
-           "Leaf SA:V" = leaf_sav) %>% 
+           "Leaf Ratio\n" = leaf_mass_ratio,
+           #"Sample Weight" = sample_wt,
+           "\nDry Matter Content" = dmc, # added spaces to adjust label position
+           "Leaf SA:V" = leaf_sav,
+           "Stem SA:V" = stem_sav) %>% 
   na.omit()
 
-figure_pca_cat2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'leaf_sav', 'dmc')]) %>% 
+figure_pca_cat2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'leaf_sav', 'dmc', 'stem_sav')]) %>% 
   na.omit() %>% 
   select(species) %>% 
   transmute("Species" = species)
@@ -231,7 +231,7 @@ figure_prcomp2 <- prcomp(na.omit(figure_pca_quant2),
                           scale = TRUE, 
                           retx=TRUE)
   
-figure_pca2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'sample_density', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'sample_wt', 'leaf_sav', 'dmc')]) %>%  
+figure_pca2 <- (traits.df_pca[, c('species', 'lfm', 'mpa', 'LMA', 'thickness', 'branching', 'leaf_mass_ratio', 'leaf_sav', 'dmc', 'stem_sav')]) %>%  
   na.omit() 
 ```
 
@@ -285,9 +285,9 @@ circle <- data.frame(PC1 = r * cos(theta), PC2 = r * sin(theta))
 
 #Group by flam. metric: 
 PCA_metrics2 <- df.v %>% 
-  filter(Variables %in% c("\nLFM", "Water Potential", "Sample Density",
-           "\nLMA          ", "      Thickness\n", "Branching", "Leaf Ratio",
-           "              Sample Weight", "                Dry Matter Content", "Leaf SA:V"))
+  filter(Variables %in% c("LFM", "Water Potential", "Sample Density", "LMA",
+           "Thickness", "Branching", "Leaf Ratio\n", "\nDry Matter Content",
+           "Leaf SA:V", "Stem SA:V"))
     
 # Calculate the angles and the label offset
 df.v$Angle = ((180/pi) * atan(df.v$PC2/df.v$PC1))
@@ -303,7 +303,8 @@ u.axis.labs <- paste(u.axis.labs, sprintf("(%0.1f%% explained var.)",
 Plot:
 ```{r}
 traits.pca <- ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
-  ylim(-3.4, 2.9) +
+  ylim(-3.8, 2.4) +
+  xlim(-2.1, 2.4) +
   geom_point(size = 1.75, alpha = .9, aes(color = Species), data = PCAvalues2) +
   stat_ellipse(aes(color = Species)) +
   guides(color = guide_legend(override.aes = list(size = 3))) +
@@ -325,9 +326,8 @@ traits.pca <- ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15),
-          axis.text = element_text(size = 13)) +
-    #scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-  scale_color_lancet() + # if no ARTCAL, manually define color palette
+          axis.text = element_text(size = 13)) + 
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   xlab(u.axis.labs[1]) + 
   ylab(u.axis.labs[2])# +
   #coord_equal() #remove hash if you want to make coordinates equal; for arranging figure, looks best if they're not
@@ -393,8 +393,7 @@ pca_df_main %>%
     #stat_regline_equation(label.y.npc = 'bottom', label.x.npc = 'left', size = 3) +
     facet_grid(flamm_pc ~ traits_pc, scales = 'free', labeller = labeller(flamm_pc = pc_labels, traits_pc = pc_labels)) +
     labs(y = 'Flamm. PC Score', x = 'Traits PC Score', color = 'Species') +
-    #scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-    scale_color_lancet() + # if no ARTCAL, so manually define color palette
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
     theme_bw() +
     theme(legend.position = 'right',
           legend.title = element_text(size = 16, face = 'bold'),
@@ -406,7 +405,7 @@ ggsave(here('figures', 'PCA', 'PC.Regressions.png'), height = 8, width = 12)
 
 ### For Arranged Main Figure
 ```{r}
-pc_labels <- c('PC1 (-FH)', 'PC2 (-\U0394Temp)', 'PC3 (FD)', 'PC1 (DMC, -Density, -LMR)', 'PC2 (Leaf SA:V, -Thick.)', 'PC3 (LMA, Sample Mass)')
+pc_labels <- c('PC1 (-FH)', 'PC2 (-\U0394Temp)', 'PC3 (FD)', 'PC1 (-LFM, -LMR, DMC)', 'PC2 (-MPa, -Branching)', 'PC3 (-LTh, Leaf SA:V)')
 names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits')
 
 pc.scatterplot <- pca_df_main %>% 
@@ -419,8 +418,7 @@ pc.scatterplot <- pca_df_main %>%
     #stat_regline_equation(label.y.npc = 'bottom', label.x.npc = 'left', size = 3) +
     facet_grid(flamm_pc ~ traits_pc, scales = 'free', labeller = labeller(flamm_pc = pc_labels, traits_pc = pc_labels)) +
     labs(y = 'Flamm. PC Score', x = 'Traits PC Score') +
-      #scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-    scale_color_lancet() + # if no ARTCAL, manually define color palette
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
     theme_bw() +
     theme(legend.position = 'none',
           axis.title = element_text(size = 18, face = 'bold'),
@@ -458,8 +456,7 @@ print(second_order_pcobj) # PC1: flame height, flame duration, max temp and max 
 ggbiplot(second_order_pcobj,
          groups = second_order_pca_df$species,
          ellipse = TRUE, varname.size = 5, alpha = 0.5) +
-    #scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-    scale_color_lancet() + # if no ARTCAL, manually define color palette
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
     theme_bw()
 
 # eigenvalue table
@@ -602,8 +599,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-    #scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-   scale_color_lancet() + # if no ARTCAL, manually define color palette 
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
    geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
    xlab(u.axis.labs[1]) + 
    ylab(u.axis.labs[2]) +
@@ -636,8 +632,7 @@ legend <- get_legend(ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
         legend.position = 'bottom',
         legend.title = element_text(face = 'bold', size = 18),
         legend.text = element_text(face = 'italic', size = 16)) +
-    scale_color_lancet()) # if no ARTCAL, manually define color palette
-  #scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#FDAF91B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")))
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")))
 ```
 
 ```{r}
@@ -796,8 +791,7 @@ ggplot(PCAvalues, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-    scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) + 
-    #scale_color_lancet() + # no ARTCAL, so manually defining color palette 
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
     geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
     xlab(u.axis.labs[1]) + 
     ylab(u.axis.labs[2]) +
@@ -956,8 +950,7 @@ ggplot(PCAvalues2, aes(x = PC1, y = PC2)) +
           legend.title = element_text(face = 'bold', size = 15),
           legend.text = element_text(face = 'italic', size = 13),
           axis.title = element_text(face = 'bold', size = 15)) +
-    scale_color_manual(values = c("#00468BB2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-    #scale_color_lancet() + # no ARTCAL, so manually defining color palette 
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
     geom_path(data = circle, color = "black",  size = 1/2, alpha = 1/3) + 
     xlab(u.axis.labs[1]) + 
     ylab(u.axis.labs[2]) +
