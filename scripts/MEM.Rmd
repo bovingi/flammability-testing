@@ -298,65 +298,61 @@ From here, the information-criteria-based model selection should be further scru
 
 ## Testing Univariate Models
 Due to the way the function above was written, every MEM had to have at least 2 predictors; however, what if the flam. metrics are better predicted by 1 predictor? The below chunk looks at each of the top predictors in 'singular' models to answer this question
+
+### Model Performance Function (AIC, BIC, Nakagawa's R2 values)
+```{r}
+mem.performance <- function(model){
+  aic <- AIC(model)
+  bic <- BIC(model)
+  cond.r2 <- r2_nakagawa(model)[[1]]
+  marg.r2 <- r2_nakagawa(model)[[2]]
+  print(paste('AIC =', aic, 'BIC =', bic, 'Cond. Rsq =', cond.r2, 'Marg. Rsq =', marg.r2))
+}
+```
+
+### Models
 ```{r}
 # Flame Height
 fh.sw <- lmer(fh ~ sample_wt + (1|plant_id), mem.df)
-AIC(fh.sw) # sig. worse than top models
-BIC(fh.sw) # sig. worse than top models
+mem.performance(fh.sw) # sig. worse than top models
 fh.br <- lmer(fh ~ branching + (1|plant_id), mem.df)
-AIC(fh.br) # sig. worse than top models
-BIC(fh.br) # sig. worse than top models
+mem.performance(fh.br) # sig. worse than top models
 fh.mpa <- lmer(fh ~ mpa + (1|plant_id), mem.df)
-AIC(fh.mpa) # sig. worse than top models
-BIC(fh.mpa) # sig. worse than top models
+mem.performance(fh.mpa) # sig. worse than top models
 fh.ssav <- lmer(fh ~ stem_sav + (1|plant_id), mem.df)
-AIC(fh.ssav) # sig. worse than top models
-BIC(fh.ssav) # sig. worse than top models
+mem.performance(fh.ssav) # sig. worse than top models
 
 # Flame Duration
 fd.sw <- lmer(fd ~ sample_wt + (1|plant_id), mem.df)
-AIC(fd.sw) # sig. worse than top models
-BIC(fd.sw) # sig. worse than top models
+mem.performance(fd.sw) # sig. worse than top models
 fd.br <- lmer(fd ~ branching + (1|plant_id), mem.df)
-AIC(fd.br) # sig. worse than top models
-BIC(fd.br) # sig. worse than top models
+mem.performance(fd.br) # sig. worse than top models
 fd.dmc <- lmer(fd ~ dmc + (1|plant_id), mem.df)
-AIC(fd.dmc) # sig. worse than top models
-BIC(fd.dmc) # sig. worse than top models
+mem.performance(fd.dmc) # sig. worse than top models
 fd.lmr <- lmer(fd ~ leaf_mass_ratio + (1|plant_id), mem.df)
-AIC(fd.lmr) # sig. worse than top models
-BIC(fd.lmr) # sig. worse than top models
+mem.performance(fd.lmr) # sig. worse than top models
 
 # Temp Change
 temp.sw <- lmer(temp_change ~ sample_wt + (1|plant_id), mem.df)
-AIC(temp.sw) # sig. worse than top models
-BIC(temp.sw) # sig. worse than top models
+mem.performance(temp.sw) # sig. worse than top models
 temp.br <- lmer(temp_change ~ branching + (1|plant_id), mem.df)
-AIC(temp.br) # sig. worse than top models
-BIC(temp.br) # sig. worse than top models
+mem.performance(temp.br) # sig. worse than top models
 temp.lfm <- lmer(temp_change ~ lfm + (1|plant_id), mem.df)
-AIC(temp.lfm) # sig. worse than top models
-BIC(temp.lfm) # sig. worse than top models
+mem.performance(temp.lfm) # sig. worse than top models
 temp.st <- lmer(temp_change ~ start_temp + (1|plant_id), mem.df)
-AIC(temp.st) # sig. worse than top models
-BIC(temp.st) # sig. worse than top models
+mem.performance(temp.st) # sig. worse than top models
 temp.la <- lmer(temp_change ~ leaf_area + (1|plant_id), mem.df)
-AIC(temp.la) # sig. worse than top models
-BIC(temp.la) # sig. worse than top models
+mem.performance(temp.la) # sig. worse than top models
 
 # Heat Flux
 hf.sw <- lmer(heat_flux_change ~ sample_wt + (1|plant_id), mem.df)
-AIC(hf.sw) # similar to top models
-BIC(hf.sw) # sig. better than top models
+mem.performance(hf.sw) # similar to top models
 hf.lmr <- lmer(heat_flux_change ~ leaf_mass_ratio + (1|plant_id), mem.df)
-AIC(hf.lmr) # sig. worse than top models
-BIC(hf.lmr) # sig. worse than top models
+mem.performance(hf.lmr) # sig. worse than top models
 hf.sav <- lmer(heat_flux_change ~ leaf_sav + (1|plant_id), mem.df)
-AIC(hf.sav) # sig. worse than top models
-BIC(hf.sav) # sig. worse than top models
+mem.performance(hf.sav) # sig. worse than top models
 hf.lma <- lmer(heat_flux_change ~ LMA + (1|plant_id), mem.df)
-AIC(hf.lma) # sig. worse than top models
-BIC(hf.lma) # sig. worse than top models
+mem.performance(hf.lma) # sig. worse than top models
 ```
 
 ## Coefficients Table
@@ -417,7 +413,7 @@ for (j in 1:length(BIC_vec)){
  print(paste("Iteration ", j, sep=""))
  
  glm1 <- try( #throwing main variables identified by the information criteria model selection into the LASSO cross-validation process; using plant.id as random effect
- glmmLasso(fh ~ species + stem_sav + branching + start_temp + sample_wt,
+ glmmLasso(fh ~ species + stem_sav + branching + start_temp + sample_wt + lfm,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
@@ -453,11 +449,11 @@ fh_lambda_aic <- lambda[which.min(AIC_vec)]
 
 ### Model Selection
 ```{r}
-fh_lasso <- glmmLasso(fh ~ species + stem_sav + branching + start_temp + sample_wt,
+fh_lasso <- glmmLasso(fh ~ species + stem_sav + branching + start_temp + sample_wt + lfm,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
- lambda = fh_lambda_bic, # try both aic-based lambda and bic-based lambda
+ lambda = fh_lambda_aic, # try both aic-based lambda and bic-based lambda
  switch.NR = TRUE,
  final.re = TRUE)
 
@@ -495,7 +491,7 @@ for (j in 1:length(BIC_vec)){
  print(paste("Iteration ", j, sep=""))
  
  glm1 <- try( #throwing main variables identified by the information criteria model selection into the LASSO cross-validation process; using plant.id as random effect
- glmmLasso(fd ~ species + branching + sample_wt + dmc + leaf_mass_ratio,
+ glmmLasso(fd ~ species + branching + sample_wt + dmc + lfm,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
@@ -531,11 +527,11 @@ fd_lambda_aic <- lambda[which.min(AIC_vec)]
 
 ### Model Selection
 ```{r}
-fd_lasso <- glmmLasso(fd ~ species + branching + sample_wt + dmc + leaf_mass_ratio,
+fd_lasso <- glmmLasso(fd ~ species + branching + sample_wt + dmc + lfm,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
- lambda = fd_lambda_bic, # try both aic-based lambda and bic-based lambda
+ lambda = fd_lambda_aic, # try both aic-based lambda and bic-based lambda
  switch.NR = TRUE,
  final.re = TRUE)
 
@@ -569,7 +565,7 @@ for (j in 1:length(BIC_vec)){
  print(paste("Iteration ", j, sep=""))
  
  glm1 <- try( #throwing main variables identified by the information criteria model selection into the LASSO cross-validation process; using plant.id as random effect
- glmmLasso(temp_change ~ species + branching + leaf_area + sample_wt + start_temp,
+ glmmLasso(temp_change ~ branching + leaf_area + sample_wt + start_temp + branch_volume + lfm,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
@@ -599,12 +595,12 @@ lambda[which.min(BIC_vec)]
 # 6.158482
 lambda[which.min(AIC_vec)]
 # 6.158482
-tc_lambda <- lambda[which.min(BIC_vec)] # since aic and bic had same results, lambda can be either/or
+tc_lambda <- lambda[which.min(AIC_vec)] # since aic and bic had same results, lambda can be either/or
 ```
 
 ### Model Selection
 ```{r}
-tc_lasso <- glmmLasso(temp_change ~ species + branching + leaf_area + sample_wt + start_temp,
+tc_lasso <- glmmLasso(temp_change ~ branching + leaf_area + sample_wt + start_temp + branch_volume + lfm,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
@@ -683,7 +679,7 @@ hf_lasso <- glmmLasso(heat_flux_change ~ species + leaf_mass_ratio + sample_wt,
  data=mem.df,
  rnd = list(plant_id=~1), 
  family = gaussian(link = "identity"),
- lambda = hf_lambda_bic,
+ lambda = hf_lambda_aic,
  switch.NR = TRUE,
  final.re = TRUE)
 
@@ -1297,19 +1293,19 @@ fh.int.mod.list <- fh.mem.int.selection[[2]]
 
 # testing models w/ interaction terms
 fh.int.mod.list[[56]] <- lmer(fh ~ branching*sample_wt + stem_sav + (1|plant_id), data = mem.df)
-AIC(fh.int.mod.list[[56]])
+mem.performance(fh.int.mod.list[[56]])
 fh.int.mod.list[[57]] <- lmer(fh ~ branching*sample_wt + species + (1|plant_id), data = mem.df)
-AIC(fh.int.mod.list[[57]])
+mem.performance(fh.int.mod.list[[57]])
 fh.int.mod.list[[58]] <- lmer(fh ~ branching*sample_wt + lfm + (1|plant_id), data = mem.df)
-AIC(fh.int.mod.list[[58]])
+mem.performance(fh.int.mod.list[[58]])
 fh.int.mod.list[[59]] <- lmer(fh ~ lfm*sample_wt + branching + (1|plant_id), data = mem.df)
-AIC(fh.int.mod.list[[59]])
+mem.performance(fh.int.mod.list[[59]]) ##
 fh.int.mod.list[[60]] <- lmer(fh ~ lfm*sample_wt + stem_sav + (1|plant_id), data = mem.df)
-AIC(fh.int.mod.list[[60]])
+mem.performance(fh.int.mod.list[[60]])
 fh.int.mod.list[[61]] <- lmer(fh ~ lfm*sample_wt + species + (1|plant_id), data = mem.df)
-AIC(fh.int.mod.list[[61]])
+mem.performance(fh.int.mod.list[[61]])
 fh.int.mod.list[[62]] <- lmer(fh ~ lfm*sample_wt + start_temp + (1|plant_id), data = mem.df)
-AIC(fh.int.mod.list[[62]])
+mem.performance(fh.int.mod.list[[62]])
 ```
 
 ## Flame Duration
@@ -1320,29 +1316,29 @@ fd.int.mod.list <- fd.mem.int.selection[[2]]
 
 # testing models w/ interaction terms
 fd.int.mod.list[[56]] <- lmer(fd ~ lfm*sample_wt + species + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[56]]) ##
+mem.performance(fd.int.mod.list[[56]]) ##
 fd.int.mod.list[[57]] <- lmer(fd ~ lfm*sample_wt + dmc + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[57]]) ##
+mem.performance(fd.int.mod.list[[57]]) ##
 fd.int.mod.list[[58]] <- lmer(fd ~ lfm*sample_wt + branching + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[58]])
+mem.performance(fd.int.mod.list[[58]])
 fd.int.mod.list[[59]] <- lmer(fd ~ lfm*sample_wt + branching + dmc + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[59]]) 
+mem.performance(fd.int.mod.list[[59]]) 
 fd.int.mod.list[[60]] <- lmer(fd ~ lfm*sample_wt + branching + species + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[60]])
+mem.performance(fd.int.mod.list[[60]])
 fd.int.mod.list[[61]] <- lmer(fd ~ dmc*sample_wt + lfm + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[61]]) 
+mem.performance(fd.int.mod.list[[61]]) 
 fd.int.mod.list[[62]] <- lmer(fd ~ dmc*sample_wt + branching + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[62]]) ##
+mem.performance(fd.int.mod.list[[62]]) ##
 fd.int.mod.list[[63]] <- lmer(fd ~ dmc*sample_wt + species + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[63]]) ##
+mem.performance(fd.int.mod.list[[63]]) ##
 fd.int.mod.list[[64]] <- lmer(fd ~ dmc*sample_wt + lfm + species + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[64]]) ##
+mem.performance(fd.int.mod.list[[64]]) ##
 fd.int.mod.list[[65]] <- lmer(fd ~ dmc*sample_wt + branching + species + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[65]]) ##
+mem.performance(fd.int.mod.list[[65]]) ##
 fd.int.mod.list[[66]] <- lmer(fd ~ dmc*sample_wt + leaf_mass_ratio + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[66]])
+mem.performance(fd.int.mod.list[[66]])
 fd.int.mod.list[[67]] <- lmer(fd ~ lfm*sample_wt + leaf_mass_ratio + (1|plant_id), data = mem.df)
-AIC(fd.int.mod.list[[67]])
+mem.performance(fd.int.mod.list[[67]])
 ```
 
 ## Temp. Change
@@ -1353,21 +1349,21 @@ temp.int.mod.list <- temp.mem.int.selection[[2]]
 
 # testing models w/ interaction terms
 temp.int.mod.list[[56]] <- lmer(temp_change ~ start_temp*sample_wt + species + (1|plant_id), data = mem.df)
-AIC(temp.int.mod.list[[56]]) 
+mem.performance(temp.int.mod.list[[56]]) 
 temp.int.mod.list[[57]] <- lmer(temp_change ~ start_temp*sample_wt + branching + (1|plant_id), data = mem.df)
-AIC(temp.int.mod.list[[57]]) ##
+mem.performance(temp.int.mod.list[[57]]) ##
 temp.int.mod.list[[58]] <- lmer(temp_change ~ start_temp*sample_wt + lfm + (1|plant_id), data = mem.df)
-AIC(temp.int.mod.list[[58]])
+mem.performance(temp.int.mod.list[[58]])
 temp.int.mod.list[[59]] <- lmer(temp_change ~ start_temp*sample_wt + branching + lfm + (1|plant_id), data = mem.df)
-AIC(temp.int.mod.list[[59]]) ##
+mem.performance(temp.int.mod.list[[59]]) ##
 temp.int.mod.list[[60]] <- lmer(temp_change ~ start_temp*sample_wt + branching + species + (1|plant_id), data = mem.df)
-AIC(temp.int.mod.list[[60]])
+mem.performance(temp.int.mod.list[[60]])
 temp.int.mod.list[[61]] <- lmer(temp_change ~ start_temp*branch_volume + sample_wt + (1|plant_id), data = mem.df)
-AIC(temp.int.mod.list[[61]])
+mem.performance(temp.int.mod.list[[61]])
 temp.int.mod.list[[62]] <- lmer(temp_change ~ start_temp*branch_volume + branching + (1|plant_id), data = mem.df)
-AIC(temp.int.mod.list[[62]]) ##
+mem.performance(temp.int.mod.list[[62]]) ##
 temp.int.mod.list[[63]] <- lmer(temp_change ~ start_temp*branch_volume + lfm + (1|plant_id), data = mem.df)
-AIC(temp.int.mod.list[[63]]) 
+mem.performance(temp.int.mod.list[[63]]) 
 ```
 
 ## Heat Flux Change
@@ -1378,37 +1374,37 @@ hf.int.mod.list <- hf.mem.int.selection[[2]]
 
 # testing models w/ interaction terms
 hf.int.mod.list[[56]] <- lmer(heat_flux_change ~ LMA*sample_wt + species + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[56]])
+mem.performance(hf.int.mod.list[[56]])
 hf.int.mod.list[[57]] <- lmer(heat_flux_change ~ LMA*sample_wt + lfm + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[57]])
+mem.performance(hf.int.mod.list[[57]])
 hf.int.mod.list[[58]] <- lmer(heat_flux_change ~ LMA*sample_wt + start_temp + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[58]])
+mem.performance(hf.int.mod.list[[58]])
 hf.int.mod.list[[59]] <- lmer(heat_flux_change ~ LMA*sample_wt + leaf_mass_ratio + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[59]])
+mem.performance(hf.int.mod.list[[59]])
 hf.int.mod.list[[60]] <- lmer(heat_flux_change ~ LMA*sample_wt + lfm + species + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[60]]) 
+mem.performance(hf.int.mod.list[[60]]) 
 hf.int.mod.list[[61]] <- lmer(heat_flux_change ~ LMA*sample_wt + branching + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[61]])
+mem.performance(hf.int.mod.list[[61]])
 hf.int.mod.list[[63]] <- lmer(heat_flux_change ~ lfm*sample_wt + species + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[63]])
+mem.performance(hf.int.mod.list[[63]])
 hf.int.mod.list[[64]] <- lmer(heat_flux_change ~ lfm*sample_wt + leaf_mass_ratio + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[64]])
+mem.performance(hf.int.mod.list[[64]])
 hf.int.mod.list[[65]] <- lmer(heat_flux_change ~ lfm*sample_wt + LMA + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[65]])
+mem.performance(hf.int.mod.list[[65]])
 hf.int.mod.list[[66]] <- lmer(heat_flux_change ~ lfm*sample_wt + start_temp + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[66]])
+mem.performance(hf.int.mod.list[[66]])
 hf.int.mod.list[[67]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + species + (1|plant_id), data = mem.df)
-BIC(hf.int.mod.list[[67]]) ##
+mem.performance(hf.int.mod.list[[67]]) ##
 hf.int.mod.list[[68]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + branch_volume + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[68]])
+mem.performance(hf.int.mod.list[[68]])
 hf.int.mod.list[[69]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + LMA + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[69]])
+mem.performance(hf.int.mod.list[[69]])
 hf.int.mod.list[[70]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + start_temp + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[70]])
+mem.performance(hf.int.mod.list[[70]])
 hf.int.mod.list[[71]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + lfm + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[71]])
+mem.performance(hf.int.mod.list[[71]])
 hf.int.mod.list[[72]] <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + species + lfm + (1|plant_id), data = mem.df)
-AIC(hf.int.mod.list[[72]])
+mem.performance(hf.int.mod.list[[72]])
 ```
 
 # Nice Model Selection Results Table

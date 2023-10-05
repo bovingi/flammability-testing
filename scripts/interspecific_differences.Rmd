@@ -125,7 +125,7 @@ tc.boxplot <- flamm.df %>%
     geom_jitter(aes(x = species, y = temp_change, color = species), width = 0.2, alpha = 0.2) +
     geom_text(aes(x = species, y = 38 + adj, label = letters), fontface = 'bold',
               data = tc.spp.tukey.labels, size = 6) +
-    labs(x = 'Species', y = 'Temp. Change') +
+    labs(x = 'Species', y = 'Temp. Change (°C)') +
     scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
     theme_bw() +
     theme(legend.position = 'none',
@@ -282,6 +282,63 @@ flamm.df %>%
           axis.text.y = element_text(size = 15))
 ```
 
+### LFM
+```{r}
+lfm.boxplot <- flamm.df %>%
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                                 'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = lfm, color = species), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = lfm, color = species), width = 0.2, alpha = 0.2) +
+    labs(x = 'Species', y = 'Live Fuel Moisture (%)') +
+    scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
+          axis.text.y = element_text(size = 15))
+lfm.boxplot
+```
+
+### DMC
+```{r}
+dmc.boxplot <- flamm.df %>%
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                                 'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = dmc, color = species), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = dmc, color = species), width = 0.2, alpha = 0.2) +
+    labs(x = 'Species', y = 'Dry Matter Content (%)') +
+    scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
+          axis.text.y = element_text(size = 15))
+dmc.boxplot
+```
+
+### Leaf Mass Ratio
+```{r}
+lmr.boxplot <- flamm.df %>%
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
+                                                 'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = leaf_mass_ratio, color = species), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = leaf_mass_ratio, color = species), width = 0.2, alpha = 0.2) +
+    labs(x = 'Species', y = 'Leaf Mass Ratio (%)') +
+    scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 18),
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
+          axis.text.y = element_text(size = 15))
+lmr.boxplot
+```
+
 ### Avg. VOC Emissions
 ```{r}
 flamm.df %>%
@@ -303,12 +360,32 @@ ggsave(here('figures', 'spp.voc.png'), height = 5, width = 9)
 
 ## Arranging
 ```{r}
-ggarrange(fh.boxplot, fd.boxplot, hf.boxplot, sw.boxplot, branching.boxplot, mpa.boxplot,
-          labels = c('A', 'B', 'C', 'D', 'E', 'F'),
-          font.label = list(size = 28),
-          ncol = 3, nrow = 2)
+# blank figure
+blank <- ggplot(data = flamm.df, aes(x = species, y = mpa)) +
+  theme_void()
+blank
 
-ggsave(here('figures', 'main_figures', 'spp.boxplots.png'), height = 9, width = 13.5)
+# abridged version
+top <- ggarrange(fh.boxplot, fd.boxplot, hf.boxplot,
+          labels = c('A', 'B', 'C'),
+          font.label = list(size = 28), ncol = 3, nrow = 1)
+top
+
+bottom <- ggarrange(blank, tc.boxplot, sw.boxplot, blank,
+          labels = c('', 'D', 'E', ''),
+          font.label = list(size = 28),
+          widths = c(0.48, 1, 1, 0.48), ncol = 4, nrow = 1)
+bottom
+
+ggarrange(top, bottom, nrow = 2, ncol = 1)
+
+# expanded version
+ggarrange(fh.boxplot, fd.boxplot, hf.boxplot, tc.boxplot, sw.boxplot, branching.boxplot, lfm.boxplot, dmc.boxplot, lmr.boxplot,
+          labels = c('A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'),
+          font.label = list(size = 28), ncol = 3, nrow = 3)
+
+
+ggsave(here('figures', 'main_figures', 'spp.boxplots.png'), height = 14, width = 13.5) # height was 9 w/ two rows
 ```
 
 
