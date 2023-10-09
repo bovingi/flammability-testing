@@ -18,6 +18,7 @@ library(cowplot)
 
 group_by = dplyr::group_by
 summarise = dplyr::summarise
+plot_grid = cowplot::plot_grid
 
 flamm.df <- read.csv(here('data', 'processed-data', 'main_dataset.csv'))
 ```
@@ -263,7 +264,7 @@ r.flamm.index2 <- conceptual_flam_remef %>%
   summarise(fh = mean(r_fh), fd = mean(r_fd), prop_ig = mean(prop_ig),
             temp_change = mean(r_temp_change), heat_flux_change = mean(r_heat_flux_change)) %>% 
   mutate(ignitability = prop_ig, combustibility = ((fh + heat_flux_change + temp_change)/3), sustainability = fd) %>% 
-  dplyr::select(species, ignitability, combustibility, sustainability) %>% 
+  #dplyr::select(species, ignitability, combustibility, sustainability) %>% 
   ungroup() %>% 
   mutate(flam.score = (ignitability + combustibility + sustainability)/ 3)
 
@@ -288,8 +289,8 @@ flam_scores <- flam_scores %>%
 #flam_scores$laby <- c(0.01705280, 0.02416551, 0.37, -0.12, 0.75, -0.06139702, -0.10381904,  0.035, 0.31915402)
 
 # scaled version
-flam_scores$labx <- c(0.36624441, -0.3, -1.05688614, -1.92024916, 0.31058488, 0.37897090, 0.75, 0.45)
-flam_scores$laby <- c(-0.56, -0.37, 0.6, -0.97, 1.96, -0.85, -0.38, 0.47)
+flam_scores$labx <- c(0.37, -0.35, -1.06, -1.92, 0.31, 0.38, 0.75, 0.55)
+flam_scores$laby <- c(-0.42, -0.35, 1.34, -1.22, 0.98, -0.99, -0.35, 1.18)
 
 es.vs.flam <- ggplot(data=flam_scores) +
   geom_point(aes(x=es.score, y=flam.score, color=species), size=8.5, alpha=0.75) + 

@@ -1505,6 +1505,8 @@ concept.remef.df <- flamm.df %>%
          stem_dmc = scale(stem_dmc), leaf_dmc = scale(leaf_dmc),
          dmc = scale(dmc), stem_sav = scale(stem_sav), leaf_sav= scale(leaf_sav),
          dw_sppdev= scale(dw_sppdev), LMA = scale(LMA), leaf_area = scale(leaf_area)) %>% 
+  mutate(leaf_area = ifelse(species == 'HETARB' & is.na(leaf_area), 1.673288, leaf_area),
+         leaf_sav = ifelse(species == 'HETARB' & is.na(leaf_sav), -0.8646572, leaf_sav)) %>%  # imputing mean for NA values
   drop_na(lfm, LMA, sample_wt, leaf_mass_ratio, branching, mpa, start_temp, dmc, stem_sav, leaf_area, leaf_sav, thickness, species)
 
 # mixed effects models
