@@ -841,8 +841,9 @@ MAIN:
 DMC:
 ```{r}
 fd_mod <- lmer(fd ~ dmc*sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
+summary(fd_mod)
 
-mem.df$r_fd <- remef(fd_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
+mem.df$r_fd <- remef(fd_mod, fix = c('sample_wt', 'speciesCEAGRI', 'speciesERIKAR', 'speciesMALLAU', 'speciesSALAPI', 'speciesSALLEU'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
 
 # With REMEF
 fd.dmc.remef <- ggplot(mem.df, aes(x = dmc, y = r_fd))  +
@@ -930,7 +931,7 @@ Leaf mass ratio:
 ```{r}
 hf_mod <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
 
-mem.df$r_hf <- remef(hf_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
+mem.df$r_hf <- remef(hf_mod, fix = c('sample_wt', 'speciesCEAGRI', 'speciesERIKAR', 'speciesMALLAU', 'speciesSALAPI', 'speciesSALLEU'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
 
 # With REMEF
 hf.lmr.remef <- ggplot(mem.df, aes(x = leaf_mass_ratio, y = r_hf))  +
@@ -1440,9 +1441,9 @@ flam_metrics <- c(rep('Flame\nHeight', length(pred_vec)),
                   rep('Temperature\nChange', length(pred_vec)),
                   rep('Heat Flux\nChange', length(pred_vec)))
 coef <- c(0.250, NA, NA, NA, NA, 0.023, 0.384, 0.576, NA, NA, NA,
-          NA, 0.220, 0.378, NA, NA, NA, NA, 0.418, 0, NA, NA,
+          NA, 0.220, 0.378, NA, NA, NA, NA, 0.418, NA, NA, NA,
           0.266, NA, NA, NA, NA, NA, NA, 0.123, NA, -0.532, -0.308,
-          NA, NA, NA, -0.082, -0.263, NA, NA, 0.758, 0, NA, NA)
+          NA, NA, NA, -0.082, -0.263, NA, NA, 0.758, NA, NA, NA)
 p.val <- c('***', NA, NA, NA, NA, NA, '***', '***', NA, NA, NA,
            NA, NA, '***', NA, NA, NA, NA, '***', NA, NA, NA,
            '***', NA, NA, NA, NA, NA, NA, NA, NA, '***', '***',
@@ -1465,14 +1466,15 @@ woo <- data.frame(predictors, flam_metrics, coef, p.val) %>%
   mutate(predictors = as.factor(predictors)) %>% 
   mutate(predictors = fct_relevel(predictors, c('Live Fuel\n Moisture', 'Leaf Mass\n Ratio', 'Sample Weight', 'Branching', 'Starting\n Temperature', 'Dry Matter\n Content', 'Species', 'DMC x\nSample Weight', 'LFM x\nSample Weight', 'Leaf Mass Ratio x\nSample Weight', 'Starting Temp x\nSample Weight'))) %>% 
   mutate(flam_metrics = as.factor(flam_metrics)) %>% 
-  mutate(predictors = fct_relevel(predictors, c('Flame\nHeight', 'Flame\nDuration', 'Temperature\nChange', 'Heat Flux\nChange')))
+  mutate(flam_metrics = fct_relevel(flam_metrics, c('Flame\nHeight', 'Flame\nDuration', 'Temperature\nChange', 'Heat Flux\nChange'))) %>% 
+  mutate(col_pred = ifelse(predictors == 'Species' & flam_metrics %in% c('Heat Flux\nChange', 'Flame\nDuration'), 'gray20', 'white'))
 
 woo %>% 
 ggplot(aes(x = predictors, y = flam_metrics, fill = coef)) +
   geom_tile(aes(x = predictors, y = flam_metrics, fill = coef)) +
   geom_text(aes(x = predictors, y = flam_metrics, label = p.val), color = 'white', fontface = 'bold', size = 6) +
   labs(x = 'Predictors', y = 'Flam. Metrics', fill = 'Coefficient\n') +
-  scale_fill_gradient2(low = 'darkred', mid = "gray80", high = 'darkblue', midpoint = 0, na.value = 'white', limits = c(-0.85, 0.85)) +
+  scale_fill_gradient2(low = 'darkred', mid = "gray80", high = 'darkblue', midpoint = 0, na.value = woo$col_pred, limits = c(-0.85, 0.85)) +
   geom_vline(xintercept = 7.5, size = 0.35, linetype = 'dashed') +
   #theme_bw() +
   theme(legend.position = 'top',
@@ -1490,6 +1492,7 @@ ggsave(here('figures', 'MEM', 'example.mem.results.png'), height = 5.5, width = 
 ```
 
 # REMEF for Conceptual Figures
+## Option 1: Max. Models
 ```{r}
 concept.remef.df <- flamm.df %>% 
   filter(ignition != '0') %>% 
@@ -1497,7 +1500,7 @@ concept.remef.df <- flamm.df %>%
   select(species, thickness, lfm, sample_wt, leaf_mass_ratio, branching, mpa,
          ignition, fh, fd, temp_change, heat_flux_change, prop_ig, start_temp,
          stem_dmc, leaf_dmc, dmc, stem_sav, leaf_sav, dw_sppdev, plant_id, LMA,
-         leaf_area) %>% 
+         leaf_area, plant) %>% 
   mutate(lfm = scale(lfm), mpa = scale(mpa), branching = scale(branching),
          leaf_mass_ratio = scale(leaf_mass_ratio), sample_wt = scale(sample_wt),
          start_temp = scale(start_temp), fh = scale(fh), fd = scale(fd), 
@@ -1535,5 +1538,34 @@ ggplot(aes(x = sample_wt, y = r_fh), data = concept.remef.df) +
   geom_point()
 ggplot(aes(x = r_fh, y = fh/(1 + sample_wt)), data = concept.remef.df) +
   geom_point()
+```
+
+## Option 2: Top Models
+```{r}
+
+```
+
+
+# REMEF for Interspecific Boxplots
+```{r}
+interspec.remef.df <- concept.remef.df %>% 
+  drop_na(lfm, dmc, branching, start_temp, leaf_mass_ratio)
+
+# mixed effects models
+fh_is_mod <- lmer(fh ~ branching + lfm*sample_wt + (1|plant_id), data = interspec.remef.df, REML = F) # remef is also sensitive to NAs
+fd_is_mod <- lmer(fd ~ dmc*sample_wt + species + (1|plant_id), data = interspec.remef.df, REML = F) # remef is also sensitive to NAs
+temp_is_mod <- lmer(temp_change ~ start_temp*sample_wt + branching + (1|plant_id), data = interspec.remef.df, REML = F) # remef is also sensitive to NAs
+hf_is_mod <- lmer(heat_flux_change ~ leaf_mass_ratio*sample_wt + species + (1|plant_id), data = interspec.remef.df, REML = F) # remef is also sensitive to NAs
+
+# remef
+interspec.remef.df$r_fh <- remef(fh_is_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE)
+interspec.remef.df$r_fd <- remef(fd_is_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE)
+interspec.remef.df$r_temp_change <- remef(temp_is_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE)
+interspec.remef.df$r_heat_flux_change <- remef(hf_is_mod, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE)
+
+# dataframe
+interspec.df <- interspec.remef.df %>% 
+  select(species, ignition, prop_ig, fh, fd, temp_change, heat_flux_change, r_fh, r_fd, r_temp_change, r_heat_flux_change, plant)
+write.csv(interspec.df, here('data', 'processed-data', 'interspecific_flam_remef.csv'))
 ```
 
