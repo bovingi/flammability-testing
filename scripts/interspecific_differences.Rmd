@@ -142,23 +142,23 @@ hf.spp <- lmer(heat_flux_change ~ species + (1|species_id), data = flamm.df)
 anova(hf.spp) # p < 0.00001
 hf.spp.tukey <- emmeans(hf.spp, pairwise ~ species, adjust = 'tukey')
 hf.spp.tukey.df <- summary(hf.spp.tukey$contrasts)
-hf.spp.tukey.labels <- data.frame(species = c('HETARB', 'SALAPI', 'MALLAU', 'CEAGRI', 'SALLEU', 'ARCDEN', 'ARTCAL', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'abc', 'bc', 'bc', 'bc', 'c'), adj = c(0, 0.015, 0.015, 0, 0, 0.015, 0, 0.015)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
+hf.spp.tukey.labels <- data.frame(species = c('HETARB', 'SALAPI', 'MALLAU', 'CEAGRI', 'SALLEU', 'ARCDEN', 'ARTCAL', 'ERIKAR'), letters = c('a', 'ab', 'ab', 'abc', 'bc', 'bc', 'bc', 'c'), adj = c(0, 100, 100, 0, 0, 100, 0, 100)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
 
 hf.boxplot <- flamm.df %>%
-  filter(heat_flux_change < 0.3) %>% 
+  #filter(heat_flux_change < 0.3) %>% 
   mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
                                                  'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
   ggplot() +
     geom_boxplot(aes(x = species, y = heat_flux_change, color = species), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = heat_flux_change, color = species), width = 0.2, alpha = 0.2) +
-    geom_text(aes(x = species, y = 0.217 + adj, label = letters), fontface = 'bold',
+    geom_text(aes(x = species, y = 6000 + adj, label = letters), fontface = 'bold',
               data = hf.spp.tukey.labels, size = 6) +
-    scale_y_continuous(breaks = c(0.05, 0.1, 0.15, 0.20)) +
-    labs(x = 'Species', y = 'Heat Flux Change') +
+    #scale_y_continuous(breaks = c(0.05, 0.1, 0.15, 0.20)) +
+    labs(x = 'Species', y = expression(bold("Heat Flux "(W/m^2)))) +
     scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
     theme_bw() +
     theme(legend.position = 'none',
-          axis.title = element_text(face = 'bold', size = 18),
+          axis.title.y = element_text(face = 'bold', size = 18),
           axis.title.x = element_blank(),
           axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
           axis.text.y = element_text(size = 15))

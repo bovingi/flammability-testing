@@ -326,6 +326,17 @@ flam.df <- flam.df %>%
 ```
 
 ### Calculating Heat Flux
+#### Converting Units
+```{r}
+heatflux.df <- heatflux.df %>% 
+  mutate(CH7 = (0.001*CH7)/(0.141*10^-6)) %>% 
+  mutate(CH8 = (0.001*CH8)/(0.123*10^-6))
+
+heatflux.df.long <- heatflux.df.long %>% 
+  mutate(heat.flux = case_when(sensor.id == 'CH7' ~ (0.001*heat.flux)/(0.141*10^-6),
+                               sensor.id == 'CH8' ~ (0.001*heat.flux)/(0.123*10^-6)))
+```
+
 #### Optimization Routine
 Since maximum heat flux is going to be determined using Loess regressions, this optimization routine selects the optimal smoothing span to use when looking at heat flux over time
 ```{r, warning = FALSE}
@@ -494,7 +505,7 @@ flam.df <- flam.df %>%
   dplyr::rename(sample_wt = total_branch_mass) %>% 
   select(-X, -input_by, -potted, -Species) %>%  # removing unneccessary columns
   mutate(species = ifelse(species == 'MANDEN', 'ARCDEN', species)) %>% 
-  filter(heat_flux_change < 0.42 | is.na(heat_flux_change)) # removing outlier in heat flux change
+  filter(!is.na(heat_flux_change)) # removing outlier in heat flux change
 ```
 
 # Saving .csv
