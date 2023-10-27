@@ -378,6 +378,7 @@ bottom <- ggarrange(blank, tc.boxplot, sw.boxplot, blank,
 bottom
 
 ggarrange(top, bottom, nrow = 2, ncol = 1)
+ggsave(here('figures', 'main_figures', 'five.panel.spp.boxplots.png'), height = 9, width = 13.5) # height was 9 w/ two rows
 
 # expanded version
 ggarrange(fh.boxplot, fd.boxplot, hf.boxplot, tc.boxplot, sw.boxplot, branching.boxplot, lfm.boxplot, dmc.boxplot, lmr.boxplot,

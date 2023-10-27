@@ -404,6 +404,7 @@ ggsave(here('figures', 'PCA', 'PC.Regressions.png'), height = 8, width = 12)
 ```
 
 ### For Arranged Main Figure
+3x3 panels
 ```{r}
 pc_labels <- c('PC1 (-FH)', 'PC2 (-\U0394Temp)', 'PC3 (FD)', 'PC1 (-LFM, -LMR, DMC)', 'PC2 (-MPa, -Branching)', 'PC3 (-LTh, Leaf SA:V)')
 names(pc_labels) <- c('PC1_flamm', 'PC2_flamm', 'PC3_flamm', 'PC1_traits', 'PC2_traits', 'PC3_traits')
@@ -427,7 +428,22 @@ pc.scatterplot <- pca_df_main %>%
 pc.scatterplot
 ```
 
-
+PC1 vs PC1
+```{r}
+pc1.scatterplot <- pca_df_main %>% 
+  ggplot(aes(x = PC1_traits, y = PC1_flamm)) +
+    geom_point(alpha = 0.5, aes(color = species)) +
+    geom_smooth(method = 'lm', color = 'black', alpha = 0.75, fill = 'gray75') +
+    stat_cor(label.y.npc = 'bottom', label.x.npc = 'left', size = 6, fontface = 'bold')+ 
+    #stat_regline_equation(label.y.npc = 'bottom', label.x.npc = 'left', size = 3) +
+    labs(y = 'Flammability PC1', x = 'Traits PC1') +
+  scale_color_manual(values = c("#00468BB2", "#ED0000B2", "#42B540B2", "#0099B4B2", "#925E9FB2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_text(size = 20, face = 'bold'),
+          axis.text = element_text(size = 18))
+pc1.scatterplot
+```
 
 ## Second-order PCA
 ```{r}
@@ -649,6 +665,15 @@ plots <- ggarrange(traits.pca, blank, pc.scatterplot, flam.pca,
 ggarrange(plots, legend,
           ncol = 1, heights = c(8, 1))
 ggsave(here('figures', 'main_figures', 'pca.and.scatterplots.png'), height = 14, width = 16)
+
+plots <- ggarrange(traits.pca, pc1.scatterplot, blank, flam.pca,
+          labels = c('A', 'C', '', 'B'),
+          font.label = list(size = 34),
+          ncol = 2, nrow = 2,
+          heights = c(2, 2), widths = c(5, 4))
+ggarrange(plots, legend,
+          ncol = 1, heights = c(8, 1))
+ggsave(here('figures', 'main_figures', 'pc1.vs.pc1.and.scatterplots.png'), height = 14, width = 16)
 ```
 
 
