@@ -886,6 +886,23 @@ fd.dmcint.remef <- ggplot(mem.df, aes(x = dmc, y = r_fd, color = species))  +
         legend.title = element_text(face = 'bold', size = 15))
 fd.dmcint.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'dmcint.vs.fd.png'), width = 8, height = 5.5)
+
+# not removing effect of sample weight
+mem.df$r_fd <- remef(fd_mod, fix = c('speciesCEAGRI', 'speciesERIKAR', 'speciesMALLAU', 'speciesSALAPI', 'speciesSALLEU'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
+
+fd.dmc.remef <- ggplot(mem.df, aes(x = dmc, y = r_fd))  +
+  geom_point(aes(color = species), alpha = 0.8) +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 3.95)+ 
+  stat_regline_equation(label.y = 4.55) +
+  labs(x = 'Dry Matter Content (scaled)', y = 'Flame Duration', color = 'Species') +
+  theme_bw() +
+  scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
+fd.dmc.remef
+ggsave(here('figures', 'MEM', 'REMEF', 'dmc.vs.fd.nosw.png'), width = 8, height = 5.5)
 ```
 
 Sample Weight:
@@ -961,6 +978,23 @@ ggplot(aes(x = leaf_mass_ratio, y = r_hf))  +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
 ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.spp.png'), width = 8, height = 5.5)
+
+# Not removing sample weight
+mem.df$r_hf <- remef(hf_mod, fix = c('speciesCEAGRI', 'speciesERIKAR', 'speciesMALLAU', 'speciesSALAPI', 'speciesSALLEU'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
+
+hf.lmr.remef <- ggplot(mem.df, aes(x = leaf_mass_ratio, y = r_hf))  +
+  geom_point(aes(color = species), alpha = 0.8) +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 1.96)+ 
+  stat_regline_equation(label.y = 2.65) +
+  labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change', color = 'Species') +
+  theme_bw() +
+  scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
+hf.lmr.remef
+ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.nosw.png'), width = 8, height = 5.5)
 ```
 
 LMA:
@@ -1567,5 +1601,24 @@ interspec.remef.df$r_heat_flux_change <- remef(hf_is_mod, fix = c('sample_wt'), 
 interspec.df <- interspec.remef.df %>% 
   select(species, ignition, prop_ig, fh, fd, temp_change, heat_flux_change, r_fh, r_fd, r_temp_change, r_heat_flux_change, plant)
 write.csv(interspec.df, here('data', 'processed-data', 'interspecific_flam_remef.csv'))
+```
+
+
+```{r}
+summary(fh_is_mod)
+plot(fh_is_mod)
+qqnorm(residuals(fh_is_mod))
+
+summary(fd_is_mod)
+plot(fd_is_mod)
+qqnorm(residuals(fd_is_mod))
+
+summary(temp_is_mod)
+plot(temp_is_mod)
+qqnorm(residuals(temp_is_mod))
+
+summary(hf_is_mod)
+plot(hf_is_mod)
+qqnorm(residuals(hf_is_mod))
 ```
 

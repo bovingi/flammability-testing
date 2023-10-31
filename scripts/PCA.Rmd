@@ -666,7 +666,7 @@ ggarrange(plots, legend,
           ncol = 1, heights = c(8, 1))
 ggsave(here('figures', 'main_figures', 'pca.and.scatterplots.png'), height = 14, width = 16)
 
-plots <- ggarrange(traits.pca, pc1.scatterplot, blank, flam.pca,
+plots <- ggarrange(flam.pca, pc1.scatterplot, blank, traits.pca,
           labels = c('A', 'C', '', 'B'),
           font.label = list(size = 34),
           ncol = 2, nrow = 2,
