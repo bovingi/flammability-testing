@@ -773,17 +773,18 @@ fh_mod <- lmer(fh ~ lfm*sample_wt + branching + (1|plant_id), data = mem.df, REM
 mem.df$r_fh <- remef(fh_mod, fix = c('sample_wt', 'branching'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
 
 # With REMEF
-ggplot(mem.df, aes(x = lfm, y = r_fh))  +
+fh.lfm.remef <- ggplot(mem.df, aes(x = lfm, y = r_fh))  +
   geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 0.9)+ 
   stat_regline_equation(label.y = 1.2) +
-  labs(x = 'Live Fuel Moisture (scaled)', y = 'Flame Height (effects removed, scaled)', color = 'Species') +
+  labs(x = 'Live Fuel Moisture (scaled)', y = 'Flame Height', color = 'Species') +
   theme_bw() +
   scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12),
         legend.title = element_text(face = 'bold', size = 15))
+fh.lfm.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.fh.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -941,6 +942,30 @@ ggplot(aes(x = sample_wt, y = r_fd))  +
         axis.text = element_text(size = 12))
 ggsave(here('figures', 'MEM', 'REMEF', 'sw.vs.fd.spp.png'), width = 8, height = 5.5)
 ```
+
+LFM
+```{r}
+fd_mod <- lmer(fd ~ lfm*sample_wt + species + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs
+summary(fd_mod)
+
+mem.df$r_fd <- remef(fd_mod, fix = c('sample_wt', 'speciesCEAGRI', 'speciesERIKAR', 'speciesMALLAU', 'speciesSALAPI', 'speciesSALLEU'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
+
+# With REMEF
+fd.lfm.remef <- ggplot(mem.df, aes(x = lfm, y = r_fd))  +
+  geom_point(aes(color = species), alpha = 0.8) +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  stat_cor(label.y = 3.95)+ 
+  stat_regline_equation(label.y = 4.55) +
+  labs(x = 'Live Fuel Moisture (scaled)', y = 'Flame Duration', color = 'Species') +
+  theme_bw() +
+  scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 15))
+fd.lfm.remef
+ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.fd.png'), width = 8, height = 5.5)
+```
+
 
 ## Heat Flux Change
 MAIN:
@@ -1219,17 +1244,18 @@ temp_mod <- lmer(temp_change ~ start_temp*sample_wt + branching + lfm + (1|plant
 mem.df$r_temp <- remef(temp_mod, fix = c('start_temp', 'sample_wt', 'start_temp:sample_wt', 'branching'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
 
 # With REMEF
-ggplot(mem.df, aes(x = lfm, y = r_temp))  +
+temp.lfm.remef <- ggplot(mem.df, aes(x = lfm, y = r_temp))  +
   geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 1.9)+ 
   stat_regline_equation(label.y = 2.3) +
-  labs(x = 'Live Fuel Moisture (scaled)', y = 'Temp. Change (effects removed, scaled)', color = 'Species') +
+  labs(x = 'Live Fuel Moisture (scaled)', y = 'Temp. Change', color = 'Species') +
   theme_bw() +
   scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
   theme(legend.title = element_text(face = 'bold', size = 15),
         axis.title = element_text(face = 'bold', size = 15),
         axis.text = element_text(size = 12))
+temp.lfm.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.temp.png'), width = 8, height = 5.5)
 
 # Split by Species
@@ -1256,6 +1282,137 @@ ggarrange(fh.branching.remef, fd.dmc.remef, temp.branching.remef, hf.lmr.remef,
           common.legend = T)
 ggsave(here('figures', 'main_figures', 'remef.scatterplots.png'), height = 8, width = 10)
 ```
+
+### LFM Arranged
+```{r}
+ggarrange(fh.lfm.remef, fd.lfm.remef, temp.lfm.remef,
+          labels = c('A', 'B', 'C'), 
+          font.label = list(size = 28),
+          ncol = 3, nrow = 1,
+          common.legend = T)
+ggsave(here('figures', 'main_figures', 'lfm.remef.scatterplots.png'), height = 5, width = 14)
+```
+
+
+
+## REMEF: SW and Rand. Effects
+### Function
+```{r}
+sw.rand.effects.scatterplots <- function(df, x.var){
+
+mod1 <- lmer(as.formula(paste0('temp_change ~ sample_wt +', x.var, '+ (1|plant_id)')), data = df, REML = F)
+mod2 <- lmer(as.formula(paste0('fh ~ sample_wt +', x.var, '+ (1|plant_id)')), data = df, REML = F)
+mod3 <- lmer(as.formula(paste0('fd ~ sample_wt +', x.var, '+ (1|plant_id)')), data = df, REML = F)
+mod4 <- lmer(as.formula(paste0('heat_flux_change ~ sample_wt +', x.var, '+ (1|plant_id)')), data = df, REML = F)
+
+df$r_temp <- remef(mod1, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) 
+df$r_fh <- remef(mod2, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) 
+df$r_fd <- remef(mod3, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) 
+df$r_hf <- remef(mod4, fix = c('sample_wt'), ran = "all", keep.intercept = FALSE) 
+
+plot <- df %>% 
+  pivot_longer(cols = c('r_temp', 'r_fh', 'r_fd', 'r_hf'), names_to = 'flam_metric', values_to = 'flam_val') %>% 
+ggplot(aes_string(x = x.var, y = 'flam_val'))  +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  facet_wrap(~flam_metric) +
+  labs(x = x.var) +
+  stat_cor()+
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+return(plot)
+}
+```
+
+### Plots
+```{r}
+sw.rand.effects.scatterplots(mem.df, 'lfm')
+sw.rand.effects.scatterplots(mem.df, 'dmc')
+sw.rand.effects.scatterplots(mem.df, 'mpa')
+sw.rand.effects.scatterplots(mem.df, 'branching')
+sw.rand.effects.scatterplots(mem.df, 'stem_sav')
+sw.rand.effects.scatterplots(mem.df, 'leaf_mass_ratio')
+sw.rand.effects.scatterplots(mem.df, 'leaf_sav')
+sw.rand.effects.scatterplots(mem.df, 'LMA')
+sw.rand.effects.scatterplots(mem.df, 'thickness')
+```
+
+## REMEF: Max. Models
+```{r}
+remef.max.model.scatterplots <- function(df, x.var){
+
+mod1 <- lmer(temp_change ~ lfm + dmc + mpa + branching + stem_sav + leaf_mass_ratio + leaf_sav + LMA + sample_wt + (1|plant_id), df, REML = F)
+mod2 <- lmer(fh ~ lfm + dmc + mpa + branching + stem_sav + leaf_mass_ratio + leaf_sav + LMA + sample_wt + (1|plant_id), df, REML = F)
+mod3 <- lmer(fd ~ lfm + dmc + mpa + branching + stem_sav + leaf_mass_ratio + leaf_sav + LMA + sample_wt + (1|plant_id), df, REML = F)
+mod4 <- lmer(heat_flux_change ~ lfm + dmc + mpa + branching + stem_sav + leaf_mass_ratio + leaf_sav + LMA + sample_wt + (1|plant_id), df, REML = F)
+
+rm.string <- case_when(x.var == 'lfm' ~ c('dmc','mpa','branching','stem_sav', 'leaf_mass_ratio','leaf_sav','LMA','sample_wt'),
+                       x.var == 'dmc' ~ c('lfm','mpa','branching','stem_sav', 'leaf_mass_ratio','leaf_sav','LMA','sample_wt'),
+                       x.var == 'mpa' ~ c('lfm','dmc','branching','stem_sav', 'leaf_mass_ratio','leaf_sav','LMA','sample_wt'),
+                       x.var == 'branching' ~ c('lfm','mpa','dmc','stem_sav', 'leaf_mass_ratio','leaf_sav','LMA','sample_wt'),
+                       x.var == 'stem_sav' ~ c('lfm','mpa','branching','dmc', 'leaf_mass_ratio','leaf_sav','LMA','sample_wt'),
+                       x.var == 'leaf_mass_ratio' ~ c('lfm','mpa','branching','stem_sav', 'dmc','leaf_sav','LMA','sample_wt'),
+                       x.var == 'leaf_sav' ~ c('lfm','mpa','branching','stem_sav', 'leaf_mass_ratio','dmc','LMA','sample_wt'),
+                       x.var == 'LMA' ~ c('lfm','mpa','branching','stem_sav', 'leaf_mass_ratio','leaf_sav','dmc','sample_wt'))
+
+df$r_temp <- remef(mod1, fix = rm.string, ran = "all", keep.intercept = FALSE) 
+df$r_fh <- remef(mod2, fix = rm.string, ran = "all", keep.intercept = FALSE) 
+df$r_fd <- remef(mod3, fix = rm.string, ran = "all", keep.intercept = FALSE) 
+df$r_hf <- remef(mod4, fix = rm.string, ran = "all", keep.intercept = FALSE) 
+
+plot <- df %>% 
+  pivot_longer(cols = c('r_temp', 'r_fh', 'r_fd', 'r_hf'), names_to = 'flam_metric', values_to = 'flam_val') %>% 
+ggplot(aes_string(x = x.var, y = 'flam_val'))  +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  facet_wrap(~flam_metric) +
+  labs(x = x.var) +
+  stat_cor()+
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+return(plot)
+}
+```
+
+
+```{r}
+remef.max.model.scatterplots(mem.df, 'lfm')
+remef.max.model.scatterplots(mem.df, 'dmc')
+remef.max.model.scatterplots(mem.df, 'mpa')
+remef.max.model.scatterplots(mem.df, 'branching')
+remef.max.model.scatterplots(mem.df, 'stem_sav')
+remef.max.model.scatterplots(mem.df, 'leaf_mass_ratio')
+remef.max.model.scatterplots(mem.df, 'leaf_sav')
+remef.max.model.scatterplots(mem.df, 'LMA')
+
+# Thickness
+df <- mem.df
+
+mod1 <- lmer(temp_change ~ lfm + dmc + mpa + branching + stem_sav + leaf_mass_ratio + thickness + LMA + sample_wt + (1|plant_id), df, REML = F)
+mod2 <- lmer(fh ~ lfm + dmc + mpa + branching + stem_sav + leaf_mass_ratio + thickness + LMA + sample_wt + (1|plant_id), df, REML = F)
+mod3 <- lmer(fd ~ lfm + dmc + mpa + branching + stem_sav + leaf_mass_ratio + thickness + LMA + sample_wt + (1|plant_id), df, REML = F)
+mod4 <- lmer(heat_flux_change ~ lfm + dmc + mpa + branching + stem_sav + leaf_mass_ratio + thickness + LMA + sample_wt + (1|plant_id), df, REML = F)
+
+df$r_temp <- remef(mod1, fix = c('dmc','mpa','branching','stem_sav', 'leaf_mass_ratio','lfm','LMA','sample_wt'), ran = "all", keep.intercept = FALSE) 
+df$r_fh <- remef(mod2, fix = c('dmc','mpa','branching','stem_sav', 'leaf_mass_ratio','lfm','LMA','sample_wt'), ran = "all", keep.intercept = FALSE) 
+df$r_fd <- remef(mod3, fix = c('dmc','mpa','branching','stem_sav', 'leaf_mass_ratio','lfm','LMA','sample_wt'), ran = "all", keep.intercept = FALSE) 
+df$r_hf <- remef(mod4, fix = c('dmc','mpa','branching','stem_sav', 'leaf_mass_ratio','lfm','LMA','sample_wt'), ran = "all", keep.intercept = FALSE) 
+
+df %>% 
+  pivot_longer(cols = c('r_temp', 'r_fh', 'r_fd', 'r_hf'), names_to = 'flam_metric', values_to = 'flam_val') %>% 
+ggplot(aes_string(x = 'thickness', y = 'flam_val'))  +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  facet_wrap(~flam_metric) +
+  labs(x = 'thickness') +
+  stat_cor()+
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 15),
+        axis.text = element_text(size = 12))
+```
+
 
 # Testing for Interactions
 Using ChatGPT generated code, integrated with my previously made function
@@ -1574,10 +1731,6 @@ ggplot(aes(x = r_fh, y = fh/(1 + sample_wt)), data = concept.remef.df) +
   geom_point()
 ```
 
-## Option 2: Top Models
-```{r}
-
-```
 
 
 # REMEF for Interspecific Boxplots

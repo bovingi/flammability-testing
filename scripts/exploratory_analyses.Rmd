@@ -126,6 +126,25 @@ ggsave(here('figures', 'EDA', 'normalized.flamm.metrics.boxplot.jpg'), height = 
 
 
 # Scatterplots
+```{r}
+flamm.df %>% 
+  pivot_longer(cols = c('fh', 'fd', 'temp_change', 'heat_flux_change'),
+               names_to = 'flam_metric', values_to = 'flam_val') %>% 
+  pivot_longer(cols = c('lfm', 'dmc', 'mpa', 'branching', 'stem_sav', 'leaf_mass_ratio',
+                        'leaf_sav', 'LMA', 'thickness'),
+               names_to = 'predictor', values_to = 'pred_val') %>% 
+  ggplot(aes(x = pred_val, y = flam_val)) +
+    geom_point(alpha = 0.4) +
+    geom_smooth(method = 'lm', color = 'black', fill = 'gray80') +
+    stat_cor()+ 
+    #stat_regline_equation() +
+    facet_grid(flam_metric~predictor, scales = 'free', switch = 'both') +
+    theme_bw() +
+    theme(strip.background = element_blank(),
+          strip.placement = 'outside',
+          axis.title = element_blank())
+```
+
 ## Function
 ```{r}
 flamm.df.long.scatter <- flamm.df.long %>% 
