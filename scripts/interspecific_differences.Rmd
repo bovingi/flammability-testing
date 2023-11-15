@@ -80,6 +80,30 @@ fh.boxplot <- flamm.df %>%
 fh.boxplot
 ```
 
+#### Graphical Abstract Version
+```{r}
+flamm.df %>%
+  filter(species %in% c('CEAGRI', 'SALAPI', 'ARTCAL', 'ERIKAR')) %>% 
+  mutate(species = case_when(species == 'CEAGRI' ~ 'C. griseus',
+                             species == 'SALAPI' ~ 'S. apiana',
+                             species == 'ARTCAL' ~ 'A. californica',
+                             species == 'ERIKAR' ~ 'E. karvinskianus')) %>% 
+  mutate(species = fct_relevel(species, c('C. griseus', 'S. apiana',
+                                          'A. californica', 'E. karvinskianus'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = fh), outlier.shape = NA, alpha= 0.8, fill = 'gray80') +
+    geom_jitter(aes(x = species, y = fh), width = 0.2, alpha = 0.2) +
+    labs(x = 'Species', y = 'Flame Height (cm)') +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_text(face = 'bold', size = 24),
+          axis.title.x = element_blank(),
+          axis.text.x = element_text(face = 'bold.italic', size = 22,
+                                     angle = 15, vjust = 0.9, hjust=0.75),
+          axis.text.y = element_text(size = 18))
+```
+
+
 ### Flame Duration
 ```{r}
 fd.spp <- lmer(fd ~ species + (1|species_id), data = flamm.df)

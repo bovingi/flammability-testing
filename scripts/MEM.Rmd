@@ -731,6 +731,18 @@ ggplot(aes(x = branching, y = r_fh))  +
 ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.fh.spp.png'), width = 8, height = 5.5)
 ```
 
+Graphical Abstract Version:
+```{r}
+ggplot(mem.df, aes(x = branching, y = r_fh))  +
+  geom_point(alpha = 0.8) +
+  geom_smooth(method = 'lm', color = 'gray40') +
+  labs(x = 'Branching', y = 'Flame Height') +
+  theme_bw() +
+  theme(axis.title = element_text(face = 'bold', size = 20),
+        axis.text = element_text(size = 16),
+        legend.title = element_text(face = 'bold', size = 20))
+```
+
 Sample Weight:
 ```{r}
 fh_mod <- lmer(fh ~ lfm*sample_wt + branching + (1|plant_id), data = mem.df, REML = F) # remef is also sensitive to NAs

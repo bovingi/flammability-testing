@@ -279,6 +279,25 @@ TernaryArrows(c(50, 50, 50), c(0.03, 0.03, r.flamm.index.top$sustainability[i]),
 flam.triangles <- recordPlot()
 ```
 
+## For Graphical Abstract (Two Triangles)
+```{r}
+par(mfrow = c(1, 2), mar = c(0, 0, 1, 0.01))
+for(i in c(4,8)){
+TernaryPlot("Ignitability", "Combustibility", "Sustainabilty",
+            grid.lines = 0,
+            grid.minor.lines = 0,
+            lab.cex = 1.5,
+            bg = 'transparent',
+            col = r.flamm.index$color[i])
+
+# Add an arrow
+TernaryArrows(c(50, 50, 50), c(r.flamm.index.top$ignitability[i], 0.03, 0.03), length = 0.2*r.flamm.index.top$ignitability[i], lwd = 5*r.flamm.index.top$ignitability[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.03, r.flamm.index.top$combustibility[i], 0.03), length = 0.2*r.flamm.index.top$combustibility[i], lwd = 5*r.flamm.index.top$combustibility[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.03, 0.03, r.flamm.index.top$sustainability[i]), length = 0.2*r.flamm.index.top$sustainability[i], lwd = 5*r.flamm.index.top$sustainability[i], col = "black")
+}
+flam.triangles <- recordPlot()
+```
+
 # Flam. vs. Desirable Traits (Scores)
 ```{r}
 # calculating desirable traits scores
