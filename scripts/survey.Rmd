@@ -262,14 +262,14 @@ pct_plants <- pct_plants %>%
   
 plants_text <- data.frame(trait_names = c('Wildlife Habitat', 'Fragrant', 'Flowers', 'Edible', 'Drought Tolerant'),
                           trait_labs = c('Wildlife Habitat (C,R,P)', 'Fragrant (C,R)', 'Flowers (C,R)', 'Edible (P)', 'Drought Tolerant (C,R)'),
-                          y.lab = c(23, 11, 15, 27.5, 43.5),
+                          y.lab = c(26, 13, 17, 29.5, 40),
                           lab.color = c(rep('black', 4), 'white'))
 
 traits.survey.plot <- pct_plants %>% 
   ggplot(aes(x = trait_names, y = pct)) +
   geom_bar(fill = 'gray30', stat = 'identity') +
   geom_text(data = plants_text, aes(x = trait_names, label = trait_labs, y = y.lab, color = lab.color),
-            fontface = 'bold', size = 6) +
+            fontface = 'bold', size = 7.5) +
   scale_color_manual(values = c('black', 'white')) +
   labs(y = '% of Responses', 
        x = "Trait",
@@ -278,12 +278,12 @@ traits.survey.plot <- pct_plants %>%
   scale_x_discrete(position = 'top') +
   theme(legend.position = 'none',
         axis.title.y = element_blank(),
-        axis.title.x = element_text(size = 18, face = 'bold'),
-        axis.text.x = element_text(size = 16),
+        axis.title.x = element_text(size = 20, face = 'bold'),
+        axis.text.x = element_text(size = 18),
         #axis.text.y = element_text(size = 14, face = 'bold'),
         axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
-        plot.margin = unit(c(.25, .15, 1.1, .15), "cm"))
+        plot.margin = unit(c(.25, .15, 1.46, .15), "cm"))
 traits.survey.plot
 ```
 
@@ -509,20 +509,26 @@ max_value_very_high <- melted %>%
 melted <- merge(melted, max_value_very_high, by = c("item_title"))
 
 leg <-  melted %>% 
+  mutate(variable = case_when(variable == 'No Importance' ~ 'None',
+                              variable == 'Low Importance' ~ 'Low',
+                              variable == 'Medium Importance' ~ 'Medium',
+                              variable == 'High Importance' ~ 'High',
+                              variable == 'Very High Importance' ~ 'Very High')) %>% 
+  mutate(variable = fct_relevel(variable, c('None', 'Low', 'Medium', 'High', 'Very High'))) %>% 
   #filter(cat_num == 1) %>% 
   ggplot()+
   geom_bar(aes(x = reorder(item_title,cat_num), y=value, fill=variable), position="stack", stat="identity")+
   coord_flip() + 
-  ylab("% of Responses")+
+  labs(y = "% of Responses", x = '', fill = 'Importance')+
   xlab("")+
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B"), guide = guide_legend(reverse = TRUE)) +
   #scale_fill_brewer(palette="BrBG", guide = guide_legend(reverse = TRUE))+
   theme(legend.position="bottom", 
-        legend.text = element_text(face = 'bold', size = 13),
+        legend.text = element_text(size = 20),
         axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         plot.margin = unit(c(0, 0, 0, 0), "cm"),
-        legend.title = element_blank())
+        legend.title = element_text(face = 'bold', size = 22))
         
 leg
 
@@ -535,8 +541,8 @@ cultural <-  melted %>%
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
   #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        axis.title.y = element_text(face = 'bold', size = 18, vjust = 4, hjust = 0.3),
-        axis.text.y = element_text(size = 14),
+        axis.title.y = element_text(face = 'bold', size = 22, vjust = 4, hjust = 0.3),
+        axis.text.y = element_text(size = 18),
         axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -554,8 +560,8 @@ reg <-  melted %>%
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
   #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        axis.title.y = element_text(face = 'bold', size = 18, vjust = 1),
-        axis.text.y = element_text(size = 14),
+        axis.title.y = element_text(face = 'bold', size = 22, vjust = 1),
+        axis.text.y = element_text(size = 18),
         axis.text.x = element_blank(),
         axis.title.x = element_blank(),
         axis.ticks.x = element_blank(),
@@ -574,10 +580,10 @@ prov <-  melted %>%
   scale_fill_manual(values = c("#595D7C", "#797F91", "#ADB6B2", "#C17C79", "#D24D4B")) +
   #scale_fill_brewer(palette="BrBG")+
   theme(legend.position="none", 
-        axis.title.y = element_text(face = 'bold', size = 18, vjust = 2.8),
-        axis.text.y = element_text(size = 14),
-        axis.text.x = element_text(size = 16),
-        axis.title.x = element_text(face = 'bold', size = 18),
+        axis.title.y = element_text(face = 'bold', size = 22, vjust = 2.8),
+        axis.text.y = element_text(size = 18),
+        axis.text.x = element_text(size = 18),
+        axis.title.x = element_text(face = 'bold', size = 20),
         #plot.title = element_text(face = 'bold', size = 16),
         plot.margin = unit(c(0, 0, .1, 0.2), "cm")
         )
@@ -595,8 +601,8 @@ survey_likert
 ## Arranged w/ Desired Traits
 ```{r}
 plot_grid(survey_likert, traits.survey.plot,
-          ncol = 2, nrow = 1, rel_widths = c(1, 0.7), labels = c('A', 'B'), label_size = 25)
-ggsave(here("figures", 'main_figures', 'arranged_survey_figure.jpg'), height = 6, width = 17)
+          ncol = 2, nrow = 1, rel_widths = c(1.05, 0.7), labels = c('a', 'b'), label_size = 28)
+ggsave(here("figures", 'main_figures', 'arranged_survey_figure.jpg'), height = 8, width = 17)
 ```
 
 

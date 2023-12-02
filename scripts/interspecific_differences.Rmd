@@ -309,15 +309,6 @@ flamm.df %>%
 
 ### LFM
 ```{r}
-lfm.spp <- lmer(lfm ~ species + (1|species_id), data = flamm.df)
-anova(lfm.spp) # p < 0.00001
-lfm.spp.tukey <- emmeans(lfm.spp, pairwise ~ species, adjust = 'tukey')
-lfm.spp.tukey.df <- summary(lfm.spp.tukey$contrasts)
-lfm.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                              'ARCDEN', 'ARTCAL', 'ERIKAR'),
-                                  letters = c('b', 'b', 'ab', 'b', 'b', 'ab', 'a', 'ab'),
-                                  adj = c(0, 15, 0, 15, 0, 15, 0, 15)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
-
 lfm.boxplot <- flamm.df %>%
   mutate(species = fct_relevel(species, c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
                                                  'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
@@ -325,8 +316,6 @@ lfm.boxplot <- flamm.df %>%
     geom_boxplot(aes(x = species, y = lfm, color = species), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = lfm, color = species), width = 0.2, alpha = 0.2) +
     labs(x = 'Species', y = 'Live Fuel Moisture (%)') +
-    geom_text(aes(x = species, y = 390 + adj, label = letters), fontface = 'bold',
-              data = lfm.spp.tukey.labels, size = 6) +
     scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
     theme_bw() +
     theme(legend.position = 'none',
@@ -339,15 +328,6 @@ lfm.boxplot
 
 ### DMC
 ```{r}
-dmc.spp <- lmer(dmc ~ species + (1|species_id), data = flamm.df)
-anova(dmc.spp) # p < 0.00001
-dmc.spp.tukey <- emmeans(dmc.spp, pairwise ~ species, adjust = 'tukey')
-dmc.spp.tukey.df <- summary(dmc.spp.tukey$contrasts)
-dmc.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                              'ARCDEN', 'ARTCAL', 'ERIKAR'),
-                                  letters = c('b', 'b', 'ab', 'b', 'b', 'ab', 'a', 'ab'),
-                                  adj = c(0, 1.5, 0, 1.5, 0, 1.5, 0, 1.5)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
-
 dmc.boxplot <- flamm.df %>%
   mutate(species = fct_relevel(species, c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
                                                  'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
@@ -355,8 +335,6 @@ dmc.boxplot <- flamm.df %>%
     geom_boxplot(aes(x = species, y = dmc, color = species), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = dmc, color = species), width = 0.2, alpha = 0.2) +
     labs(x = 'Species', y = 'Dry Matter Content (%)') +
-    geom_text(aes(x = species, y = 8 + adj, label = letters), fontface = 'bold',
-              data = dmc.spp.tukey.labels, size = 6) +
     scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
     theme_bw() +
     theme(legend.position = 'none',
@@ -369,17 +347,6 @@ dmc.boxplot
 
 ### Leaf Mass Ratio
 ```{r}
-lmr.spp <- lmer(leaf_mass_ratio ~ species + (1|species_id), data = flamm.df)
-lmr.spp <- lm(leaf_mass_ratio ~ species, data = flamm.df)
-lmr.aov <- aov(lmr.spp) # p < 0.00001
-TukeyHSD(lmr.aov)
-lmr.spp.tukey <- emmeans(lmr.spp, pairwise ~ species, adjust = 'tukey')
-lmr.spp.tukey.df <- summary(lmr.spp.tukey$contrasts)
-lmr.spp.tukey.labels <- data.frame(species = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                              'ARCDEN', 'ARTCAL', 'ERIKAR'),
-                                  letters = c('b', 'b', 'ab', 'b', 'b', 'ab', 'a', 'ab'),
-                                  adj = c(0, 0.15, 0, 0.15, 0, 0.15, 0, 0.15)) # manually extracted from above dataframe (couldn't figure out way to automate process w/ emmeans)
-
 lmr.boxplot <- flamm.df %>%
   mutate(species = fct_relevel(species, c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
                                                  'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
@@ -387,8 +354,6 @@ lmr.boxplot <- flamm.df %>%
     geom_boxplot(aes(x = species, y = leaf_mass_ratio, color = species), outlier.shape = NA, alpha= 0.8) +
     geom_jitter(aes(x = species, y = leaf_mass_ratio, color = species), width = 0.2, alpha = 0.2) +
     labs(x = 'Species', y = 'Leaf Mass Ratio (%)') +
-    geom_text(aes(x = species, y = 0.56 + adj, label = letters), fontface = 'bold',
-              data = lmr.spp.tukey.labels, size = 6) +
     scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
     theme_bw() +
     theme(legend.position = 'none',
@@ -403,7 +368,6 @@ lmr.boxplot
 ```{r}
 flamm.df %>%
   filter(species != 'ARCDEN') %>% 
-  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU', 'ARTCAL', 'ERIKAR'))) %>% 
   dplyr::group_by(species) %>% 
   dplyr::summarise(avg_voc = mean(avg_voc)) %>% 
   ggplot() +
@@ -534,8 +498,7 @@ flamm_kmeans_df %>%
   mutate(`1` = ifelse(is.na(`1`), 0, `1`),
          `2` = ifelse(is.na(`2`), 0, `2`)) %>% 
   mutate(kmeans.flam.index = (`2`)/(`2` + `1`)) %>% 
-  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU',
-                                                   'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
+  mutate(species = fct_relevel(species, levels = c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU', 'ARTCAL', 'ERIKAR'))) %>% 
   ggplot(aes(x = species, y = kmeans.flam.index, color = species)) +
     geom_point(size = 7) +
     labs(x = 'Species', y = 'K-Means Clustering: Combustibility Index') +
@@ -1222,3 +1185,75 @@ ggarrange(fh.boxplot, fd.boxplot, hf.boxplot, tc.boxplot,
 ggsave(here('figures', 'main_figures', 'remef.spp.boxplots.png'), height = 9.5, width = 9)
 ```
 
+# Clean Main Figure: Boxplots
+## Data Wrangling
+Tukey-Kramer Results
+```{r}
+fh.spp.tukey.labels <- fh.spp.tukey.labels %>% 
+  mutate(variable = 'fh') %>% 
+  mutate(y.pos = adj + 65)
+fd.spp.tukey.labels <- fd.spp.tukey.labels %>% 
+  mutate(variable = 'fd') %>% 
+  mutate(y.pos = adj + 59.5)
+tc.spp.tukey.labels <- tc.spp.tukey.labels %>% 
+  mutate(variable = 'temp_change') %>% 
+  mutate(y.pos = adj + 38)
+hf.spp.tukey.labels <- hf.spp.tukey.labels %>% 
+  mutate(variable = 'heat_flux_change') %>% 
+  mutate(y.pos = adj + 6000)
+sw.spp.tukey.labels <- sw.spp.tukey.labels %>% 
+  mutate(variable = 'sample_wt') %>% 
+  mutate(y.pos = adj + 24.6)
+branching.spp.tukey.labels <- branching.spp.tukey.labels %>% 
+  mutate(variable = 'branching') %>% 
+  mutate(y.pos = adj + 0.65)
+no.tukey.labels.df <- data.frame(species = c(rep(c("HETARB", "CEAGRI", "SALAPI", "MALLAU", "SALLEU", "ARCDEN", "ARTCAL", "ERIKAR"), 3)),
+                                 letters = c(rep('', 24)),
+                                 adj = c(rep(0, 24)),
+                                 y.pos = c(rep(0, 24)),
+                                 variable = c(rep('lfm', 8), rep('dmc', 8),
+                                              rep('leaf_mass_ratio', 8)))
+tukey.labels.df <- rbind(fh.spp.tukey.labels, fd.spp.tukey.labels, tc.spp.tukey.labels, hf.spp.tukey.labels, sw.spp.tukey.labels, branching.spp.tukey.labels, no.tukey.labels.df)
+```
+
+## Visualization
+```{r}
+variable_names <- c(fh = 'Flame Height (cm)',
+                    fd = 'Flame Duration (sec)',
+                    temp_change = 'Temp. Change (°C)',
+                    heat_flux_change = 'Heat Flux Change (W/m2)',
+                    sample_wt = 'Sample Mass (g)',
+                    branching  = 'Branching (branches/cm)',
+                    lfm  = 'Live Fuel Moisture (%)',
+                    dmc  = 'Dry Matter Content (%)',
+                    leaf_mass_ratio = 'Leaf Mass Ratio (%)')
+
+flamm.df %>% 
+  filter(fd < 70, temp_change < 100, branching < 0.75, leaf_mass_ratio > 0.4) %>% 
+  pivot_longer(cols = c(fh, fd, temp_change, heat_flux_change, sample_wt,
+                        branching, lfm, dmc, leaf_mass_ratio),
+               names_to = 'variable',
+               values_to = 'value') %>% 
+  mutate(species = fct_relevel(species, c('HETARB', 'MALLAU', 'CEAGRI', 'SALAPI', 'SALLEU', 'ARCDEN', 'ARTCAL', 'ERIKAR'))) %>% 
+  ggplot() +
+    geom_boxplot(aes(x = species, y = value, color = species), outlier.shape = NA, alpha= 0.8) +
+    geom_jitter(aes(x = species, y = value, color = species), width = 0.2, alpha = 0.2) +
+    geom_text(aes(x = species, y = y.pos, label = letters), fontface = 'bold',
+              data = tukey.labels.df, size = 6) +
+    facet_wrap(~factor(variable, c('fh', 'fd', 'heat_flux_change', 'temp_change', 'sample_wt',
+                        'branching', 'lfm', 'dmc', 'leaf_mass_ratio')),
+               scales = 'free_y',
+               strip.position = 'left',
+               labeller = as_labeller(variable_names)) +
+    scale_color_manual(values = c('#925E9FB2', '#AD002AB2', '#42B540B2', '#ADB6B6B2', '#1B1919B2','#00468BB2', '#ED0000B2', '#0099B4B2')) +
+    theme_bw() +
+    theme(legend.position = 'none',
+          axis.title = element_blank(),
+          axis.text.x = element_text(size = 12, angle = 20, vjust = 0.9, hjust=0.75),
+          axis.text.y = element_text(size = 15),
+          strip.background = element_blank(),
+          strip.placement = 'outside',
+          strip.text = element_text(size = 17, face = 'bold'))
+  
+#ggsave(here('figures', 'main_figures', 'clean.spp.boxplots.png'), height = 12, width = 13.5) # height was 9 w/ two rows
+```

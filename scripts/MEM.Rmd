@@ -702,7 +702,14 @@ fh_mod <- lmer(fh ~ branching + lfm*sample_wt + (1|plant_id), data = mem.df, REM
 mem.df$r_fh <- remef(fh_mod, fix = c('sample_wt', 'lfm', 'lfm:sample_wt'), ran = "all", keep.intercept = FALSE) # w/ remef, we are removing the fixed effect of wet weight and removing the random effects to isolate the relationship between mpa and flame height
 
 # With REMEF
-fh.branching.remef <- ggplot(mem.df, aes(x = branching, y = r_fh))  +
+fh.branching.remef <- mem.df %>% 
+  mutate(species = case_when(species == 'ARTCAL' ~ "Ar. californica",
+                             species == 'ERIKAR' ~ "Er. karvinskianus",
+                             species == 'SALAPI' ~ "Sa. apiana",
+                             species == 'SALLEU' ~ "Sa. leucophylla",
+                             species == 'CEAGRI' ~ "Ce. griseus",
+                             species == 'MALLAU' ~ "Ma. laurina")) %>% 
+  ggplot(aes(x = branching, y = r_fh))  +
   geom_point(aes(color = species), alpha = 0.8) +
   geom_smooth(method = 'lm', color = 'gray40') +
   stat_cor(label.y = 0.9)+ 
@@ -710,9 +717,10 @@ fh.branching.remef <- ggplot(mem.df, aes(x = branching, y = r_fh))  +
   labs(x = 'Branching (scaled)', y = 'Flame Height', color = 'Species') +
   theme_bw() +
   scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) + # "#FDAF91B2" is IRIDOU
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(face = 'bold', size = 15))
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 13),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(face = 'italic', size = 13))
 fh.branching.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.fh.png'), width = 8, height = 5.5)
 
@@ -866,10 +874,12 @@ fd.dmc.remef <- ggplot(mem.df, aes(x = dmc, y = r_fd))  +
   stat_regline_equation(label.y = 4.55) +
   labs(x = 'Dry Matter Content (scaled)', y = 'Flame Duration', color = 'Species') +
   theme_bw() +
+  scale_y_continuous(breaks = c(0, 2.5, 5)) +
   scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(face = 'bold', size = 15))
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 13),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 13))
 fd.dmc.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'dmc.vs.fd.png'), width = 8, height = 5.5)
 
@@ -910,10 +920,12 @@ fd.dmc.remef <- ggplot(mem.df, aes(x = dmc, y = r_fd))  +
   stat_regline_equation(label.y = 4.55) +
   labs(x = 'Dry Matter Content (scaled)', y = 'Flame Duration', color = 'Species') +
   theme_bw() +
+  scale_y_continuous(breaks = c(0, 2.5, 5)) +
   scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(face = 'bold', size = 15))
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 13),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 13))
 fd.dmc.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'dmc.vs.fd.nosw.png'), width = 8, height = 5.5)
 ```
@@ -996,9 +1008,11 @@ hf.lmr.remef <- ggplot(mem.df, aes(x = leaf_mass_ratio, y = r_hf))  +
   labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change', color = 'Species') +
   theme_bw() +
   scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(face = 'bold', size = 15))
+  scale_y_continuous(breaks = c(-2.5, 0, 2.5)) +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 13),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 13))
 hf.lmr.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.png'), width = 8, height = 5.5)
 
@@ -1027,9 +1041,11 @@ hf.lmr.remef <- ggplot(mem.df, aes(x = leaf_mass_ratio, y = r_hf))  +
   labs(x = 'Leaf Mass Ratio (scaled)', y = 'Heat Flux Change', color = 'Species') +
   theme_bw() +
   scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-  theme(axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12),
-        legend.title = element_text(face = 'bold', size = 15))
+  scale_y_continuous(breaks = c(-2.5, 0, 2.5)) +
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 13),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 13))
 hf.lmr.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'lmr.vs.heatflux.nosw.png'), width = 8, height = 5.5)
 ```
@@ -1160,9 +1176,10 @@ temp.branching.remef <- ggplot(mem.df, aes(x = branching, y = r_temp))  +
   theme_bw() +
   scale_y_continuous(breaks = c(-1, 0, 1, 2)) +
   scale_color_manual(values = c("#ED0000B2", "#42B540B2", "#0099B4B2", "#AD002AB2", "#ADB6B6B2", "#1B1919B2")) +
-  theme(legend.title = element_text(face = 'bold', size = 15),
-        axis.title = element_text(face = 'bold', size = 15),
-        axis.text = element_text(size = 12))
+  theme(axis.title = element_text(face = 'bold', size = 16),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(face = 'bold', size = 16),
+        legend.text = element_text(size = 13))
 temp.branching.remef
 ggsave(here('figures', 'MEM', 'REMEF', 'branching.vs.temp.png'), width = 8, height = 5.5)
 
@@ -1288,7 +1305,7 @@ ggsave(here('figures', 'MEM', 'REMEF', 'lfm.vs.temp.spp.png'), width = 8, height
 ## Arranged
 ```{r}
 ggarrange(fh.branching.remef, fd.dmc.remef, temp.branching.remef, hf.lmr.remef,
-          labels = c('A', 'B', 'C', 'D'), 
+          labels = c('a', 'b', 'c', 'd'), 
           font.label = list(size = 28),
           ncol = 2, nrow = 2,
           common.legend = T)
@@ -1667,31 +1684,34 @@ woo <- data.frame(predictors, flam_metrics, coef, p.val) %>%
     predictors == 'start_temp:sample_wt' ~ 'Starting Temp x\nSample Weight'
   )) %>% 
   mutate(predictors = as.factor(predictors)) %>% 
-  mutate(predictors = fct_relevel(predictors, c('Live Fuel\n Moisture', 'Leaf Mass\n Ratio', 'Sample Weight', 'Branching', 'Starting\n Temperature', 'Dry Matter\n Content', 'Species', 'DMC x\nSample Weight', 'LFM x\nSample Weight', 'Leaf Mass Ratio x\nSample Weight', 'Starting Temp x\nSample Weight'))) %>% 
+  mutate(predictors = fct_relevel(predictors, c('Sample Weight', 'Branching', 'Species', 'Starting\n Temperature', 'Dry Matter\n Content', 'Live Fuel\n Moisture', 'Leaf Mass\n Ratio', 'DMC x\nSample Weight', 'LFM x\nSample Weight', 'Leaf Mass Ratio x\nSample Weight', 'Starting Temp x\nSample Weight'))) %>% 
   mutate(flam_metrics = as.factor(flam_metrics)) %>% 
-  mutate(flam_metrics = fct_relevel(flam_metrics, c('Flame\nHeight', 'Flame\nDuration', 'Temperature\nChange', 'Heat Flux\nChange'))) %>% 
+  mutate(flam_metrics = fct_relevel(flam_metrics, c('Flame\nDuration', 'Heat Flux\nChange', 'Temperature\nChange', 'Flame\nHeight'))) %>% 
   mutate(col_pred = ifelse(predictors == 'Species' & flam_metrics %in% c('Heat Flux\nChange', 'Flame\nDuration'), 'gray20', 'white'))
 
 woo %>% 
 ggplot(aes(x = predictors, y = flam_metrics, fill = coef)) +
   geom_tile(aes(x = predictors, y = flam_metrics, fill = coef)) +
-  geom_text(aes(x = predictors, y = flam_metrics, label = p.val), color = 'white', fontface = 'bold', size = 6) +
+  geom_text(aes(x = predictors, y = flam_metrics, label = p.val), color = 'white', fontface = 'bold', size = 8) +
   labs(x = 'Predictors', y = 'Flam. Metrics', fill = 'Coefficient\n') +
   scale_fill_gradient2(low = 'darkred', mid = "gray80", high = 'darkblue', midpoint = 0, na.value = woo$col_pred, limits = c(-0.85, 0.85)) +
   geom_vline(xintercept = 7.5, size = 0.35, linetype = 'dashed') +
+  geom_hline(yintercept = c(0.5, 1.5, 2.5, 3.5, 4.5), size = 0.1, color = 'gray80') +
+  geom_vline(xintercept = c(0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5), size = 0.1, color = 'gray80') +
+  guides(fill = guide_colorbar(barwidth = 1.5, barheight = 20)) +
   #theme_bw() +
-  theme(legend.position = 'top',
-        legend.key.width = unit(1.5, 'cm'), 
+  theme(legend.position = 'right',
+        legend.key.width = unit(1.5, 'cm'),
         axis.ticks = element_blank(),
         axis.title = element_blank(),
-        axis.text.x = element_text(size = 14, face = 'bold', angle = 90, hjust = 1, vjust = 0.5),
-        axis.text.y = element_text(size = 14, face = 'bold'),
-        legend.title = element_text(face = 'bold', size = 15),
-        legend.text = element_text(face = 'bold', size = 12.5),
+        axis.text.x = element_text(size = 23, face = 'bold', angle = 90, hjust = 1, vjust = 0.5),
+        axis.text.y = element_text(size = 23, face = 'bold'),
+        legend.title = element_text(face = 'bold', size = 22),
+        legend.text = element_text(face = 'bold', size = 18),
         panel.background = element_rect(fill='white', colour='black'), # Make background white and border black
         panel.grid.major = element_blank(),  # Hide major gridlines
         panel.grid.minor = element_blank())
-ggsave(here('figures', 'MEM', 'example.mem.results.png'), height = 5.5, width = 9)
+ggsave(here('figures', 'MEM', 'main.mem.results.png'), height = 8, width = 17)
 ```
 
 # REMEF for Conceptual Figures

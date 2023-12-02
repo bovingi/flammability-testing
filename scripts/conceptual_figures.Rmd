@@ -210,7 +210,7 @@ r.flamm.index <- conceptual_flam_remef %>%
   group_by(species) %>% 
   summarise(fh = mean(r_fh), fd = mean(r_fd), prop_ig = mean(prop_ig),
             temp_change = mean(r_temp_change), heat_flux_change = mean(r_heat_flux_change)) %>% 
-  mutate(ignitability = (prop_ig+0.013746)*2.182502, combustibility = (((fh + heat_flux_change + temp_change)/3)+0.934473)*0.35772, sustainability = (fd+0.855757)*0.962559) %>% 
+  mutate(ignitability = (prop_ig+0.013746)*2.182502, combustibility = (((fh + heat_flux_change + temp_change)/3)+1.2)*0.35772, sustainability = (fd+0.855757)*0.962559) %>% 
   dplyr::select(species, ignitability, combustibility, sustainability) %>% 
   ungroup() %>% 
   mutate(flam.score = (ignitability + combustibility + sustainability)/ 3)
@@ -237,7 +237,7 @@ TernaryArrows(c(50, 50, 50), c(r.flamm.index$ignitability[i], 0.03, 0.03), lengt
 TernaryArrows(c(50, 50, 50), c(0.03, r.flamm.index$combustibility[i], 0.03), length = 0.2*r.flamm.index$combustibility[i], lwd = 5*r.flamm.index$combustibility[i], col = "black")
 TernaryArrows(c(50, 50, 50), c(0.03, 0.03, r.flamm.index$sustainability[i]), length = 0.2*r.flamm.index$sustainability[i], lwd = 5*r.flamm.index$sustainability[i], col = "black")
 }
-flam.triangles <- recordPlot()
+flam.triangles.max <- recordPlot()
 ```
 
 ## REMEF Version (Top Models)
@@ -260,16 +260,16 @@ r.flamm.index.top$color <- c('#00468BB2', '#ED0000B2', '#42B540B2', '#0099B4B2',
 
 Plotting
 ```{r}
-par(mfrow = c(3, 3), mar = c(0, 0, 1, 0.01))
+par(mfrow = c(3, 3), mar = c(0, 0, 2, 0.01))
 for(i in 1:nrow(r.flamm.index.top)){
-TernaryPlot("Ignitability", "Combustibility", "Sustainabilty",
+TernaryPlot("Ign.", "Com.", "Sus.",
             grid.lines = 0,
             grid.minor.lines = 0,
-            lab.cex = 1.5,
+            lab.cex = 2.5,
             bg = 'transparent',
-            col = r.flamm.index$color[i])
+            col = r.flamm.index.top$color[i])
 
-title(r.flamm.index.top[i,1], cex.main = 1.75)
+title(r.flamm.index.top[i,1], cex.main = 2.5)
 
 # Add an arrow
 TernaryArrows(c(50, 50, 50), c(r.flamm.index.top$ignitability[i], 0.03, 0.03), length = 0.2*r.flamm.index.top$ignitability[i], lwd = 5*r.flamm.index.top$ignitability[i], col = "black")
@@ -295,7 +295,7 @@ TernaryArrows(c(50, 50, 50), c(r.flamm.index.top$ignitability[i], 0.03, 0.03), l
 TernaryArrows(c(50, 50, 50), c(0.03, r.flamm.index.top$combustibility[i], 0.03), length = 0.2*r.flamm.index.top$combustibility[i], lwd = 5*r.flamm.index.top$combustibility[i], col = "black")
 TernaryArrows(c(50, 50, 50), c(0.03, 0.03, r.flamm.index.top$sustainability[i]), length = 0.2*r.flamm.index.top$sustainability[i], lwd = 5*r.flamm.index.top$sustainability[i], col = "black")
 }
-flam.triangles <- recordPlot()
+flam.triangles.graphical <- recordPlot()
 ```
 
 # Flam. vs. Desirable Traits (Scores)
@@ -350,18 +350,18 @@ flam_scores <- flam_scores %>%
 flam_scores$labx <- c(0.37, -0.35, -1.06, -1.92, 0.31, 0.38, 0.75, 0.55)
 flam_scores$laby <- c(-0.42, -0.35, 1.34, -1.22, 0.98, -0.99, -0.35, 1.18)
 
-es.vs.flam <- ggplot(data=flam_scores) +
+es.vs.flam.max <- ggplot(data=flam_scores) +
   geom_point(aes(x=es.score, y=flam.score, color=species), size=8.5, alpha=0.75) + 
   geom_text(vjust=0, hjust=-0.15, aes(x=labx, y=laby, label=species), fontface = 'bold', size = 8) +
   labs(x = 'Desirable Traits', y = 'Flammability') +
   scale_color_manual(values = c('#00468BB2', '#ED0000B2', '#42B540B2', '#0099B4B2', '#925E9FB2', '#AD002AB2', '#ADB6B6B2', '#1B1919B2')) +
   theme_bw() +
   theme(legend.position = 'none',
-          axis.title = element_text(face = 'bold', size = 16),
+          axis.title = element_text(face = 'bold', size = 22),
           #axis.text = element_blank(),
           axis.ticks = element_blank(),
-          axis.text = element_text(size = 14))
-es.vs.flam
+          axis.text = element_text(size = 18))
+es.vs.flam.max
 ```
 
 ## Visualization (Top Model REMEF)
@@ -397,10 +397,10 @@ es.vs.flam <- ggplot(data=flam_scores) +
   scale_color_manual(values = c('#00468BB2', '#ED0000B2', '#42B540B2', '#0099B4B2', '#925E9FB2', '#AD002AB2', '#ADB6B6B2', '#1B1919B2')) +
   theme_bw() +
   theme(legend.position = 'none',
-          axis.title = element_text(face = 'bold', size = 16),
+          axis.title = element_text(face = 'bold', size = 22),
           #axis.text = element_blank(),
           axis.ticks = element_blank(),
-          axis.text = element_text(size = 14))
+          axis.text = element_text(size = 18))
 es.vs.flam
 ```
 
