@@ -244,12 +244,27 @@ flam.triangles.max <- recordPlot()
 ```{r}
 interspecific_flam_remef <- read.csv(here('data', 'processed-data', 'interspecific_flam_remef.csv'))
 
-r.flamm.index.top <- interspecific_flam_remef %>% 
+r.flam.index.top <- interspecific_flam_remef %>% 
   drop_na(r_fh, r_fd, prop_ig, r_temp_change, r_heat_flux_change) %>% 
   group_by(species) %>% 
   summarise(fh = mean(r_fh), fd = mean(r_fd), prop_ig = mean(prop_ig),
             temp_change = mean(r_temp_change), heat_flux_change = mean(r_heat_flux_change)) %>% 
-  mutate(ignitability = (prop_ig+0.013746)*2.182502, combustibility = (((fh + heat_flux_change + temp_change)/3)+0.934473)*0.35772, sustainability = (fd+0.855757)*0.962559) %>% 
+  mutate(fh = scale(fh), fd = scale(fd), prop_ig = scale(prop_ig),
+            temp_change = scale(temp_change), heat_flux_change = scale(heat_flux_change))
+
+min_fh <- min(r.flam.index.top$fh)
+min_fd <- min(r.flam.index.top$fd)
+min_pi <- min(r.flam.index.top$prop_ig)
+min_temp <- min(r.flam.index.top$temp_change)
+min_hf <- min(r.flam.index.top$heat_flux_change)
+
+r.flamm.index.top <- r.flam.index.top %>% # so that minimum possible value is 0, subtracting minimum from each flam. metric
+  mutate(fh = fh - min_fh,
+         fd = fd - min_fd,
+         prop_ig = prop_ig - min_pi,
+         temp_change = temp_change - min_temp,
+         heat_flux_change = heat_flux_change - min_hf)%>% 
+  mutate(ignitability = prop_ig, combustibility = (fh + heat_flux_change + temp_change)/3, sustainability = fd) %>% 
   dplyr::select(species, ignitability, combustibility, sustainability) %>% 
   ungroup() %>% 
   mutate(flam.score = (ignitability + combustibility + sustainability)/ 3)
@@ -265,16 +280,16 @@ for(i in 1:nrow(r.flamm.index.top)){
 TernaryPlot("Ign.", "Com.", "Sus.",
             grid.lines = 0,
             grid.minor.lines = 0,
-            lab.cex = 2.5,
+            lab.cex = 3.1,
             bg = 'transparent',
             col = r.flamm.index.top$color[i])
 
-title(r.flamm.index.top[i,1], cex.main = 2.5)
+title(r.flamm.index.top[i,1], cex.main = 3)
 
 # Add an arrow
-TernaryArrows(c(50, 50, 50), c(r.flamm.index.top$ignitability[i], 0.03, 0.03), length = 0.2*r.flamm.index.top$ignitability[i], lwd = 5*r.flamm.index.top$ignitability[i], col = "black")
-TernaryArrows(c(50, 50, 50), c(0.03, r.flamm.index.top$combustibility[i], 0.03), length = 0.2*r.flamm.index.top$combustibility[i], lwd = 5*r.flamm.index.top$combustibility[i], col = "black")
-TernaryArrows(c(50, 50, 50), c(0.03, 0.03, r.flamm.index.top$sustainability[i]), length = 0.2*r.flamm.index.top$sustainability[i], lwd = 5*r.flamm.index.top$sustainability[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(r.flamm.index.top$ignitability[i], 0.15, 0.15), length = 0.1*r.flamm.index.top$ignitability[i], lwd = 2.3*r.flamm.index.top$ignitability[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.15, r.flamm.index.top$combustibility[i], 0.15), length = 0.1*r.flamm.index.top$combustibility[i], lwd = 2.3*r.flamm.index.top$combustibility[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.15, 0.15, r.flamm.index.top$sustainability[i]), length = 0.1*r.flamm.index.top$sustainability[i], lwd = 2.3*r.flamm.index.top$sustainability[i], col = "black")
 }
 flam.triangles <- recordPlot()
 ```
@@ -291,9 +306,9 @@ TernaryPlot("Ignitability", "Combustibility", "Sustainabilty",
             col = r.flamm.index$color[i])
 
 # Add an arrow
-TernaryArrows(c(50, 50, 50), c(r.flamm.index.top$ignitability[i], 0.03, 0.03), length = 0.2*r.flamm.index.top$ignitability[i], lwd = 5*r.flamm.index.top$ignitability[i], col = "black")
-TernaryArrows(c(50, 50, 50), c(0.03, r.flamm.index.top$combustibility[i], 0.03), length = 0.2*r.flamm.index.top$combustibility[i], lwd = 5*r.flamm.index.top$combustibility[i], col = "black")
-TernaryArrows(c(50, 50, 50), c(0.03, 0.03, r.flamm.index.top$sustainability[i]), length = 0.2*r.flamm.index.top$sustainability[i], lwd = 5*r.flamm.index.top$sustainability[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(r.flamm.index.top$ignitability[i], 0.15, 0.15), length = 0.1*r.flamm.index.top$ignitability[i], lwd = 2*r.flamm.index.top$ignitability[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.15, r.flamm.index.top$combustibility[i], 0.15), length = 0.1*r.flamm.index.top$combustibility[i], lwd = 2*r.flamm.index.top$combustibility[i], col = "black")
+TernaryArrows(c(50, 50, 50), c(0.15, 0.15, r.flamm.index.top$sustainability[i]), length = 0.1*r.flamm.index.top$sustainability[i], lwd = 2*r.flamm.index.top$sustainability[i], col = "black")
 }
 flam.triangles.graphical <- recordPlot()
 ```
@@ -329,7 +344,7 @@ r.flamm.index2 <- conceptual_flam_remef %>%
 # scores DF
 flam_scores <- data.frame(
   species = flam_EScores_subscores$Species,
-  flam.score = r.flamm.index2$flam.score,
+  flam.score = r.flamm.index.top$flam.score,
   es.score = flam_EScores_subscores$ES.score
 )
 
@@ -366,47 +381,43 @@ es.vs.flam.max
 
 ## Visualization (Top Model REMEF)
 ```{r}
-# flam scores
-r.flamm.index2.top <- interspecific_flam_remef %>% 
-  drop_na(r_fh, r_fd, prop_ig, r_temp_change, r_heat_flux_change) %>% 
-  group_by(species) %>% 
-  summarise(fh = mean(r_fh), fd = mean(r_fd), prop_ig = mean(prop_ig),
-            temp_change = mean(r_temp_change), heat_flux_change = mean(r_heat_flux_change)) %>% 
-  mutate(ignitability = prop_ig, combustibility = ((fh + heat_flux_change + temp_change)/3), sustainability = fd) %>% 
-  ungroup() %>% 
-  mutate(flam.score = (ignitability + combustibility + sustainability)/ 3)
-
-# scores DF
-flam_scores <- data.frame(
-  species = flam_EScores_subscores$Species,
-  flam.score = r.flamm.index2.top$flam.score,
-  es.score = flam_EScores_subscores$ES.score
-) %>% 
-  mutate(flam.score = scale(flam.score),
-         es.score = scale(es.score))
-
 # Visualization
 # 'ARTCAL', 'ARCDEN', 'CEAGRI', 'ERIKAR', 'HETARB', 'MALLAU', 'SALAPI', 'SALLEU'
-flam_scores$labx <- c(0.37, -0.35, -1.06, -1.92, 0.31, 0.38, 0.65, 0.55)
-flam_scores$laby <- c(-0.42, -0.35, 1.34, -1.22, 0.1, -0.6, -0.1, 1.18)
+flam_scores$labx <- c(0.06, -0.31, -1.4, -2.1, 0.32, 0.38, 0.73, 0.57)
+flam_scores$laby <- c(0.02, -0.4, 1.38, -1.32, -0.65, -0.33, 0.13, 1.8)
 
 es.vs.flam <- ggplot(data=flam_scores) +
-  geom_point(aes(x=es.score, y=flam.score, color=species), size=8.5, alpha=0.75) + 
-  geom_text(vjust=0, hjust=-0.15, aes(x=labx, y=laby, label=species), fontface = 'bold', size = 8) +
-  labs(x = 'Desirable Traits', y = 'Flammability') +
+  geom_point(aes(x=es.score, y=flam.score, color=species), size=12, alpha=0.75) + 
+  geom_text(vjust=0, hjust=-0.15, aes(x=labx, y=laby, label=species), fontface = 'bold', size = 12) +
+  annotate(geom = 'segment', x = -1.6, xend = 1.05, y = -2, yend = -2, linewidth = 2,
+           arrow = arrow(ends = 'both', angle = 20), color = 'gray60') + # desirability score arrow
+  annotate('text', x = 1.27, y = -2, label = 'More \nDesirable', size = 7,
+           fontface = 'bold', color = 'gray60') +
+  annotate('text', x = -1.82, y = -2, label = 'Less \nDesirable', size = 7,
+           fontface = 'bold', color = 'gray60') +
+  annotate(geom = 'segment', x = -2.2, xend = -2.2, y = -1.35, yend = 1.75, linewidth = 2,
+           arrow = arrow(ends = 'both', angle = 20), color = 'gray60') + # flammability score arrow
+  annotate('text', x = -2.18, y = 1.97, label = 'More \nFlammable', size = 7,
+           fontface = 'bold', color = 'gray60') +
+  annotate('text', x = -2.18, y = -1.57, label = 'Less \nFlammable', size = 7,
+           fontface = 'bold', color = 'gray60') +
+  labs(x = 'Desirable Traits Score', y = 'Flammability Score') +
   scale_color_manual(values = c('#00468BB2', '#ED0000B2', '#42B540B2', '#0099B4B2', '#925E9FB2', '#AD002AB2', '#ADB6B6B2', '#1B1919B2')) +
   theme_bw() +
+  scale_y_continuous(limits = c(-2, 2)) +
+  scale_x_continuous(limits = c(-2.22, 1.3)) +
   theme(legend.position = 'none',
-          axis.title = element_text(face = 'bold', size = 22),
-          #axis.text = element_blank(),
+          axis.title = element_text(face = 'bold', size = 36),
+          axis.text = element_blank(),
           axis.ticks = element_blank(),
-          axis.text = element_text(size = 18))
+          panel.grid = element_blank())
+          #axis.text = element_text(size = 22))
 es.vs.flam
 ```
 
 # Arranged Main Figure
 ```{r}
-plot_grid(es.vs.flam, flam.triangles, labels = c('A', 'B'), nrow = 1, rel_widths = c(3, 2), label_size = 25, greedy = F)
-ggsave(file = here('figures', 'main_figures', 'conceptual_plot.png'), height = 8, width = 20)
+plot_grid(es.vs.flam, flam.triangles, labels = c('a', 'b'), nrow = 1, rel_widths = c(3, 2), label_size = 50, greedy = F)
+ggsave(file = here('figures', 'main_figures', 'conceptual_plot.png'), height = 10, width = 25)
 ```
 
